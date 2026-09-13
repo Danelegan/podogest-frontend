@@ -2,6 +2,7 @@ import { useState } from 'react'
 import Navbar from './components/Navbar'
 import HeroSection from './components/HeroSection'
 import ServicesSection from './components/ServicesSection'
+import AboutSection from './components/AboutSection'
 import BookingModal from './components/BookingModal'
 
 function App() {
@@ -15,6 +16,7 @@ function App() {
       <Navbar onOpenBooking={openBookingModal} />
       <HeroSection onOpenBooking={openBookingModal} />
       <ServicesSection />
+      <AboutSection />
       <BookingModal isOpen={isModalOpen} onClose={closeBookingModal} />
     </>
   )
