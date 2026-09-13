@@ -7,6 +7,7 @@ const servicesData = [
     description:
       'Evaluación y cuidado completo de tus pies, con protocolos clínicos pensados para tu bienestar general.',
     imagePath: 'atencion_integral.jpeg',
+    price: '$20.000',
   },
   {
     id: 'onicomicosis',
@@ -14,6 +15,7 @@ const servicesData = [
     description:
       'Diagnóstico y tratamiento de hongos en las uñas con técnicas que cuidan tu piel y previenen recaídas.',
     imagePath: 'Onicomicosis.jpeg',
+    price: '$25.000',
   },
   {
     id: 'pie-diabetico',
@@ -21,6 +23,7 @@ const servicesData = [
     description:
       'Control y prevención especializado para pacientes diabéticos, reduciendo el riesgo de complicaciones.',
     imagePath: 'Pie_diabetico.jpeg',
+    price: '$30.000',
   },
   {
     id: 'onicocriptosis',
@@ -28,6 +31,7 @@ const servicesData = [
     description:
       'Corrección de uñas encarnadas para aliviar el dolor y evitar infecciones a futuro.',
     imagePath: 'Onicocriptosis.jpeg',
+    price: '$22.000',
   },
   {
     id: 'Dermatomicosis',
@@ -35,6 +39,7 @@ const servicesData = [
     description:
       'Tratamiento especializado para el tratamiento de dermatomicosis (hongos) en los pies.',
     imagePath: 'dermatomicosis.jpeg',
+    price: '$25.000',
   },
   {
     id: 'Masoterapia y reflexología ',
@@ -42,6 +47,7 @@ const servicesData = [
     description:
       'Sesión de relajación y estimulación circulatoria para aliviar la tensión acumulada en tus pies.',
     imagePath: 'reflexologia.jpeg',
+    price: '$35.000',
   },
 
   {
@@ -50,6 +56,7 @@ const servicesData = [
     description:
       'Tratamiento especializado para la reconstrucción de uñas dañadas.',
     imagePath: 'reconstruccion.jpeg',
+    price: '$28.000',
   },
 
   {
@@ -58,6 +65,7 @@ const servicesData = [
     description:
       'Tratamiento seguro de verrugas en la planta del pie, con seguimiento hasta su eliminación completa.',
     imagePath: 'verrugas.jpeg',
+    price: '$25.000',
   },
 
   {
@@ -66,10 +74,11 @@ const servicesData = [
     description:
       'Tratamiento especializado para la eliminación de durezas, callos y helomas en los pies.',
     imagePath: 'Callos.jpeg',
+    price: '$20.000',
   },
 ]
 
-function ServiceCard({ title, description, imagePath }) {
+function ServiceCard({ title, description, imagePath, price }) {
   return (
     <article className="service-card">
       <div className="service-card__image-wrapper">
@@ -79,6 +88,7 @@ function ServiceCard({ title, description, imagePath }) {
           className="service-card__image"
           loading="lazy"
         />
+        {price && <span className="service-card__price">{price}</span>}
       </div>
       <h3 className="service-card__title">{title}</h3>
       <p className="service-card__description">{description}</p>

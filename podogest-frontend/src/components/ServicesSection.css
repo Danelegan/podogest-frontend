@@ -41,7 +41,7 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 1.75rem;
-  align-items: start;
+  align-items: stretch;
 }
 
 .service-card {
@@ -51,6 +51,7 @@
   padding: 1.75rem;
   display: flex;
   flex-direction: column;
+  height: 100%;
   transition: box-shadow 0.2s ease, transform 0.2s ease;
 }
 
@@ -60,6 +61,7 @@
 }
 
 .service-card__image-wrapper {
+  position: relative;
   width: 100%;
   aspect-ratio: 16 / 9;
   border-radius: 12px;
@@ -73,6 +75,20 @@
   height: 100%;
   object-fit: cover;
   display: block;
+}
+
+.service-card__price {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  background: #e0f2fe;
+  color: #0c4a6e;
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0.4rem 0.7rem;
+  border-radius: 999px;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.12);
 }
 
 .service-card__title {
@@ -98,7 +114,7 @@
   .services__grid {
     display: flex;
     grid-template-columns: unset;
-    align-items: flex-start;
+    align-items: stretch;
     gap: 1.25rem;
     overflow-x: auto;
     scroll-snap-type: x mandatory;
