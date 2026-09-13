@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { ChevronLeft } from 'lucide-react'
 import './BookingModal.css'
 
 const WEEKDAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
@@ -269,7 +270,8 @@ function BookingModal({ isOpen, onClose }) {
                   className="booking-modal__back"
                   onClick={() => setStep(1)}
                 >
-                  ← Volver al calendario
+                  <ChevronLeft className="booking-modal__back-icon" strokeWidth={2.5} />
+                  Volver al calendario
                 </button>
                 <p className="booking-modal__times-label">
                   Horas disponibles para el {selectedDay} de {monthLabel}
@@ -296,7 +298,8 @@ function BookingModal({ isOpen, onClose }) {
                   className="booking-modal__back"
                   onClick={() => setStep(2)}
                 >
-                  ← Volver a las horas
+                  <ChevronLeft className="booking-modal__back-icon" strokeWidth={2.5} />
+                  Volver a las horas
                 </button>
                 <p className="booking-modal__times-label">
                   {selectedDay} de {monthLabel} · {selectedTime}

@@ -183,9 +183,13 @@
 }
 
 .booking-modal__back {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
   border: none;
   background: none;
   color: #0891b2;
+  font-family: inherit;
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
@@ -195,6 +199,12 @@
 
 .booking-modal__back:hover {
   text-decoration: underline;
+}
+
+.booking-modal__back-icon {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
 }
 
 /* Step 1: calendar */
