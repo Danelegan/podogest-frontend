@@ -4,6 +4,7 @@ import HeroSection from './components/HeroSection'
 import ServicesSection from './components/ServicesSection'
 import AboutSection from './components/AboutSection'
 import BookingModal from './components/BookingModal'
+import Footer from './components/Footer'
 
 function App() {
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -18,6 +19,7 @@ function App() {
       <ServicesSection />
       <AboutSection />
       <BookingModal isOpen={isModalOpen} onClose={closeBookingModal} />
+      <Footer />
     </>
   )
 }
