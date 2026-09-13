@@ -1,4 +1,5 @@
-import { Camera, MessageCircle, Phone, Mail, MapPin } from 'lucide-react'
+import { FaInstagram, FaWhatsapp } from 'react-icons/fa'
+import { Phone, Mail, MapPin } from 'lucide-react'
 import './Footer.css'
 
 const SCHEDULE = [
@@ -21,22 +22,18 @@ function Footer() {
           </p>
           <div className="footer__socials">
             <a
-              href="https://instagram.com/podogest"
-              className="footer__social-link"
+              href="#"
+              className="footer__social-link footer__social-link--instagram"
               aria-label="Síguenos en Instagram"
-              target="_blank"
-              rel="noopener noreferrer"
             >
-              <Camera size={18} strokeWidth={2} />
+              <FaInstagram size={18} />
             </a>
             <a
-              href="https://wa.me/56972836396"
-              className="footer__social-link"
+              href="#"
+              className="footer__social-link footer__social-link--whatsapp"
               aria-label="Escríbenos por WhatsApp"
-              target="_blank"
-              rel="noopener noreferrer"
             >
-              <MessageCircle size={18} strokeWidth={2} />
+              <FaWhatsapp size={18} />
             </a>
           </div>
         </div>

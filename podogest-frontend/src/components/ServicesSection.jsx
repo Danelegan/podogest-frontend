@@ -1,60 +1,87 @@
-import { useState } from 'react'
 import './ServicesSection.css'
 
-const SERVICES = [
+const servicesData = [
   {
-    id: 'corte-clinico',
-    icon: '🦶',
-    title: 'Corte Clínico',
+    id: 'atencion-integral',
+    title: 'Atención Integral',
     description:
-      'Corte de uñas seguro e higiénico, realizado con instrumental esterilizado para prevenir lesiones.',
+      'Evaluación y cuidado completo de tus pies, con protocolos clínicos pensados para tu bienestar general.',
+    imagePath: 'atencion_integral.jpeg',
   },
   {
-    id: 'tratamiento-hongos',
-    icon: '🧴',
-    title: 'Tratamiento de Hongos',
+    id: 'onicomicosis',
+    title: 'Onicomicosis',
     description:
-      'Diagnóstico y tratamiento de onicomicosis con protocolos clínicos que cuidan tu piel.',
+      'Diagnóstico y tratamiento de hongos en las uñas con técnicas que cuidan tu piel y previenen recaídas.',
+    imagePath: 'Onicomicosis.jpeg',
   },
   {
-    id: 'una-encarnada',
-    icon: '💉',
-    title: 'Uña Encarnada',
+    id: 'pie-diabetico',
+    title: 'Pie Diabético',
+    description:
+      'Control y prevención especializado para pacientes diabéticos, reduciendo el riesgo de complicaciones.',
+    imagePath: 'Pie_diabetico.jpeg',
+  },
+  {
+    id: 'onicocriptosis',
+    title: 'Onicocriptosis',
     description:
       'Corrección de uñas encarnadas para aliviar el dolor y evitar infecciones a futuro.',
+    imagePath: 'Onicocriptosis.jpeg',
+  },
+  {
+    id: 'Dermatomicosis',
+    title: 'Dermatomicosis',
+    description:
+      'Tratamiento especializado para el tratamiento de dermatomicosis (hongos) en los pies.',
+    imagePath: 'dermatomicosis.jpeg',
+  },
+  {
+    id: 'Masoterapia y reflexología ',
+    title: 'Reflexología y Masoterapia',
+    description:
+      'Sesión de relajación y estimulación circulatoria para aliviar la tensión acumulada en tus pies.',
+    imagePath: 'reflexologia.jpeg',
+  },
+
+  {
+    id: 'Reconstrucción Ungeal',
+    title: 'Reconstrucción Ungeal',
+    description:
+      'Tratamiento especializado para la reconstrucción de uñas dañadas.',
+    imagePath: 'reconstruccion.jpeg',
+  },
+
+  {
+    id: 'verrugas-plantares',
+    title: 'Verrugas Plantares',
+    description:
+      'Tratamiento seguro de verrugas en la planta del pie, con seguimiento hasta su eliminación completa.',
+    imagePath: 'verrugas.jpeg',
+  },
+
+  {
+    id: 'Deslaminación de Durezas y Helomas',
+    title: 'Deslaminación de Durezas y Helomas',
+    description:
+      'Tratamiento especializado para la eliminación de durezas, callos y helomas en los pies.',
+    imagePath: 'Callos.jpeg',
   },
 ]
 
-function ServiceCard({ icon, title, description }) {
-  const [isOpen, setIsOpen] = useState(false)
-
+function ServiceCard({ title, description, imagePath }) {
   return (
     <article className="service-card">
-      <div className="service-card__icon" aria-hidden="true">
-        {icon}
+      <div className="service-card__image-wrapper">
+        <img
+          src={imagePath}
+          alt={title}
+          className="service-card__image"
+          loading="lazy"
+        />
       </div>
       <h3 className="service-card__title">{title}</h3>
       <p className="service-card__description">{description}</p>
-
-      <button
-        type="button"
-        className="service-card__toggle"
-        onClick={() => setIsOpen((prev) => !prev)}
-        aria-expanded={isOpen}
-      >
-        ¿Cómo identificarlo?
-        <span className={`service-card__chevron ${isOpen ? 'is-open' : ''}`}>
-          ▾
-        </span>
-      </button>
-
-      {isOpen && (
-        <div className="service-card__panel">
-          <div className="service-card__image-placeholder">
-            Imagen clínica referencial
-          </div>
-        </div>
-      )}
     </article>
   )
 }
@@ -71,7 +98,7 @@ function ServicesSection() {
         </div>
 
         <div className="services__grid">
-          {SERVICES.map((service) => (
+          {servicesData.map((service) => (
             <ServiceCard key={service.id} {...service} />
           ))}
         </div>

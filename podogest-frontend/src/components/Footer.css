@@ -69,6 +69,10 @@
   transform: translateY(-2px);
 }
 
+.footer__social-link--whatsapp:hover {
+  background-color: #25d366;
+}
+
 /* Columns 2 & 3: Headings and lists */
 .footer__heading {
   font-size: 1.05rem;

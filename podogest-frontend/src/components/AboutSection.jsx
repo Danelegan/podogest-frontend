@@ -11,9 +11,7 @@ function AboutSection() {
   return (
     <section className="about" id="nosotros">
       <div className="about__container">
-        <div className="about__image-placeholder" aria-hidden="true">
-          Fotografía de la podóloga
-        </div>
+        <img src="/foto-perfil.jpeg" alt="Fotografía de la podóloga" className="about__image" />
 
         <div className="about__content">
           <h2 className="about__title">Conoce a tu especialista</h2>
@@ -27,7 +25,7 @@ function AboutSection() {
 
           <p className="about__paragraph">
             Cada procedimiento se realiza bajo estrictos protocolos de higiene y
-            bioseguridad, mediante el uso de autoclave para la esterilización,
+            bioseguridad mediante el uso de autoclave para la esterilización,
             priorizando el bienestar del paciente en un ambiente
             cómodo, limpio y profesional pensado para tu tranquilidad.
           </p>
