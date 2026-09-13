@@ -70,7 +70,8 @@
 }
 
 .footer__social-link--whatsapp:hover {
-  background-color: #25d366;
+  background-color: rgba(37, 211, 102, 0.15);
+  color: #25d366;
 }
 
 /* Columns 2 & 3: Headings and lists */

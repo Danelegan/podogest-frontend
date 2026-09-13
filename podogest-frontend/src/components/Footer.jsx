@@ -22,16 +22,20 @@ function Footer() {
           </p>
           <div className="footer__socials">
             <a
-              href="#"
+              href="https://www.instagram.com/pasos_saludablesplus"
               className="footer__social-link footer__social-link--instagram"
               aria-label="Síguenos en Instagram"
+              target="_blank"
+              rel="noopener noreferrer"
             >
               <FaInstagram size={18} />
             </a>
             <a
-              href="#"
+              href="https://wa.me/56972836396"
               className="footer__social-link footer__social-link--whatsapp"
               aria-label="Escríbenos por WhatsApp"
+              target="_blank"
+              rel="noopener noreferrer"
             >
               <FaWhatsapp size={18} />
             </a>
@@ -73,7 +77,7 @@ function Footer() {
       </div>
 
       <div className="footer__bottom">
-        <p>© 2026 PodoGest - Desarrollado por Danelegan</p>
+        <p>© 2026 Pasos Saludables - Desarrollado por Danelegan</p>
       </div>
     </footer>
   )
