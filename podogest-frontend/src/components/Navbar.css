@@ -58,10 +58,13 @@
   background-color: #0891b2;
   color: #ffffff;
   padding: 0.65rem 1.4rem;
+  border: none;
   border-radius: 8px;
   text-decoration: none;
+  font-family: inherit;
   font-weight: 600;
   font-size: 0.95rem;
+  cursor: pointer;
   transition: background-color 0.2s ease, transform 0.2s ease;
   white-space: nowrap;
 }

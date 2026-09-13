@@ -1,10 +1,15 @@
 import { useState } from 'react'
 import './Navbar.css'
 
-function Navbar() {
+function Navbar({ onOpenBooking }) {
   const [isOpen, setIsOpen] = useState(false)
 
   const closeMenu = () => setIsOpen(false)
+
+  const handleBookingClick = () => {
+    closeMenu()
+    onOpenBooking()
+  }
 
   return (
     <header className="navbar">
@@ -36,9 +41,13 @@ function Navbar() {
               <a href="#contacto" onClick={closeMenu}>Contacto</a>
             </li>
           </ul>
-          <a href="#agendar" className="navbar__cta" onClick={closeMenu}>
+          <button
+            type="button"
+            className="navbar__cta"
+            onClick={handleBookingClick}
+          >
             Agendar Hora
-          </a>
+          </button>
         </nav>
       </div>
     </header>

@@ -1,6 +1,6 @@
 import './HeroSection.css'
 
-function HeroSection() {
+function HeroSection({ onOpenBooking }) {
   return (
     <section className="hero" id="top">
       <div className="hero__container">
@@ -13,9 +13,13 @@ function HeroSection() {
             paso que des sea firme, cómodo y sin dolor.
           </p>
           <div className="hero__actions">
-            <a href="#agendar" className="hero__btn hero__btn--primary">
+            <button
+              type="button"
+              className="hero__btn hero__btn--primary"
+              onClick={onOpenBooking}
+            >
               Reserva tu cita
-            </a>
+            </button>
             <a href="#servicios" className="hero__btn hero__btn--secondary">
               Conoce nuestros servicios
             </a>
