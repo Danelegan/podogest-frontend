@@ -72,7 +72,19 @@ function Footer() {
             <MapPin size={16} strokeWidth={2} />
             Av. José Joaquín Pérez 4435, Quinta Normal, Santiago, Chile
           </p>
-          <div className="footer__map-placeholder">Mapa Interactivo</div>
+          <div className="footer__map-placeholder">
+            <iframe
+              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3329.683499213773!2d-70.69840248873771!3d-33.431494996430736!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x9662c4152b181411%3A0xe049811f8493a61a!2sAv.%20Jos%C3%A9%20Joaqu%C3%ADn%20P%C3%A9rez%204435%2C%208500124%20Quinta%20Normal%2C%20Regi%C3%B3n%20Metropolitana!5e0!3m2!1ses-419!2scl!4v1789690410363!5m2!1ses-419!2scl"
+              width="100%"
+              height="100%"
+              style={{ border: 0 }}
+              allowFullScreen
+              loading="lazy"
+              referrerPolicy="strict-origin-when-cross-origin"
+              title="Ubicación en el mapa"
+            ></iframe>
+          </div>
+
         </div>
       </div>
 
