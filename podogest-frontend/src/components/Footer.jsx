@@ -10,7 +10,7 @@ const SCHEDULE = [
 
 function Footer() {
   return (
-    <footer className="footer">
+    <footer className="footer" id="contacto">
       <div className="footer__container">
         <div className="footer__col footer__brand">
           <p className="footer__logo">

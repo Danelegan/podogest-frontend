@@ -78,6 +78,49 @@ const servicesData = [
   },
 ]
 
+const specialtiesData = [
+  {
+    id: 'helomas',
+    title: 'Helomas',
+    description:
+      'Eliminación de helomas (ojos de gallo) con técnicas indoloras que alivian la presión y previenen su reaparición.',
+    imagePath: 'Callos.jpeg',
+    price: '$18.000',
+  },
+  {
+    id: 'ortonixia',
+    title: 'Ortonixia',
+    description:
+      'Corrección ortopédica de uñas mediante brackets y técnicas no invasivas, ideal para uñas encarnadas recurrentes.',
+    imagePath: 'Onicocriptosis.jpeg',
+    price: '$32.000',
+  },
+  {
+    id: 'bromhidrosis',
+    title: 'Bromhidrosis',
+    description:
+      'Tratamiento del mal olor podal mediante protocolos higiénicos y clínicos especializados.',
+    imagePath: 'reflexologia.jpeg',
+    price: '$24.000',
+  },
+  {
+    id: 'hiperhidrosis',
+    title: 'Hiperhidrosis',
+    description:
+      'Control de la sudoración excesiva en los pies con tratamientos clínicos que mejoran tu calidad de vida.',
+    imagePath: 'atencion_integral.jpeg',
+    price: '$26.000',
+  },
+  {
+    id: 'hiperqueratosis',
+    title: 'Hiperqueratosis',
+    description:
+      'Reducción del engrosamiento excesivo de la piel plantar para devolver suavidad y comodidad a tus pies.',
+    imagePath: 'reconstruccion.jpeg',
+    price: '$20.000',
+  },
+]
+
 function ServiceCard({ title, description, imagePath, price }) {
   return (
     <article className="service-card">
@@ -110,6 +153,16 @@ function ServicesSection() {
         <div className="services__grid">
           {servicesData.map((service) => (
             <ServiceCard key={service.id} {...service} />
+          ))}
+        </div>
+
+        <div className="services__divider" role="separator" />
+
+        <h3 className="services__subheading">Especialidades</h3>
+
+        <div className="services__grid services__grid--specialties">
+          {specialtiesData.map((specialty) => (
+            <ServiceCard key={specialty.id} {...specialty} />
           ))}
         </div>
       </div>

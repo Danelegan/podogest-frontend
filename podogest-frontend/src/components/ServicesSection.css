@@ -36,6 +36,24 @@
   margin: 0;
 }
 
+.services__divider {
+  width: 100%;
+  max-width: 220px;
+  height: 3px;
+  margin: 3.5rem auto 0.75rem;
+  background: linear-gradient(90deg, transparent, #0891b2, transparent);
+  border-radius: 999px;
+}
+
+.services__subheading {
+  text-align: center;
+  font-size: clamp(1.4rem, 2.4vw, 1.9rem);
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+  margin: 0 0 2rem;
+}
+
 /* Desktop: grid layout */
 .services__grid {
   display: grid;
@@ -107,6 +125,19 @@
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* Especialidades: centrar la última fila (5 tarjetas = 3 + 2) */
+@media (min-width: 901px) {
+  .services__grid--specialties {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .services__grid--specialties .service-card {
+    flex: 0 1 calc(33.333% - 1.1667rem);
+  }
 }
 
 /* Mobile: horizontal scroll slider */

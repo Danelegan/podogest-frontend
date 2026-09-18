@@ -16,15 +16,18 @@
 }
 
 .navbar__logo {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #0f172a;
+  display: flex;
+  align-items: flex-start;
   text-decoration: none;
-  letter-spacing: -0.02em;
+  height: 44px;
+  overflow: hidden;
 }
 
-.navbar__logo span {
-  color: #0891b2;
+.navbar__logo-img {
+  height: 47px;
+  width: auto;
+  display: block;
+  margin-top: -3px;
 }
 
 .navbar__nav {

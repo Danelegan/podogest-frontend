@@ -15,7 +15,7 @@ function Navbar({ onOpenBooking }) {
     <header className="navbar">
       <div className="navbar__container">
         <a href="#top" className="navbar__logo" onClick={closeMenu}>
-          Podo<span>Gest</span>
+          <img src="/logo.jpeg" alt="Pasos Saludables" className="navbar__logo-img" />
         </a>
 
         <button
