@@ -9,16 +9,30 @@ import Footer from './components/Footer'
 function App() {
   const [isModalOpen, setIsModalOpen] = useState(false)
 
+  const [selectedService, setSelectedService] = useState('')
+
   const openBookingModal = () => setIsModalOpen(true)
-  const closeBookingModal = () => setIsModalOpen(false)
+  const requestService = (title) => {
+    setSelectedService(title)
+    setIsModalOpen(true)
+  }
+  const closeBookingModal = () => {
+    setIsModalOpen(false)
+    setSelectedService('')
+  }
 
   return (
     <>
       <Navbar onOpenBooking={openBookingModal} />
       <HeroSection onOpenBooking={openBookingModal} />
-      <ServicesSection />
+      <ServicesSection onRequestService={requestService} />
       <AboutSection />
-      <BookingModal isOpen={isModalOpen} onClose={closeBookingModal} />
+      <BookingModal
+        key={selectedService}
+        isOpen={isModalOpen}
+        onClose={closeBookingModal}
+        initialService={selectedService}
+      />
       <Footer />
     </>
   )

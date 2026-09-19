@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ChevronLeft } from 'lucide-react'
+import { servicesData, specialtiesData } from '../data/services'
 import './BookingModal.css'
 
 const WEEKDAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
@@ -19,9 +20,8 @@ const TIME_SLOTS = [
 ]
 
 const SERVICE_OPTIONS = [
-  'Corte Clínico (Podología Integral)',
-  'Tratamiento de Onicomicosis (Hongos)',
-  'Tratamiento de Onicocriptosis (Uña Encarnada)',
+  ...servicesData.map((service) => service.title),
+  ...specialtiesData.map((service) => service.title),
   'Evaluación General',
 ]
 
@@ -41,7 +41,7 @@ function buildMonthGrid(referenceDate) {
   return cells
 }
 
-function BookingModal({ isOpen, onClose }) {
+function BookingModal({ isOpen, onClose, initialService = '' }) {
   const today = new Date()
   const monthLabel = today.toLocaleDateString('es-ES', {
     month: 'long',
@@ -52,7 +52,10 @@ function BookingModal({ isOpen, onClose }) {
   const [step, setStep] = useState(1)
   const [selectedDay, setSelectedDay] = useState(null)
   const [selectedTime, setSelectedTime] = useState(null)
-  const [formData, setFormData] = useState(INITIAL_FORM)
+  const [formData, setFormData] = useState({
+    ...INITIAL_FORM,
+    motivo: initialService,
+  })
   const [isConfirmed, setIsConfirmed] = useState(false)
 
   useEffect(() => {
@@ -156,9 +159,8 @@ function BookingModal({ isOpen, onClose }) {
 
             <ol className="booking-modal__steps">
               <li
-                className={`booking-modal__step ${
-                  step === 1 ? 'is-active' : ''
-                } ${selectedDay != null ? 'is-done' : ''}`}
+                className={`booking-modal__step ${step === 1 ? 'is-active' : ''
+                  } ${selectedDay != null ? 'is-done' : ''}`}
                 onClick={() => goToStep(1)}
               >
                 <span className="booking-modal__step-index">1</span>
@@ -173,9 +175,8 @@ function BookingModal({ isOpen, onClose }) {
               </li>
 
               <li
-                className={`booking-modal__step ${
-                  step === 2 ? 'is-active' : ''
-                } ${selectedTime ? 'is-done' : ''}`}
+                className={`booking-modal__step ${step === 2 ? 'is-active' : ''
+                  } ${selectedTime ? 'is-done' : ''}`}
                 onClick={() => goToStep(2)}
               >
                 <span className="booking-modal__step-index">2</span>
@@ -188,9 +189,8 @@ function BookingModal({ isOpen, onClose }) {
               </li>
 
               <li
-                className={`booking-modal__step ${
-                  step === 3 ? 'is-active' : ''
-                } ${isConfirmed ? 'is-done' : ''}`}
+                className={`booking-modal__step ${step === 3 ? 'is-active' : ''
+                  } ${isConfirmed ? 'is-done' : ''}`}
               >
                 <span className="booking-modal__step-index">3</span>
                 <div>
@@ -249,11 +249,9 @@ function BookingModal({ isOpen, onClose }) {
                       <button
                         type="button"
                         key={index}
-                        className={`booking-modal__day ${
-                          day == null ? 'is-empty' : ''
-                        } ${isPast ? 'is-disabled' : ''} ${
-                          isToday ? 'is-today' : ''
-                        } ${isSelected ? 'is-selected' : ''}`}
+                        className={`booking-modal__day ${day == null ? 'is-empty' : ''
+                          } ${isPast ? 'is-disabled' : ''} ${isToday ? 'is-today' : ''
+                          } ${isSelected ? 'is-selected' : ''}`}
                         disabled={day == null || isPast}
                         onClick={() => handleDayClick(day)}
                       >
@@ -281,9 +279,8 @@ function BookingModal({ isOpen, onClose }) {
                     <button
                       type="button"
                       key={time}
-                      className={`booking-modal__time ${
-                        time === selectedTime ? 'is-selected' : ''
-                      }`}
+                      className={`booking-modal__time ${time === selectedTime ? 'is-selected' : ''
+                        }`}
                       onClick={() => handleTimeClick(time)}
                     >
                       {time}

@@ -127,6 +127,34 @@
   overflow: hidden;
 }
 
+.service-card__cta {
+  margin-top: auto;
+  align-self: stretch;
+  padding: 0.7rem 1rem;
+  border: none;
+  border-radius: 10px;
+  background: #0891b2;
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.service-card__description {
+  margin-bottom: 1.25rem;
+}
+
+.service-card__cta:hover {
+  background: #0e7490;
+  transform: translateY(-1px);
+}
+
+.service-card__cta:focus-visible {
+  outline: 3px solid #bae6fd;
+  outline-offset: 2px;
+}
+
 /* Especialidades: centrar la última fila (5 tarjetas = 3 + 2) */
 @media (min-width: 901px) {
   .services__grid--specialties {
