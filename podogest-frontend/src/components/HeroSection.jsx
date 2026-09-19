@@ -20,14 +20,23 @@ function HeroSection({ onOpenBooking }) {
             >
               Reserva tu cita
             </button>
-            <a href="#servicios" className="hero__btn hero__btn--secondary">
-              Conoce nuestros servicios
+            <a
+              href="https://wa.me/56972836396"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hero__btn hero__btn--secondary"
+            >
+              Haz tu consulta
             </a>
           </div>
         </div>
 
-        <div className="hero__visual" aria-hidden="true">
-          <div className="hero__blob"></div>
+        <div className="hero__visual">
+          <img
+            src="/public/foto2.jpeg"
+            alt="Atención podológica profesional"
+            className="hero__image"
+          />
         </div>
       </div>
     </section>

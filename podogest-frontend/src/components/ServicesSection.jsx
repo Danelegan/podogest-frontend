@@ -80,11 +80,11 @@ const servicesData = [
 
 const specialtiesData = [
   {
-    id: 'helomas',
-    title: 'Helomas',
+    id: 'vendaje neuromuscular ',
+    title: 'Vendaje Neuromuscular ',
     description:
-      'Eliminación de helomas (ojos de gallo) con técnicas indoloras que alivian la presión y previenen su reaparición.',
-    imagePath: 'Callos.jpeg',
+      'Aplicación de cintas elásticas con técnicas terapéuticas que alivian el dolor y facilitan la recuperación muscular.',
+    imagePath: 'vendajes.jpg',
     price: '$18.000',
   },
   {
@@ -92,7 +92,7 @@ const specialtiesData = [
     title: 'Ortonixia',
     description:
       'Corrección ortopédica de uñas mediante brackets y técnicas no invasivas, ideal para uñas encarnadas recurrentes.',
-    imagePath: 'Onicocriptosis.jpeg',
+    imagePath: 'ortonixia.jpeg',
     price: '$32.000',
   },
   {
@@ -100,7 +100,7 @@ const specialtiesData = [
     title: 'Bromhidrosis',
     description:
       'Tratamiento del mal olor podal mediante protocolos higiénicos y clínicos especializados.',
-    imagePath: 'reflexologia.jpeg',
+    imagePath: 'mal_olor.jpg',
     price: '$24.000',
   },
   {
@@ -108,7 +108,7 @@ const specialtiesData = [
     title: 'Hiperhidrosis',
     description:
       'Control de la sudoración excesiva en los pies con tratamientos clínicos que mejoran tu calidad de vida.',
-    imagePath: 'atencion_integral.jpeg',
+    imagePath: 'hiperhidrosis-plantar.jpg',
     price: '$26.000',
   },
   {
@@ -116,7 +116,7 @@ const specialtiesData = [
     title: 'Hiperqueratosis',
     description:
       'Reducción del engrosamiento excesivo de la piel plantar para devolver suavidad y comodidad a tus pies.',
-    imagePath: 'reconstruccion.jpeg',
+    imagePath: 'elomas.jpg',
     price: '$20.000',
   },
 ]
