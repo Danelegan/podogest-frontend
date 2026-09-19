@@ -25,7 +25,9 @@ const SERVICE_OPTIONS = [
   'Evaluación General',
 ]
 
-const INITIAL_FORM = { nombre: '', rut: '', telefono: '', motivo: '' }
+const API_URL = 'http://127.0.0.1:8000/api/appointments/'
+
+const INITIAL_FORM ={ nombre: '', rut: '', telefono: '', motivo: '' }
 
 function buildMonthGrid(referenceDate) {
   const year = referenceDate.getFullYear()
@@ -57,6 +59,8 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
     motivo: initialService,
   })
   const [isConfirmed, setIsConfirmed] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [errorMessage, setErrorMessage] = useState('')
 
   useEffect(() => {
     if (!isOpen) return undefined
@@ -93,9 +97,51 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault()
-    setIsConfirmed(true)
+    setIsLoading(true)
+    setErrorMessage('')
+
+    const appointmentDate = `${today.getFullYear()}-${String(
+      today.getMonth() + 1,
+    ).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}`
+
+    const payload = {
+      patient_name: formData.nombre,
+      rut: formData.rut,
+      phone: formData.telefono,
+      service_type: formData.motivo,
+      appointment_date: appointmentDate,
+      appointment_time: selectedTime,
+    }
+
+    try {
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+
+      if (response.status === 201) {
+        setIsConfirmed(true)
+      } else {
+        let detail = ''
+        try {
+          detail = JSON.stringify(await response.json())
+        } catch {
+          // response body was not JSON
+        }
+        setErrorMessage(
+          `No pudimos agendar tu hora (error ${response.status}). ${detail}`.trim(),
+        )
+      }
+    } catch {
+      setErrorMessage(
+        'No se pudo conectar con el servidor. Verifica tu conexión e inténtalo nuevamente.',
+      )
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleReset = () => {
@@ -357,8 +403,18 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
                   </select>
                 </label>
 
-                <button type="submit" className="booking-modal__submit">
-                  Confirmar Reserva
+                {errorMessage && (
+                  <p className="booking-modal__error" role="alert">
+                    {errorMessage}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  className="booking-modal__submit"
+                  disabled={isLoading}
+                >
+                  {isLoading ? 'Enviando...' : 'Confirmar Reserva'}
                 </button>
               </form>
             )}

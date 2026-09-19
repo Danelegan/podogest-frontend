@@ -379,6 +379,22 @@
   transform: translateY(-1px);
 }
 
+.booking-modal__submit:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.booking-modal__error {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 0.9rem;
+  word-break: break-word;
+}
+
 /* Confirmation state */
 .booking-modal__confirmation {
   text-align: center;

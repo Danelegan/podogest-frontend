@@ -33,7 +33,7 @@ function HeroSection({ onOpenBooking }) {
 
         <div className="hero__visual">
           <img
-            src="/public/foto2.jpeg"
+            src="/foto2.jpeg"
             alt="Atención podológica profesional"
             className="hero__image"
           />
