@@ -25,9 +25,9 @@ const SERVICE_OPTIONS = [
   'Evaluación General',
 ]
 
-const API_URL = 'http://127.0.0.1:8000/api/appointments/'
+const API_URL = 'https://podogest-backend.onrender.com/api/appointments/'
 
-const INITIAL_FORM ={ nombre: '', rut: '', telefono: '', motivo: '' }
+const INITIAL_FORM = { nombre: '', rut: '', telefono: '', motivo: '' }
 
 function buildMonthGrid(referenceDate) {
   const year = referenceDate.getFullYear()
