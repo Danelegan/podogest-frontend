@@ -75,7 +75,12 @@ function Dashboard() {
   return (
     <div className="dashboard">
       <header className="dashboard__header">
-        <h1 className="dashboard__title">Panel de Administración</h1>
+        <div className="dashboard__heading">
+          <button type="button" className="dashboard__back" onClick={() => navigate('/')}>
+            ← Ir al sitio web
+          </button>
+          <h1 className="dashboard__title">Panel de Administración</h1>
+        </div>
         <button type="button" className="dashboard__logout" onClick={handleLogout}>
           Cerrar Sesión
         </button>

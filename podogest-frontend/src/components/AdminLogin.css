@@ -6,12 +6,35 @@
 }
 
 .admin-login {
+  position: relative;
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1.5rem;
+  padding: 4rem 1.5rem 1.5rem;
   background: #f0fbfc;
+}
+
+.admin-login__back {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  min-height: 44px;
+  padding: 0 0.75rem;
+  border: none;
+  background: none;
+  color: #0e7490;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  opacity: 0.8;
+  transition: opacity 0.2s ease;
+}
+
+.admin-login__back:hover,
+.admin-login__back:focus-visible {
+  opacity: 1;
 }
 
 .admin-login__card {

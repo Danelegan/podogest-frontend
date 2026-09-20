@@ -48,6 +48,10 @@ function AdminLogin() {
 
   return (
     <main className="admin-login">
+      <button type="button" className="admin-login__back" onClick={() => navigate('/')}>
+        ← Volver al inicio
+      </button>
+
       <form className="admin-login__card" onSubmit={handleSubmit}>
         <h1 className="admin-login__title">Panel de Administración</h1>
         <p className="admin-login__subtitle">Inicia sesión para continuar</p>
