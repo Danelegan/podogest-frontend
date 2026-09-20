@@ -27,7 +27,19 @@ const SERVICE_OPTIONS = [
 
 const API_URL = 'https://podogest-backend.onrender.com/api/appointments/'
 
-const INITIAL_FORM = { nombre: '', rut: '', telefono: '', motivo: '' }
+const BUSY_SLOTS_URL =
+  'https://podogest-backend.onrender.com/api/appointments/horarios-ocupados/'
+
+const formatDate = (year, monthIndex, day) =>
+  `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+
+const INITIAL_FORM = {
+  nombre: '',
+  rut: '',
+  telefono: '',
+  email: '',
+  motivo: '',
+}
 
 function buildMonthGrid(referenceDate) {
   const year = referenceDate.getFullYear()
@@ -61,6 +73,35 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
   const [isConfirmed, setIsConfirmed] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+  const [busySlots, setBusySlots] = useState([])
+
+  useEffect(() => {
+    if (!isOpen) return undefined
+
+    const controller = new AbortController()
+
+    const loadBusySlots = async () => {
+      try {
+        const response = await fetch(BUSY_SLOTS_URL, {
+          signal: controller.signal,
+        })
+        if (!response.ok) return
+        const data = await response.json()
+        // Backend sends "10:00:00"; trim seconds to match "10:00" slots.
+        setBusySlots(
+          data.map(({ appointment_date, appointment_time }) => ({
+            date: appointment_date,
+            time: appointment_time.slice(0, 5),
+          })),
+        )
+      } catch {
+        // Network error or aborted: leave all slots enabled.
+      }
+    }
+
+    loadBusySlots()
+    return () => controller.abort()
+  }, [isOpen])
 
   useEffect(() => {
     if (!isOpen) return undefined
@@ -79,6 +120,16 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
   }, [isOpen, onClose])
 
   if (!isOpen) return null
+
+  const selectedDate =
+    selectedDay != null
+      ? formatDate(today.getFullYear(), today.getMonth(), selectedDay)
+      : null
+
+  const isSlotBusy = (time) =>
+    busySlots.some(
+      (slot) => slot.date === selectedDate && slot.time === time,
+    )
 
   const handleDayClick = (day) => {
     if (day == null || day < today.getDate()) return
@@ -102,14 +153,13 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
     setIsLoading(true)
     setErrorMessage('')
 
-    const appointmentDate = `${today.getFullYear()}-${String(
-      today.getMonth() + 1,
-    ).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}`
+    const appointmentDate = selectedDate
 
     const payload = {
       patient_name: formData.nombre,
       rut: formData.rut,
       phone: formData.telefono,
+      email: formData.email,
       service_type: formData.motivo,
       appointment_date: appointmentDate,
       appointment_time: selectedTime,
@@ -327,6 +377,7 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
                       key={time}
                       className={`booking-modal__time ${time === selectedTime ? 'is-selected' : ''
                         }`}
+                      disabled={isSlotBusy(time)}
                       onClick={() => handleTimeClick(time)}
                     >
                       {time}
@@ -380,6 +431,18 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
                     value={formData.telefono}
                     onChange={handleFormChange}
                     placeholder="Ej: +56 9 1234 5678"
+                    required
+                  />
+                </label>
+
+                <label className="booking-modal__field">
+                  Correo electrónico
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleFormChange}
+                    placeholder="Ej: maria@correo.com"
                     required
                   />
                 </label>
