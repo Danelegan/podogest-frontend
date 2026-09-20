@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ChevronLeft } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
+import { validarRut } from '../utils/rutValidation'
 import { servicesData, specialtiesData } from '../data/services'
 import './BookingModal.css'
 
@@ -42,11 +43,11 @@ const INITIAL_FORM = {
   motivo: '',
 }
 
-// "252370927" -> "25.237.092-7". Keeps only digits and K, max 9 characters.
 // Same address as the footer; the link opens Google Maps directions to it.
 const CLINIC_ADDRESS = 'Av. José Joaquín Pérez 4435, Quinta Normal, Santiago, Chile'
 const CLINIC_MAPS_URL = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(CLINIC_ADDRESS)}`
 
+// "252370927" -> "25.237.092-7". Keeps only digits and K, max 9 characters.
 function formatRUT(value) {
   const clean = value.replace(/[^0-9kK]/g, '').toUpperCase().slice(0, 9)
   if (clean.length <= 1) return clean
@@ -170,8 +171,14 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
 
   const handleSubmit = async (event) => {
     event.preventDefault()
-    setIsLoading(true)
     setErrorMessage('')
+
+    if (!validarRut(formData.rut)) {
+      setErrorMessage('El RUT ingresado no es válido')
+      return
+    }
+
+    setIsLoading(true)
 
     const appointmentDate = selectedDate
 
