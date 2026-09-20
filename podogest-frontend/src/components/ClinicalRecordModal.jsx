@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Eraser,
   Footprints,
+  PenTool,
   Save,
   Stethoscope,
   User,
@@ -14,6 +15,11 @@ import './ClinicalRecordModal.css'
 
 const API_URL = 'https://podogest-backend.onrender.com/api/clinical-records/'
 const TOKEN_KEY = 'podogest_token'
+
+// The podogram is stored at the end of `observaciones`: "text|||DRAWING:<data URL>".
+const DRAWING_MARK = '|||DRAWING:'
+const CANVAS_WIDTH = 400
+const CANVAS_HEIGHT = 600
 
 const GENDERS = ['Femenino', 'Masculino', 'Otro', 'Prefiero no decir']
 const CIVIL_STATUSES = [
@@ -191,6 +197,10 @@ function ClinicalRecordModal({ isOpen, onClose, appointmentId, appointment }) {
   const [isSaving, setIsSaving] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
+  const [savedDrawing, setSavedDrawing] = useState('')
+  const canvasRef = useRef(null)
+  const isDrawingRef = useRef(false)
+  const hasInkRef = useRef(false)
 
   const emptyForm = () => ({
     ...EMPTY_FORM,
@@ -220,6 +230,7 @@ function ClinicalRecordModal({ isOpen, onClose, appointmentId, appointment }) {
       setSuccessMessage('')
       setRecordId(null)
       setRest({ medical: [], symptoms: [], treatment: [] })
+      setSavedDrawing('')
       setForm({
         ...EMPTY_FORM,
         nombre: appointment?.patient_name ?? '',
@@ -257,12 +268,19 @@ function ClinicalRecordModal({ isOpen, onClose, appointmentId, appointment }) {
           symptoms: symptoms.rest,
           treatment: treatment.rest,
         })
+        const rawObservations = record.observaciones ?? ''
+        const markIndex = rawObservations.indexOf(DRAWING_MARK)
+        const observations =
+          markIndex === -1 ? rawObservations : rawObservations.slice(0, markIndex)
+        setSavedDrawing(
+          markIndex === -1 ? '' : rawObservations.slice(markIndex + DRAWING_MARK.length),
+        )
         setForm((prev) => ({
           ...prev,
           ...medical.values,
           ...symptoms.values,
           ...treatment.values,
-          observaciones: record.observaciones ?? '',
+          observaciones: observations,
         }))
       } catch (error) {
         if (error.name === 'AbortError') return
@@ -293,7 +311,78 @@ function ClinicalRecordModal({ isOpen, onClose, appointmentId, appointment }) {
     }
   }, [isOpen, onClose])
 
+  // The canvas only exists once the form is rendered (after loading), so the
+  // saved drawing is painted back here rather than in the fetch.
+  useEffect(() => {
+    if (!isOpen || isLoading) return undefined
+
+    const canvas = canvasRef.current
+    if (!canvas) return undefined
+    const ctx = canvas.getContext('2d')
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    hasInkRef.current = false
+    if (!savedDrawing) return undefined
+
+    let cancelled = false
+    const image = new Image()
+    image.onload = () => {
+      if (cancelled) return
+      ctx.drawImage(image, 0, 0, canvas.width, canvas.height)
+      hasInkRef.current = true
+    }
+    image.src = savedDrawing
+    return () => {
+      cancelled = true
+    }
+  }, [isOpen, isLoading, savedDrawing])
+
   if (!isOpen) return null
+
+  const getCanvasPoint = (event) => {
+    const canvas = canvasRef.current
+    const rect = canvas.getBoundingClientRect()
+    return {
+      x: ((event.clientX - rect.left) * canvas.width) / rect.width,
+      y: ((event.clientY - rect.top) * canvas.height) / rect.height,
+    }
+  }
+
+  const handleDrawStart = (event) => {
+    const canvas = canvasRef.current
+    const ctx = canvas.getContext('2d')
+    const { x, y } = getCanvasPoint(event)
+    canvas.setPointerCapture(event.pointerId)
+    isDrawingRef.current = true
+    hasInkRef.current = true
+    ctx.strokeStyle = '#dc2626'
+    ctx.lineWidth = 2
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+    ctx.beginPath()
+    ctx.moveTo(x, y)
+    // A click without movement still leaves a dot.
+    ctx.lineTo(x + 0.01, y)
+    ctx.stroke()
+  }
+
+  const handleDrawMove = (event) => {
+    if (!isDrawingRef.current) return
+    const ctx = canvasRef.current.getContext('2d')
+    const { x, y } = getCanvasPoint(event)
+    ctx.lineTo(x, y)
+    ctx.stroke()
+  }
+
+  const handleDrawEnd = () => {
+    isDrawingRef.current = false
+  }
+
+  const handleClearDrawing = () => {
+    const canvas = canvasRef.current
+    canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height)
+    hasInkRef.current = false
+    setSavedDrawing('')
+  }
 
   const handleChange = (event) => {
     const { name, value } = event.target
@@ -316,6 +405,7 @@ function ClinicalRecordModal({ isOpen, onClose, appointmentId, appointment }) {
 
   const handleClear = () => {
     setForm(emptyForm())
+    handleClearDrawing()
     setErrorMessage('')
     setSuccessMessage('')
   }
@@ -326,11 +416,16 @@ function ClinicalRecordModal({ isOpen, onClose, appointmentId, appointment }) {
     setErrorMessage('')
     setSuccessMessage('')
 
+    const drawing =
+      hasInkRef.current && canvasRef.current
+        ? `${DRAWING_MARK}${canvasRef.current.toDataURL('image/png')}`
+        : ''
+
     const payload = {
       antecedentes_medicos: buildLines(form, MEDICAL_KEYS, rest.medical),
       sintomas: buildLines(form, SYMPTOM_KEYS, rest.symptoms),
       tratamiento_realizado: buildLines(form, TREATMENT_KEYS, rest.treatment),
-      observaciones: form.observaciones,
+      observaciones: `${form.observaciones}${drawing}`,
     }
     const isUpdate = recordId != null
     if (!isUpdate) payload.appointment = appointmentId
@@ -612,6 +707,36 @@ function ClinicalRecordModal({ isOpen, onClose, appointmentId, appointment }) {
                 selected={form.familiares}
                 onToggle={toggleOption('familiares')}
               />
+            </Section>
+
+            <Section icon={PenTool} title="Mapa Anatómico">
+              <div className="clinical-podogram">
+                <p className="clinical-podogram__hint">
+                  Dibuja sobre el pie para marcar zonas de interés.
+                </p>
+                <div className="clinical-podogram__stage">
+                  <img
+                    className="clinical-podogram__image"
+                    src="/modelo_pie.avif"
+                    alt="Modelo anatómico del pie"
+                    draggable={false}
+                  />
+                  <canvas
+                    ref={canvasRef}
+                    className="clinical-podogram__canvas"
+                    width={CANVAS_WIDTH}
+                    height={CANVAS_HEIGHT}
+                    onPointerDown={handleDrawStart}
+                    onPointerMove={handleDrawMove}
+                    onPointerUp={handleDrawEnd}
+                    onPointerCancel={handleDrawEnd}
+                  />
+                </div>
+                <button type="button" className="clinical-btn" onClick={handleClearDrawing}>
+                  <Eraser className="clinical-btn__icon" strokeWidth={2} />
+                  Limpiar dibujo
+                </button>
+              </div>
             </Section>
 
             <Section icon={Wallet} title="Cobro">
