@@ -405,13 +405,13 @@
 }
 
 .booking-modal__confirmation h3 {
-  font-size: 1.3rem;
+  font-size: 1.75rem;
   color: #0f172a;
   margin: 0 0 0.75rem;
 }
 
 .booking-modal__confirmation p {
-  font-size: 0.95rem;
+  font-size: 1.1rem;
   color: #475569;
   line-height: 1.6;
   margin: 0 0 0.5rem;
@@ -420,6 +420,56 @@
 .booking-modal__confirmation-name {
   font-weight: 600;
   color: #0891b2 !important;
+}
+
+/* Clinic location card */
+.booking-modal__confirmation .booking-modal__location {
+  margin: 1.5rem auto 0;
+  padding: 1.25rem 1rem;
+  max-width: 480px;
+  background: #ecfeff;
+  border: 1px solid #a5f3fc;
+  border-radius: 16px;
+}
+
+.booking-modal__confirmation .booking-modal__location-label {
+  margin: 0 0 0.25rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #0e7490;
+}
+
+.booking-modal__confirmation .booking-modal__location-address {
+  margin: 0 0 1rem;
+  font-size: 1.15rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: #0f172a;
+}
+
+.booking-modal__map-btn {
+  display: block;
+  padding: 1rem 1.5rem;
+  border-radius: 999px;
+  background: #0891b2;
+  color: #ffffff;
+  font-size: 1.15rem;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.booking-modal__map-btn:hover {
+  background: #0e7490;
+  transform: translateY(-1px);
+}
+
+.booking-modal__map-btn:focus-visible {
+  outline: 3px solid #0e7490;
+  outline-offset: 3px;
 }
 
 .booking-modal__link-btn {

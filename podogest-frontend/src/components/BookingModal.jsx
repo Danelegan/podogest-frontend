@@ -43,6 +43,10 @@ const INITIAL_FORM = {
 }
 
 // "252370927" -> "25.237.092-7". Keeps only digits and K, max 9 characters.
+// Same address as the footer; the link opens Google Maps directions to it.
+const CLINIC_ADDRESS = 'Av. José Joaquín Pérez 4435, Quinta Normal, Santiago, Chile'
+const CLINIC_MAPS_URL = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(CLINIC_ADDRESS)}`
+
 function formatRUT(value) {
   const clean = value.replace(/[^0-9kK]/g, '').toUpperCase().slice(0, 9)
   if (clean.length <= 1) return clean
@@ -331,14 +335,19 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
 
           <div className="booking-modal__panel">
             {isConfirmed ? (
-              <div className="booking-modal__confirmation">
+              <motion.div
+                className="booking-modal__confirmation"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.5 }}
+              >
                 <div
                   className="booking-modal__confirmation-icon"
                   aria-hidden="true"
                 >
                   ✅
                 </div>
-                <h3>¡Reserva Confirmada!</h3>
+                <h3 className="booking-modal__confirmation-title">¡Reserva Confirmada!</h3>
                 <p>
                   Hemos agendado tu hora para el{' '}
                   <strong>
@@ -349,6 +358,20 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
                 <p className="booking-modal__confirmation-name">
                   Te esperamos, {formData.nombre || 'paciente'}.
                 </p>
+
+                <div className="booking-modal__location">
+                  <p className="booking-modal__location-label">Dónde estamos</p>
+                  <p className="booking-modal__location-address">{CLINIC_ADDRESS}</p>
+                  <a
+                    href={CLINIC_MAPS_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="booking-modal__map-btn"
+                  >
+                    📍 Cómo llegar
+                  </a>
+                </div>
+
                 <button
                   type="button"
                   className="booking-modal__link-btn"
@@ -356,7 +379,7 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
                 >
                   Reservar otra hora
                 </button>
-              </div>
+              </motion.div>
             ) : step === 1 ? (
               <div className="booking-modal__calendar">
                 <p className="booking-modal__calendar-month">{monthLabel}</p>
