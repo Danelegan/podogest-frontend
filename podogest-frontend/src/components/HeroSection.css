@@ -107,3 +107,45 @@
     max-width: 100%;
   }
 }
+
+@media (max-width: 768px) {
+  .hero {
+    padding: 2.5rem 1.25rem;
+  }
+
+  .hero__container {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+  }
+
+  /* In a column, the desktop flex-basis would be read as a height. */
+  .hero__content,
+  .hero__visual {
+    flex: none;
+    width: 100%;
+    max-width: 100%;
+    text-align: center;
+  }
+
+  .hero__actions {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    gap: 12px;
+  }
+
+  .hero__btn {
+    width: 100%;
+    box-sizing: border-box;
+    text-align: center;
+  }
+
+  .hero__visual {
+    margin-top: 2rem;
+  }
+
+  .hero__image {
+    max-width: 100%;
+    height: auto;
+  }
+}
