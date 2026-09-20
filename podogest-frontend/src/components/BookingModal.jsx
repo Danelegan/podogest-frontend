@@ -51,6 +51,12 @@ function formatRUT(value) {
   return `${body.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}-${verifier}`
 }
 
+// Name: letters (accents and ñ included), spaces, apostrophes and hyphens.
+const formatName = (value) => value.replace(/[^\p{L}\s'’-]/gu, '')
+
+// Per-field input filters. Fields not listed here are left as typed.
+const FIELD_FORMATTERS = { nombre: formatName, rut: formatRUT }
+
 function buildMonthGrid(referenceDate) {
   const year = referenceDate.getFullYear()
   const month = referenceDate.getMonth()
@@ -155,7 +161,7 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
 
   const handleFormChange = (event) => {
     const { name, value } = event.target
-    const nextValue = name === 'rut' ? formatRUT(value) : value
+    const nextValue = FIELD_FORMATTERS[name]?.(value) ?? value
     setFormData((prev) => ({ ...prev, [name]: nextValue }))
   }
 
