@@ -11,6 +11,7 @@ function Dashboard() {
   const [appointments, setAppointments] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
+  const [searchTerm, setSearchTerm] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedAppointment, setSelectedAppointment] = useState(null)
 
@@ -65,6 +66,13 @@ function Dashboard() {
     return () => controller.abort()
   }, [navigate])
 
+  const normalizedSearch = searchTerm.trim().toLowerCase()
+  const filteredAppointments = appointments.filter(
+    (appointment) =>
+      appointment.patient_name?.toLowerCase().includes(normalizedSearch) ||
+      appointment.rut?.toLowerCase().includes(normalizedSearch),
+  )
+
   return (
     <div className="dashboard">
       <header className="dashboard__header">
@@ -83,42 +91,58 @@ function Dashboard() {
       ) : appointments.length === 0 ? (
         <p className="dashboard__message">No hay citas registradas.</p>
       ) : (
-        <div className="dashboard__table-wrapper">
-          <table className="dashboard__table">
-            <thead>
-              <tr>
-                <th>Nombre</th>
-                <th>RUT/ID</th>
-                <th>Fecha</th>
-                <th>Hora</th>
-                <th>Email</th>
-                <th>Teléfono</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {appointments.map((appointment) => (
-                <tr key={appointment.id}>
-                  <td>{appointment.patient_name}</td>
-                  <td>{appointment.rut}</td>
-                  <td>{appointment.appointment_date}</td>
-                  <td>{appointment.appointment_time?.slice(0, 5)}</td>
-                  <td>{appointment.email}</td>
-                  <td>{appointment.phone}</td>
-                  <td>
-                    <button
-                      type="button"
-                      className="dashboard__action"
-                      onClick={() => openRecord(appointment)}
-                    >
-                      Ver Ficha
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <>
+          <input
+            type="text"
+            className="dashboard__search"
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            placeholder="Buscar por nombre o RUT..."
+            aria-label="Buscar por nombre o RUT"
+          />
+          {filteredAppointments.length === 0 ? (
+            <p className="dashboard__message">
+              No se encontraron citas para “{searchTerm.trim()}”.
+            </p>
+          ) : (
+            <div className="dashboard__table-wrapper">
+              <table className="dashboard__table">
+                <thead>
+                  <tr>
+                    <th>Nombre</th>
+                    <th>RUT/ID</th>
+                    <th>Fecha</th>
+                    <th>Hora</th>
+                    <th>Email</th>
+                    <th>Teléfono</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredAppointments.map((appointment) => (
+                    <tr key={appointment.id}>
+                      <td>{appointment.patient_name}</td>
+                      <td>{appointment.rut}</td>
+                      <td>{appointment.appointment_date}</td>
+                      <td>{appointment.appointment_time?.slice(0, 5)}</td>
+                      <td>{appointment.email}</td>
+                      <td>{appointment.phone}</td>
+                      <td>
+                        <button
+                          type="button"
+                          className="dashboard__action"
+                          onClick={() => openRecord(appointment)}
+                        >
+                          Ver Ficha
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
       )}
 
       <ClinicalRecordModal
