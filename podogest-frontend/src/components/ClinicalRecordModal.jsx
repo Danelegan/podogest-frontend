@@ -31,7 +31,8 @@ const PROBLEMS = [
   'Dermatomicosis',
   'Hiperqueratosis',
   'Hiperhidrosis',
-  'Onicocriptosis',
+  'Onicocriptosis Leve',
+  'Onicocriptosis Grave',
   'Onicogrifosis',
 ]
 const CONSUMES = ['Alcohol', 'Drogas', 'Antimicóticos', 'Analgésicos']
@@ -114,7 +115,12 @@ function parseLines(text, keys) {
     if (field) {
       const raw = line.slice(separator + 2)
       values[field] = LIST_FIELDS[field]
-        ? raw.split(',').map((item) => item.trim()).filter((item) => LIST_FIELDS[field].includes(item))
+        ? raw
+            .split(',')
+            .map((item) => item.trim())
+            // Legacy records stored a single "Onicocriptosis".
+            .map((item) => (item === 'Onicocriptosis' ? 'Onicocriptosis Leve' : item))
+            .filter((item) => LIST_FIELDS[field].includes(item))
         : raw
     } else if (line.trim()) {
       rest.push(line)

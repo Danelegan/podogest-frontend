@@ -24,10 +24,10 @@ export const servicesData = [
     price: '$30.000',
   },
   {
-    id: 'onicocriptosis',
-    title: 'Onicocriptosis',
+    id: 'onicocriptosis-leve',
+    title: 'Onicocriptosis Leve',
     description:
-      'Corrección de uñas encarnadas para aliviar el dolor y evitar infecciones a futuro.',
+      'Corrección de uña encarnada leve para aliviar el dolor y evitar infecciones a futuro.',
     imagePath: 'Onicocriptosis.jpeg',
     price: '$22.000',
   },
@@ -67,12 +67,12 @@ export const servicesData = [
   },
 
   {
-    id: 'Deslaminación de Durezas y Helomas',
-    title: 'Deslaminación de Durezas y Helomas',
+    id: 'onicocriptosis-grave',
+    title: 'Onicocriptosis Grave (Infección)',
     description:
-      'Tratamiento especializado para la eliminación de durezas, callos y helomas en los pies.',
-    imagePath: 'Callos.jpeg',
-    price: '$20.000',
+      'Tratamiento de uña encarnada infectada, con manejo clínico de la infección y alivio del dolor.',
+    imagePath: 'Onicocriptosis.jpeg',
+    price: '$30.000',
   },
 ]
 
