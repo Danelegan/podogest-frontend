@@ -9,25 +9,31 @@
 .navbar__container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 1rem 1.5rem;
+  padding: 0.6rem 1.5rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
+/* The JPEG has wide white margins, so crop to the artwork (x 226-896, y 46-370
+   of a 1080x490 image) and size the box by height. */
 .navbar__logo {
-  display: flex;
-  align-items: flex-start;
-  text-decoration: none;
-  height: 44px;
+  position: relative;
+  display: block;
+  flex-shrink: 0;
+  height: 88px;
+  aspect-ratio: 670 / 324;
   overflow: hidden;
+  text-decoration: none;
 }
 
 .navbar__logo-img {
-  height: 47px;
+  position: absolute;
+  top: -14.2%;
+  left: -33.7%;
+  height: 151.2%;
   width: auto;
-  display: block;
-  margin-top: -3px;
+  max-width: none;
 }
 
 .navbar__nav {
@@ -111,6 +117,10 @@
 }
 
 @media (max-width: 768px) {
+  .navbar__logo {
+    height: 60px;
+  }
+
   .navbar__toggle {
     display: flex;
   }
