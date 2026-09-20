@@ -168,6 +168,21 @@
   color: #64748b;
 }
 
+/* Discreet staff access link */
+.footer__staff-link {
+  display: block;
+  width: fit-content;
+  margin: 0.6rem auto 0;
+  font-size: 0.7rem;
+  color: #475569;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.footer__staff-link:hover {
+  color: #94a3b8;
+}
+
 /* Mobile: stack columns */
 @media (max-width: 900px) {
   .footer__container {

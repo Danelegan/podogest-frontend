@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { FaInstagram, FaWhatsapp } from 'react-icons/fa'
 import { Phone, Mail, MapPin } from 'lucide-react'
 import './Footer.css'
@@ -90,6 +91,9 @@ function Footer() {
 
       <div className="footer__bottom">
         <p>© 2026 Pasos Saludables - Desarrollado por Danelegan</p>
+        <Link to="/login" className="footer__staff-link">
+          Acceso Profesional
+        </Link>
       </div>
     </footer>
   )
