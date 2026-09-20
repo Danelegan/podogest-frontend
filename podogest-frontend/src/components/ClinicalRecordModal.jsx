@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { AnimatePresence, motion } from 'framer-motion'
 import {
   Eraser,
   Footprints,
@@ -336,8 +337,6 @@ function ClinicalRecordModal({ isOpen, onClose, appointmentId, appointment }) {
     }
   }, [isOpen, isLoading, savedDrawing])
 
-  if (!isOpen) return null
-
   const getCanvasPoint = (event) => {
     const canvas = canvasRef.current
     const rect = canvas.getBoundingClientRect()
@@ -469,11 +468,25 @@ function ClinicalRecordModal({ isOpen, onClose, appointmentId, appointment }) {
   const price = formatClp(form.precio)
 
   return (
-    <div className="clinical-overlay" onClick={onClose}>
-      <form
+    <AnimatePresence>
+      {isOpen && (
+    <motion.div
+      key="clinical-modal"
+      className="clinical-overlay"
+      onClick={onClose}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
+    >
+      <motion.form
         className="clinical-modal"
         onClick={(event) => event.stopPropagation()}
         onSubmit={handleSave}
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.95, opacity: 0 }}
+        transition={{ duration: 0.2 }}
       >
         <header className="clinical-header">
           <div>
@@ -756,8 +769,10 @@ function ClinicalRecordModal({ isOpen, onClose, appointmentId, appointment }) {
             </Section>
           </>
         )}
-      </form>
-    </div>
+      </motion.form>
+    </motion.div>
+      )}
+    </AnimatePresence>
   )
 }
 

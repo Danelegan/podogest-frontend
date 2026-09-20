@@ -10,16 +10,18 @@ function LandingPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
 
   const [selectedService, setSelectedService] = useState('')
+  // New key on every open: a fresh form each time, without unmounting the
+  // modal mid-way through its exit animation.
+  const [bookingKey, setBookingKey] = useState(0)
 
-  const openBookingModal = () => setIsModalOpen(true)
-  const requestService = (title) => {
-    setSelectedService(title)
+  const openBooking = (service) => {
+    setSelectedService(service)
+    setBookingKey((key) => key + 1)
     setIsModalOpen(true)
   }
-  const closeBookingModal = () => {
-    setIsModalOpen(false)
-    setSelectedService('')
-  }
+  const openBookingModal = () => openBooking('')
+  const requestService = (title) => openBooking(title)
+  const closeBookingModal = () => setIsModalOpen(false)
 
   return (
     <>
@@ -28,7 +30,7 @@ function LandingPage() {
       <ServicesSection onRequestService={requestService} />
       <AboutSection />
       <BookingModal
-        key={selectedService}
+        key={bookingKey}
         isOpen={isModalOpen}
         onClose={closeBookingModal}
         initialService={selectedService}

@@ -27,7 +27,6 @@ function Dashboard() {
 
   const closeRecord = () => {
     setIsModalOpen(false)
-    setSelectedAppointment(null)
   }
 
   useEffect(() => {

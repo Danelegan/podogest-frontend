@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ChevronLeft } from 'lucide-react'
+import { AnimatePresence, motion } from 'framer-motion'
 import { servicesData, specialtiesData } from '../data/services'
 import './BookingModal.css'
 
@@ -135,8 +136,6 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
     }
   }, [isOpen, onClose])
 
-  if (!isOpen) return null
-
   const selectedDate =
     selectedDay != null
       ? formatDate(today.getFullYear(), today.getMonth(), selectedDay)
@@ -231,13 +230,27 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
   }
 
   return (
-    <div className="booking-modal-overlay" onClick={handleClose}>
-      <div
+    <AnimatePresence>
+      {isOpen && (
+    <motion.div
+      key="booking-modal"
+      className="booking-modal-overlay"
+      onClick={handleClose}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
+    >
+      <motion.div
         className="booking-modal"
         role="dialog"
         aria-modal="true"
         aria-labelledby="booking-modal-title"
         onClick={(event) => event.stopPropagation()}
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.95, opacity: 0 }}
+        transition={{ duration: 0.2 }}
       >
         <button
           type="button"
@@ -500,8 +513,10 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
             )}
           </div>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
+      )}
+    </AnimatePresence>
   )
 }
 
