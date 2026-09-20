@@ -95,3 +95,21 @@
 .dashboard__table tbody tr:hover {
   background: #f8fafc;
 }
+
+.dashboard__action {
+  padding: 0.35rem 0.85rem;
+  border: 1px solid #0891b2;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #0891b2;
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.dashboard__action:hover {
+  background: #0891b2;
+  color: #ffffff;
+}

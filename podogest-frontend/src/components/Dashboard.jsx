@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import ClinicalRecordModal from './ClinicalRecordModal'
 import './Dashboard.css'
 
 const APPOINTMENTS_URL = 'https://podogest-backend.onrender.com/api/appointments/'
@@ -10,10 +11,22 @@ function Dashboard() {
   const [appointments, setAppointments] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [selectedAppointment, setSelectedAppointment] = useState(null)
 
   const handleLogout = () => {
     localStorage.removeItem(TOKEN_KEY)
     navigate('/login')
+  }
+
+  const openRecord = (appointment) => {
+    setSelectedAppointment(appointment)
+    setIsModalOpen(true)
+  }
+
+  const closeRecord = () => {
+    setIsModalOpen(false)
+    setSelectedAppointment(null)
   }
 
   useEffect(() => {
@@ -80,6 +93,7 @@ function Dashboard() {
                 <th>Hora</th>
                 <th>Email</th>
                 <th>Teléfono</th>
+                <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -91,12 +105,29 @@ function Dashboard() {
                   <td>{appointment.appointment_time?.slice(0, 5)}</td>
                   <td>{appointment.email}</td>
                   <td>{appointment.phone}</td>
+                  <td>
+                    <button
+                      type="button"
+                      className="dashboard__action"
+                      onClick={() => openRecord(appointment)}
+                    >
+                      Ver Ficha
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       )}
+
+      <ClinicalRecordModal
+        key={selectedAppointment?.id}
+        isOpen={isModalOpen}
+        onClose={closeRecord}
+        appointmentId={selectedAppointment?.id}
+        appointment={selectedAppointment}
+      />
     </div>
   )
 }
