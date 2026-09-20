@@ -1,10 +1,17 @@
+import { motion } from 'framer-motion'
+import SpecularButton from './SpecularButton'
 import './HeroSection.css'
 
 function HeroSection({ onOpenBooking }) {
   return (
     <section className="hero" id="top">
       <div className="hero__container">
-        <div className="hero__content">
+        <motion.div
+          className="hero__content"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+        >
           <h1 className="hero__title">
             Salud y bienestar para tus pies
           </h1>
@@ -13,13 +20,19 @@ function HeroSection({ onOpenBooking }) {
             paso que des sea firme, cómodo y sin dolor.
           </p>
           <div className="hero__actions">
-            <button
-              type="button"
-              className="hero__btn hero__btn--primary"
+            <SpecularButton
+              className="hero__specular"
+              size="md"
+              radius={10}
+              tint="#0891b2"
+              tintOpacity={1}
+              textColor="#ffffff"
+              baseColor="#0e7490"
+              autoAnimate
               onClick={onOpenBooking}
             >
               Reserva tu cita
-            </button>
+            </SpecularButton>
             <a
               href="https://wa.me/56972836396"
               target="_blank"
@@ -29,15 +42,20 @@ function HeroSection({ onOpenBooking }) {
               Haz tu consulta
             </a>
           </div>
-        </div>
+        </motion.div>
 
-        <div className="hero__visual">
+        <motion.div
+          className="hero__visual"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.15 }}
+        >
           <img
             src="/foto2.jpeg"
             alt="Atención podológica profesional"
             className="hero__image"
           />
-        </div>
+        </motion.div>
       </div>
     </section>
   )

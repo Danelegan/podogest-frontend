@@ -63,6 +63,11 @@
   transform: translateY(-2px);
 }
 
+.hero__actions .hero__specular {
+  font-weight: 600;
+  box-shadow: 0 8px 20px rgba(8, 145, 178, 0.25);
+}
+
 .hero__btn--secondary {
   background-color: #ffffff;
   color: #0891b2;
@@ -134,7 +139,8 @@
     gap: 12px;
   }
 
-  .hero__btn {
+  .hero__btn,
+  .hero__actions .hero__specular {
     width: 100%;
     box-sizing: border-box;
     text-align: center;

@@ -1,9 +1,17 @@
+import { motion } from 'framer-motion'
 import { servicesData, specialtiesData } from '../data/services'
 import './ServicesSection.css'
 
 function ServiceCard({ title, description, imagePath, price, onRequest }) {
   return (
-    <article className="service-card">
+    <motion.article
+      className="service-card"
+      initial={{ opacity: 0, y: 30 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      whileHover={{ scale: 1.03 }}
+      viewport={{ once: true, amount: 0.2 }}
+      transition={{ duration: 0.5 }}
+    >
       <div className="service-card__image-wrapper">
         <img
           src={imagePath}
@@ -23,7 +31,7 @@ function ServiceCard({ title, description, imagePath, price, onRequest }) {
       >
         Solicitar
       </button>
-    </article>
+    </motion.article>
   )
 }
 
