@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Home, LogOut } from 'lucide-react'
 import ClinicalRecordModal from './ClinicalRecordModal'
 import './Dashboard.css'
 
@@ -77,11 +78,13 @@ function Dashboard() {
       <header className="dashboard__header">
         <div className="dashboard__heading">
           <button type="button" className="dashboard__back" onClick={() => navigate('/')}>
-            ← Ir al sitio web
+            <Home size={20} aria-hidden="true" />
+            Ir al sitio web
           </button>
           <h1 className="dashboard__title">Panel de Administración</h1>
         </div>
         <button type="button" className="dashboard__logout" onClick={handleLogout}>
+          <LogOut size={20} aria-hidden="true" />
           Cerrar Sesión
         </button>
       </header>

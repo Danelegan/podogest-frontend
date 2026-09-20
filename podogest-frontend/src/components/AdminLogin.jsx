@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { ArrowLeft } from 'lucide-react'
 import './AdminLogin.css'
 
 const TOKEN_URL = 'https://podogest-backend.onrender.com/api/token/'
@@ -49,7 +50,8 @@ function AdminLogin() {
   return (
     <main className="admin-login">
       <button type="button" className="admin-login__back" onClick={() => navigate('/')}>
-        ← Volver al inicio
+        <ArrowLeft size={20} aria-hidden="true" />
+        Volver al inicio
       </button>
 
       <form className="admin-login__card" onSubmit={handleSubmit}>

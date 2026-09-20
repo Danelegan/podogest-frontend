@@ -28,6 +28,9 @@
 }
 
 .dashboard__back {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   min-height: 44px;
   margin-left: -0.75rem;
   padding: 0 0.75rem;
@@ -54,6 +57,9 @@
 }
 
 .dashboard__logout {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 0.6rem 1.25rem;
   border: none;
   border-radius: 999px;
