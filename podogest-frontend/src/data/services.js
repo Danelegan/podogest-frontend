@@ -115,8 +115,9 @@ export const specialtiesData = [
     title: 'Atención Podológica a Domicilio',
     description:
       'Llevamos el cuidado clínico de tus pies a la comodidad de tu hogar. Ideal para adultos mayores o personas con movilidad reducida.',
-    imagePath: 'domicilio.jpg',
-    price: 'Consultar valor',
+    imagePath: 'domi.jpeg',
+    price: '$30.000 - $40.000',
+    priceNote: '(El valor final dependerá del procedimiento exacto a realizar)',
   },
   {
     id: 'hiperqueratosis',

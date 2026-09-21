@@ -5,7 +5,7 @@ import './ServicesSection.css'
 
 const ICONS = { home: Home }
 
-function ServiceCard({ title, description, imagePath, icon, price, onRequest }) {
+function ServiceCard({ title, description, imagePath, icon, price, priceNote, onRequest }) {
   const Icon = icon ? ICONS[icon] : null
   return (
     <motion.article
@@ -33,6 +33,7 @@ function ServiceCard({ title, description, imagePath, icon, price, onRequest }) 
       </div>
       <h3 className="service-card__title">{title}</h3>
       <p className="service-card__description">{description}</p>
+      {priceNote && <p className="service-card__price-note">{priceNote}</p>}
       <button
         type="button"
         className="service-card__cta"

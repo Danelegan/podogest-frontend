@@ -69,7 +69,8 @@
   padding: 1.75rem;
   display: flex;
   flex-direction: column;
-  height: 100%;
+  align-self: stretch;
+  height: auto;
   transition: box-shadow 0.2s ease;
 }
 
@@ -139,6 +140,17 @@
 
 .service-card__description {
   margin-bottom: 1.25rem;
+}
+
+.service-card__description:has(+ .service-card__price-note) {
+  margin-bottom: 0.5rem;
+}
+
+.service-card__price-note {
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: #94a3b8;
+  margin: 0 0 1.25rem;
 }
 
 .service-card__cta:hover {

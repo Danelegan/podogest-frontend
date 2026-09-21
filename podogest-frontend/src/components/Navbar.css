@@ -21,7 +21,7 @@
   position: relative;
   display: block;
   flex-shrink: 0;
-  height: 88px;
+  height: 104px;
   aspect-ratio: 670 / 324;
   overflow: hidden;
   text-decoration: none;
@@ -118,7 +118,7 @@
 
 @media (max-width: 768px) {
   .navbar__logo {
-    height: 60px;
+    height: 72px;
   }
 
   .navbar__toggle {
