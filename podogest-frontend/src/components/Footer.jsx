@@ -4,7 +4,7 @@ import { Phone, Mail, MapPin } from 'lucide-react'
 import './Footer.css'
 
 const SCHEDULE = [
-  { day: 'Lunes a Viernes', hours: '09:00 - 18:00' },
+  { day: 'Lunes a Viernes', hours: '10:00 - 19:00' },
   { day: 'Sábado', hours: '09:00 - 14:00' },
   { day: 'Domingo', hours: 'Cerrado' },
 ]

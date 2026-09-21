@@ -21,7 +21,7 @@ export const servicesData = [
     description:
       'Control y prevención especializado para pacientes diabéticos, reduciendo el riesgo de complicaciones.',
     imagePath: 'Pie_diabetico.jpeg',
-    price: '$30.000',
+    price: '$25.000',
   },
   {
     id: 'onicocriptosis-leve',
@@ -29,7 +29,7 @@ export const servicesData = [
     description:
       'Corrección de uña encarnada leve para aliviar el dolor y evitar infecciones a futuro.',
     imagePath: 'Onicocriptosis.jpeg',
-    price: '$22.000',
+    price: '$28.000',
   },
   {
     id: 'Dermatomicosis',
@@ -58,21 +58,22 @@ export const servicesData = [
   },
 
   {
-    id: 'verrugas-plantares',
-    title: 'Verrugas Plantares',
+    id: 'onicomicosis-grave',
+    title: 'Onicocríptosis Grave',
     description:
-      'Tratamiento seguro de verrugas en la planta del pie, con seguimiento hasta su eliminación completa.',
-    imagePath: 'verrugas.jpeg',
-    price: '$25.000',
+      'Tratamiento intensivo para infecciones fúngicas severas en las uñas, con seguimiento hasta su eliminación completa.',
+    imagePath: 'etapa3.jpeg',
+    price: '$35.000',
+
   },
 
   {
-    id: 'onicocriptosis-grave',
-    title: 'Onicocriptosis Grave (Infección)',
+    id: 'onicocriptosis-grave-infeccion',
+    title: 'Onicocríptosis Grave (Infección)',
     description:
       'Tratamiento de uña encarnada infectada, con manejo clínico de la infección y alivio del dolor.',
-    imagePath: 'Onicocriptosis.jpeg',
-    price: '$30.000',
+    imagePath: 'etapa4.jpeg',
+    price: '$40.000',
   },
 ]
 
@@ -91,7 +92,7 @@ export const specialtiesData = [
     description:
       'Corrección ortopédica de uñas mediante brackets y técnicas no invasivas, ideal para uñas encarnadas recurrentes.',
     imagePath: 'ortonixia.jpeg',
-    price: '$32.000',
+    price: '$30.000',
   },
   {
     id: 'bromhidrosis',
@@ -99,7 +100,7 @@ export const specialtiesData = [
     description:
       'Tratamiento del mal olor podal mediante protocolos higiénicos y clínicos especializados.',
     imagePath: 'mal_olor.jpg',
-    price: '$24.000',
+    price: '$25.000',
   },
   {
     id: 'hiperhidrosis',
@@ -107,7 +108,7 @@ export const specialtiesData = [
     description:
       'Control de la sudoración excesiva en los pies con tratamientos clínicos que mejoran tu calidad de vida.',
     imagePath: 'hiperhidrosis-plantar.jpg',
-    price: '$26.000',
+    price: '$25.000',
   },
   {
     id: 'hiperqueratosis',

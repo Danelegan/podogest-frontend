@@ -83,6 +83,7 @@
 .hero__visual {
   flex: 1 1 360px;
   max-width: 550px;
+  aspect-ratio: 4 / 5;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -90,12 +91,12 @@
 
 .hero__image {
   width: 100%;
-  max-width: 550px;
+  height: 100%;
   border-radius: 24px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
   object-fit: cover;
+  object-position: center top;
   display: block;
-  margin: 0 auto;
 }
 
 @media (max-width: 900px) {
@@ -129,7 +130,8 @@
   .hero__visual {
     flex: none;
     width: 100%;
-    max-width: 100%;
+    max-width: 420px;
+    margin-inline: auto;
     text-align: center;
   }
 
@@ -152,6 +154,6 @@
 
   .hero__image {
     max-width: 100%;
-    height: auto;
+    height: 100%;
   }
 }

@@ -13,6 +13,7 @@ function HeroSection({ onOpenBooking }) {
           transition={{ duration: 0.6 }}
         >
           <h1 className="hero__title">
+            Podología Clínica
             Salud y bienestar para tus pies
           </h1>
           <p className="hero__subtitle">
@@ -51,7 +52,7 @@ function HeroSection({ onOpenBooking }) {
           transition={{ duration: 0.6, delay: 0.15 }}
         >
           <img
-            src="/foto2.jpeg"
+            src="/Traje.jpeg"
             alt="Atención podológica profesional"
             className="hero__image"
           />
