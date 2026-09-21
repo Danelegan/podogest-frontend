@@ -121,10 +121,6 @@
   line-height: 1.5;
   color: #64748b;
   margin: 0;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 
 .service-card__cta {
@@ -211,4 +207,14 @@
   .service-card {
     flex-basis: 88%;
   }
+}
+
+.service-card__icon {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0891b2;
+  background: linear-gradient(135deg, #ecfeff, #cffafe);
 }

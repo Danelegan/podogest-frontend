@@ -157,3 +157,15 @@
     height: 100%;
   }
 }
+
+.hero__badge {
+  display: inline-block;
+  margin-top: 1.25rem;
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  background: #ecfeff;
+  border: 1px solid #a5f3fc;
+  color: #0e7490;
+  font-size: 0.875rem;
+  font-weight: 500;
+}

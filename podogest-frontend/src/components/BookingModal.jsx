@@ -7,19 +7,43 @@ import './BookingModal.css'
 
 const WEEKDAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
 
-const TIME_SLOTS = [
-  '09:00',
-  '09:30',
-  '10:00',
-  '10:30',
-  '11:00',
-  '11:30',
-  '15:00',
-  '15:30',
-  '16:00',
-  '16:30',
-  '17:00',
-]
+// Opening hours by weekday (Date#getDay: 0 = Sunday), in minutes from midnight.
+// Sunday is closed. Every appointment lasts SLOT_MINUTES and must finish by the
+// closing time.
+const SLOT_MINUTES = 90
+
+const BUSINESS_HOURS = {
+  weekday: { open: 10 * 60, close: 19 * 60 }, // Mon-Fri 10:00-19:00
+  saturday: { open: 9 * 60, close: 14 * 60 }, // Sat 09:00-14:00
+}
+
+const getHoursForDay = (dayOfWeek) => {
+  if (dayOfWeek === 0) return null
+  return dayOfWeek === 6 ? BUSINESS_HOURS.saturday : BUSINESS_HOURS.weekday
+}
+
+const formatMinutes = (totalMinutes) =>
+  `${String(Math.floor(totalMinutes / 60)).padStart(2, '0')}:${String(
+    totalMinutes % 60,
+  ).padStart(2, '0')}`
+
+const isClosedDay = (year, month, day) =>
+  getHoursForDay(new Date(year, month, day).getDay()) === null
+
+function generateTimeSlots(year, month, day) {
+  const hours = getHoursForDay(new Date(year, month, day).getDay())
+  if (!hours) return []
+
+  const slots = []
+  for (
+    let start = hours.open;
+    start + SLOT_MINUTES <= hours.close;
+    start += SLOT_MINUTES
+  ) {
+    slots.push(formatMinutes(start))
+  }
+  return slots
+}
 
 const SERVICE_OPTIONS = [
   ...servicesData.map((service) => service.title),
@@ -146,6 +170,11 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
       ? formatDate(today.getFullYear(), today.getMonth(), selectedDay)
       : null
 
+  const timeSlots =
+    selectedDay != null
+      ? generateTimeSlots(today.getFullYear(), today.getMonth(), selectedDay)
+      : []
+
   const isSlotBusy = (time) =>
     busySlots.some(
       (slot) => slot.date === selectedDate && slot.time === time,
@@ -153,6 +182,7 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
 
   const handleDayClick = (day) => {
     if (day == null || day < today.getDate()) return
+    if (isClosedDay(today.getFullYear(), today.getMonth(), day)) return
     setSelectedDay(day)
     setSelectedTime(null)
     setStep(2)
@@ -397,7 +427,11 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
                 </div>
                 <div className="booking-modal__days">
                   {monthCells.map((day, index) => {
-                    const isPast = day != null && day < today.getDate()
+                    const isClosed =
+                      day != null &&
+                      isClosedDay(today.getFullYear(), today.getMonth(), day)
+                    const isPast =
+                      day != null && (day < today.getDate() || isClosed)
                     const isToday = day === today.getDate()
                     const isSelected = day === selectedDay
 
@@ -431,7 +465,7 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
                   Horas disponibles para el {selectedDay} de {monthLabel}
                 </p>
                 <div className="booking-modal__times-grid">
-                  {TIME_SLOTS.map((time) => (
+                  {timeSlots.map((time) => (
                     <button
                       type="button"
                       key={time}

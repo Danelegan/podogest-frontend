@@ -1,8 +1,12 @@
 import { motion } from 'framer-motion'
+import { Home } from 'lucide-react'
 import { servicesData, specialtiesData } from '../data/services'
 import './ServicesSection.css'
 
-function ServiceCard({ title, description, imagePath, price, onRequest }) {
+const ICONS = { home: Home }
+
+function ServiceCard({ title, description, imagePath, icon, price, onRequest }) {
+  const Icon = icon ? ICONS[icon] : null
   return (
     <motion.article
       className="service-card"
@@ -13,12 +17,18 @@ function ServiceCard({ title, description, imagePath, price, onRequest }) {
       transition={{ duration: 0.5 }}
     >
       <div className="service-card__image-wrapper">
-        <img
-          src={imagePath}
-          alt={title}
-          className="service-card__image"
-          loading="lazy"
-        />
+        {Icon ? (
+          <div className="service-card__icon" aria-hidden="true">
+            <Icon size={56} strokeWidth={1.5} />
+          </div>
+        ) : (
+          <img
+            src={imagePath}
+            alt={title}
+            className="service-card__image"
+            loading="lazy"
+          />
+        )}
         {price && <span className="service-card__price">{price}</span>}
       </div>
       <h3 className="service-card__title">{title}</h3>
