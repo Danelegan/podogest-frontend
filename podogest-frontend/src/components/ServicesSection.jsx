@@ -51,9 +51,10 @@ function ServicesSection({ onRequestService }) {
     <section className="services" id="servicios">
       <div className="services__container">
         <div className="services__header">
-          <h2 className="services__title">Nuestros Servicios</h2>
+          <h2 className="services__title">Servicios</h2>
           <p className="services__subtitle">
-            Cuidado podológico profesional adaptado a las necesidades de tus pies.
+            Procedimientos podológicos evaluados y aplicados según el estado de
+            tus pies, con precios claros desde la primera consulta.
           </p>
         </div>
 

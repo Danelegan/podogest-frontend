@@ -13,12 +13,12 @@ function HeroSection({ onOpenBooking }) {
           transition={{ duration: 0.6 }}
         >
           <h1 className="hero__title">
-            Podología Clínica
-            Salud y bienestar para tus pies
+            Podología clínica
+            <br />
+            para el cuidado diario de tus pies
           </h1>
           <p className="hero__subtitle">
-            Atención podológica profesional y personalizada, para que cada
-            paso que des sea firme, cómodo y sin dolor.
+            "Atención podológica profesional y personalizada, para que cada paso que des sea firme, cómodo y sin dolor."
           </p>
           <div className="hero__actions">
             <SpecularButton
@@ -43,7 +43,7 @@ function HeroSection({ onOpenBooking }) {
               Haz tu consulta
             </a>
           </div>
-          <p className="hero__badge">🚗 También ofrecemos atención a domicilio</p>
+          <p className="hero__badge">🚗 Atención a domicilio disponible</p>
         </motion.div>
 
         <motion.div
