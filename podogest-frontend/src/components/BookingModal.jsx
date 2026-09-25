@@ -231,6 +231,11 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
 
       if (response.status === 201) {
         setIsConfirmed(true)
+      } else if (response.status === 429) {
+        // Backend rate limit: max 5 reservas por minuto.
+        setErrorMessage(
+          'Has realizado demasiados intentos. Por favor, espera un momento antes de volver a intentarlo.',
+        )
       } else {
         let detail = ''
         try {

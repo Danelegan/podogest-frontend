@@ -1,37 +1,5 @@
-import { Clock, User } from 'lucide-react'
+import { CalendarX, Clock, User } from 'lucide-react'
 import './DailyAgenda.css'
-
-// TODO: reemplazar por datos reales, ej. GET /api/appointments/?date=hoy
-const mockAppointments = [
-  {
-    id: 1,
-    time: '09:00',
-    patientName: 'María González',
-    service: 'Atención Integral',
-    status: 'confirmada',
-  },
-  {
-    id: 2,
-    time: '10:30',
-    patientName: 'Pedro Soto',
-    service: 'Onicomicosis',
-    status: 'pendiente',
-  },
-  {
-    id: 3,
-    time: '12:00',
-    patientName: 'Camila Rojas',
-    service: 'Reflexología y Masoterapia',
-    status: 'confirmada',
-  },
-  {
-    id: 4,
-    time: '13:30',
-    patientName: 'Jorge Muñoz',
-    service: 'Pie Diabético',
-    status: 'cancelada',
-  },
-]
 
 const STATUS_META = {
   confirmada: { label: 'Confirmada', className: 'daily-agenda__badge--confirmed' },
@@ -52,22 +20,29 @@ function getTodayLabel() {
   return capitalize(label)
 }
 
-function AppointmentCard({ time, patientName, service, status }) {
-  const statusMeta = STATUS_META[status] ?? STATUS_META.pendiente
+// Django manda la hora como "10:00:00"; nos quedamos solo con "10:00".
+function formatTime(time) {
+  return time ? time.slice(0, 5) : '--:--'
+}
+
+function AppointmentCard({ appointment_time, patient_name, service_type, status }) {
+  // El backend aún no expone un estado propio de la cita: si existe en la
+  // agenda de hoy se asume confirmada, salvo que venga un status explícito.
+  const statusMeta = STATUS_META[status] ?? STATUS_META.confirmada
 
   return (
     <li className="daily-agenda__card">
       <div className="daily-agenda__time">
         <Clock size={18} aria-hidden="true" />
-        <span>{time}</span>
+        <span>{formatTime(appointment_time)}</span>
       </div>
 
       <div className="daily-agenda__info">
         <div className="daily-agenda__patient">
           <User size={16} aria-hidden="true" />
-          <span>{patientName}</span>
+          <span>{patient_name || 'Paciente sin nombre'}</span>
         </div>
-        <p className="daily-agenda__service">{service}</p>
+        <p className="daily-agenda__service">{service_type || 'Consulta general'}</p>
       </div>
 
       <span className={`daily-agenda__badge ${statusMeta.className}`}>{statusMeta.label}</span>
@@ -75,7 +50,7 @@ function AppointmentCard({ time, patientName, service, status }) {
   )
 }
 
-function DailyAgenda({ appointments = mockAppointments }) {
+function DailyAgenda({ appointments = [] }) {
   return (
     <section className="daily-agenda">
       <header className="daily-agenda__header">
@@ -84,7 +59,10 @@ function DailyAgenda({ appointments = mockAppointments }) {
       </header>
 
       {appointments.length === 0 ? (
-        <p className="daily-agenda__empty">No hay citas agendadas para hoy.</p>
+        <div className="daily-agenda__empty">
+          <CalendarX size={32} strokeWidth={1.5} aria-hidden="true" />
+          <p>No tienes citas agendadas para hoy</p>
+        </div>
       ) : (
         <ul className="daily-agenda__list">
           {appointments.map((appointment) => (

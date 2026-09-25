@@ -113,12 +113,21 @@
 }
 
 .daily-agenda__empty {
-  padding: 2rem 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 2.5rem 1.5rem;
   text-align: center;
-  color: #64748b;
+  color: #94a3b8;
   background: #ffffff;
   border: 1px dashed #e2e8f0;
   border-radius: 14px;
+}
+
+.daily-agenda__empty p {
+  margin: 0;
+  font-size: 0.95rem;
 }
 
 /* A partir de tablet/desktop, se aprovecha el espacio horizontal extra. */

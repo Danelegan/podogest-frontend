@@ -43,7 +43,7 @@ function HeroSection({ onOpenBooking }) {
               Haz tu consulta
             </a>
           </div>
-          <p className="hero__badge">🚗 Atención a domicilio disponible</p>
+          <p className="hero__badge">🚑 Atención a domicilio disponible</p>
         </motion.div>
 
         <motion.div

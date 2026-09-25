@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Home, LogOut } from 'lucide-react'
 import ClinicalRecordModal from './ClinicalRecordModal'
@@ -7,6 +7,16 @@ import './Dashboard.css'
 
 const APPOINTMENTS_URL = 'https://podogest-backend.onrender.com/api/appointments/'
 const TOKEN_KEY = 'podogest_token'
+
+// "2026-09-25" en horario local (evita el corrimiento de un día que da
+// new Date().toISOString() cerca de medianoche por usar UTC).
+function getTodayDateString() {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
 
 function Dashboard() {
   const navigate = useNavigate()
@@ -75,6 +85,14 @@ function Dashboard() {
       appointment.rut?.toLowerCase().includes(normalizedSearch),
   )
 
+  // Citas de hoy para la pestaña "Agenda de Hoy", ordenadas por hora.
+  const todayAppointments = useMemo(() => {
+    const todayStr = getTodayDateString()
+    return appointments
+      .filter((appointment) => appointment.appointment_date === todayStr)
+      .sort((a, b) => (a.appointment_time ?? '').localeCompare(b.appointment_time ?? ''))
+  }, [appointments])
+
   return (
     <div className="dashboard">
       <header className="dashboard__header">
@@ -112,7 +130,16 @@ function Dashboard() {
         </button>
       </div>
 
-      {activeTab === 'agenda' && <DailyAgenda />}
+      {activeTab === 'agenda' &&
+        (isLoading ? (
+          <p className="dashboard__message">Cargando citas...</p>
+        ) : errorMessage ? (
+          <p className="dashboard__error" role="alert">
+            {errorMessage}
+          </p>
+        ) : (
+          <DailyAgenda appointments={todayAppointments} />
+        ))}
 
       {activeTab === 'citas' &&
         (isLoading ? (
