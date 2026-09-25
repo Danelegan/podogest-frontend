@@ -12,9 +12,10 @@ import {
   Wallet,
   X,
 } from 'lucide-react'
+import API_BASE_URL from '../config/api'
 import './ClinicalRecordModal.css'
 
-const API_URL = 'https://podogest-backend.onrender.com/api/clinical-records/'
+const API_URL = `${API_BASE_URL}/api/clinical-records/`
 const TOKEN_KEY = 'podogest_token'
 
 // The podogram is stored at the end of `observaciones`: "text|||DRAWING:<data URL>".

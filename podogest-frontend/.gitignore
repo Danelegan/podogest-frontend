@@ -12,6 +12,11 @@ dist
 dist-ssr
 *.local
 
+# Environment variables (contiene la URL del backend por entorno; usar .env.example como plantilla)
+.env
+.env.*
+!.env.example
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

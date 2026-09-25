@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { Home, LogOut } from 'lucide-react'
 import ClinicalRecordModal from './ClinicalRecordModal'
 import DailyAgenda from './DailyAgenda'
+import API_BASE_URL from '../config/api'
 import './Dashboard.css'
 
-const APPOINTMENTS_URL = 'https://podogest-backend.onrender.com/api/appointments/'
+const APPOINTMENTS_URL = `${API_BASE_URL}/api/appointments/`
 const TOKEN_KEY = 'podogest_token'
 
 // "2026-09-25" en horario local (evita el corrimiento de un día que da

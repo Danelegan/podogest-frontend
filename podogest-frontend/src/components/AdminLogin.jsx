@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
+import API_BASE_URL from '../config/api'
 import './AdminLogin.css'
 
-const TOKEN_URL = 'https://podogest-backend.onrender.com/api/token/'
+const TOKEN_URL = `${API_BASE_URL}/api/token/`
 const TOKEN_KEY = 'podogest_token'
 
 function AdminLogin() {

@@ -3,6 +3,7 @@ import { ChevronLeft } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { validarRut } from '../utils/rutValidation'
 import { servicesData, specialtiesData } from '../data/services'
+import API_BASE_URL from '../config/api'
 import './BookingModal.css'
 
 const WEEKDAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
@@ -51,10 +52,9 @@ const SERVICE_OPTIONS = [
   'Evaluación General',
 ]
 
-const API_URL = 'https://podogest-backend.onrender.com/api/appointments/'
+const API_URL = `${API_BASE_URL}/api/appointments/`
 
-const BUSY_SLOTS_URL =
-  'https://podogest-backend.onrender.com/api/appointments/horarios-ocupados/'
+const BUSY_SLOTS_URL = `${API_BASE_URL}/api/appointments/horarios-ocupados/`
 
 const formatDate = (year, monthIndex, day) =>
   `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
