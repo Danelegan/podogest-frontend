@@ -180,6 +180,14 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
       (slot) => slot.date === selectedDate && slot.time === time,
     )
 
+  // Only today can have past slots: a slot is past once its start time has
+  // been reached on the clock ("18:30" is disabled at 18:45).
+  const isSlotPast = (time) => {
+    if (selectedDay !== today.getDate()) return false
+    const [hours, minutes] = time.split(':').map(Number)
+    return hours * 60 + minutes <= today.getHours() * 60 + today.getMinutes()
+  }
+
   const handleDayClick = (day) => {
     if (day == null || day < today.getDate()) return
     if (isClosedDay(today.getFullYear(), today.getMonth(), day)) return
@@ -476,7 +484,7 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
                       key={time}
                       className={`booking-modal__time ${time === selectedTime ? 'is-selected' : ''
                         }`}
-                      disabled={isSlotBusy(time)}
+                      disabled={isSlotBusy(time) || isSlotPast(time)}
                       onClick={() => handleTimeClick(time)}
                     >
                       {time}
