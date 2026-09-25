@@ -1,0 +1,140 @@
+/* Mobile-first: estilos base pensados para pantalla de celular,
+   ampliados con min-width para pantallas más grandes. */
+
+.daily-agenda {
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto 2rem;
+}
+
+.daily-agenda__header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 1rem;
+  padding: 0 0.25rem;
+}
+
+.daily-agenda__title {
+  margin: 0;
+  font-size: 1.25rem;
+  color: #0e7490;
+}
+
+.daily-agenda__date {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.daily-agenda__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.daily-agenda__card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+}
+
+.daily-agenda__time {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  min-width: 48px;
+  color: #0891b2;
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+
+.daily-agenda__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.daily-agenda__patient {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #0f172a;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.daily-agenda__patient span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.daily-agenda__service {
+  margin: 2px 0 0;
+  color: #64748b;
+  font-size: 0.85rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.daily-agenda__badge {
+  flex-shrink: 0;
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.daily-agenda__badge--confirmed {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.daily-agenda__badge--pending {
+  background: #fef9c3;
+  color: #a16207;
+}
+
+.daily-agenda__badge--cancelled {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.daily-agenda__empty {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: #64748b;
+  background: #ffffff;
+  border: 1px dashed #e2e8f0;
+  border-radius: 14px;
+}
+
+/* A partir de tablet/desktop, se aprovecha el espacio horizontal extra. */
+@media (min-width: 640px) {
+  .daily-agenda__card {
+    padding: 1rem 1.25rem;
+  }
+
+  .daily-agenda__time {
+    flex-direction: row;
+    min-width: 76px;
+    font-size: 0.9rem;
+  }
+
+  .daily-agenda__patient,
+  .daily-agenda__service {
+    font-size: 1rem;
+  }
+}
