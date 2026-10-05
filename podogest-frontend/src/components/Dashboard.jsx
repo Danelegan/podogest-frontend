@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Home, LogOut, Trash2, UserPlus } from 'lucide-react'
+import { Download, Home, LogOut, Trash2, UserPlus } from 'lucide-react'
 import ClinicalRecordModal from './ClinicalRecordModal'
 import DailyAgenda from './DailyAgenda'
 import ManualAttentionModal from './ManualAttentionModal'
@@ -8,6 +8,7 @@ import API_BASE_URL from '../config/api'
 import './Dashboard.css'
 
 const APPOINTMENTS_URL = `${API_BASE_URL}/api/appointments/`
+const BACKUP_URL = `${API_BASE_URL}/api/appointments/exportar-respaldo/`
 const TOKEN_KEY = 'podogest_token'
 
 // "2026-09-25" en horario local (evita el corrimiento de un día que da
@@ -31,6 +32,7 @@ function Dashboard() {
   const [activeTab, setActiveTab] = useState('agenda')
   const [isManualModalOpen, setIsManualModalOpen] = useState(false)
   const [deletingId, setDeletingId] = useState(null)
+  const [isDownloading, setIsDownloading] = useState(false)
 
   const handleLogout = () => {
     localStorage.removeItem(TOKEN_KEY)
@@ -58,6 +60,44 @@ function Dashboard() {
   const handleUnauthorized = () => {
     localStorage.removeItem(TOKEN_KEY)
     navigate('/login', { replace: true })
+  }
+
+  // Fetches the CSV with the JWT (a plain <a href> can't send it) and triggers
+  // the download through a temporary object URL.
+  const downloadBackup = async () => {
+    setIsDownloading(true)
+    try {
+      const response = await fetch(BACKUP_URL, {
+        headers: { Authorization: `Bearer ${localStorage.getItem(TOKEN_KEY)}` },
+      })
+
+      if (response.status === 401) {
+        handleUnauthorized()
+        return
+      }
+
+      if (!response.ok) {
+        window.alert(`No se pudo descargar el respaldo (error ${response.status}).`)
+        return
+      }
+
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      // Same name the backend uses; its Content-Disposition isn't readable
+      // cross-origin unless CORS exposes it.
+      link.download = `respaldo_pasos_saludables_${getTodayDateString().replaceAll('-', '')}.csv`
+      link.style.display = 'none'
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+    } catch {
+      window.alert('No se pudo conectar con el servidor.')
+    } finally {
+      setIsDownloading(false)
+    }
   }
 
   // Deletes the appointment; the backend removes its clinical record too (CASCADE).
@@ -206,6 +246,15 @@ function Dashboard() {
               >
                 <UserPlus size={18} aria-hidden="true" />
                 Nueva Atención Manual
+              </button>
+              <button
+                type="button"
+                className="dashboard__backup"
+                onClick={downloadBackup}
+                disabled={isDownloading}
+              >
+                <Download size={18} aria-hidden="true" />
+                {isDownloading ? 'Descargando...' : 'Descargar Respaldo CSV'}
               </button>
             </div>
             {appointments.length === 0 ? (
