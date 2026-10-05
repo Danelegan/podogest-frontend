@@ -174,9 +174,32 @@
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-.dashboard__action:hover {
+.dashboard__action:hover:not(:disabled) {
   background: #0891b2;
   color: #ffffff;
+}
+
+.dashboard__actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.dashboard__action--danger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border-color: #dc2626;
+  color: #dc2626;
+}
+
+.dashboard__action--danger:hover:not(:disabled) {
+  background: #dc2626;
+  color: #ffffff;
+}
+
+.dashboard__action--danger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .dashboard__search {

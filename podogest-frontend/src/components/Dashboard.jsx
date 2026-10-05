@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Home, LogOut, UserPlus } from 'lucide-react'
+import { Home, LogOut, Trash2, UserPlus } from 'lucide-react'
 import ClinicalRecordModal from './ClinicalRecordModal'
 import DailyAgenda from './DailyAgenda'
 import ManualAttentionModal from './ManualAttentionModal'
@@ -30,6 +30,7 @@ function Dashboard() {
   const [selectedAppointment, setSelectedAppointment] = useState(null)
   const [activeTab, setActiveTab] = useState('agenda')
   const [isManualModalOpen, setIsManualModalOpen] = useState(false)
+  const [deletingId, setDeletingId] = useState(null)
 
   const handleLogout = () => {
     localStorage.removeItem(TOKEN_KEY)
@@ -57,6 +58,36 @@ function Dashboard() {
   const handleUnauthorized = () => {
     localStorage.removeItem(TOKEN_KEY)
     navigate('/login', { replace: true })
+  }
+
+  // Deletes the appointment; the backend removes its clinical record too (CASCADE).
+  const deleteAppointment = async (appointment) => {
+    if (!window.confirm('¿Estás seguro de eliminar este registro por completo?')) return
+
+    setDeletingId(appointment.id)
+    try {
+      const response = await fetch(`${APPOINTMENTS_URL}${appointment.id}/`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${localStorage.getItem(TOKEN_KEY)}` },
+      })
+
+      if (response.status === 401) {
+        handleUnauthorized()
+        return
+      }
+
+      // 404: someone already deleted it, so the row should go away as well.
+      if (!response.ok && response.status !== 404) {
+        window.alert(`No se pudo eliminar el registro (error ${response.status}).`)
+        return
+      }
+
+      setAppointments((prev) => prev.filter((item) => item.id !== appointment.id))
+    } catch {
+      window.alert('No se pudo conectar con el servidor.')
+    } finally {
+      setDeletingId(null)
+    }
   }
 
   useEffect(() => {
@@ -217,13 +248,24 @@ function Dashboard() {
                             <td>{appointment.email}</td>
                             <td>{appointment.phone}</td>
                             <td>
-                              <button
-                                type="button"
-                                className="dashboard__action"
-                                onClick={() => openRecord(appointment)}
-                              >
-                                Ver Ficha
-                              </button>
+                              <div className="dashboard__actions">
+                                <button
+                                  type="button"
+                                  className="dashboard__action"
+                                  onClick={() => openRecord(appointment)}
+                                >
+                                  Ver Ficha
+                                </button>
+                                <button
+                                  type="button"
+                                  className="dashboard__action dashboard__action--danger"
+                                  onClick={() => deleteAppointment(appointment)}
+                                  disabled={deletingId === appointment.id}
+                                >
+                                  <Trash2 size={14} aria-hidden="true" />
+                                  {deletingId === appointment.id ? 'Eliminando...' : 'Eliminar'}
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}
