@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Home, LogOut } from 'lucide-react'
+import { Home, LogOut, UserPlus } from 'lucide-react'
 import ClinicalRecordModal from './ClinicalRecordModal'
 import DailyAgenda from './DailyAgenda'
+import ManualAttentionModal from './ManualAttentionModal'
 import API_BASE_URL from '../config/api'
 import './Dashboard.css'
 
@@ -28,6 +29,7 @@ function Dashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedAppointment, setSelectedAppointment] = useState(null)
   const [activeTab, setActiveTab] = useState('agenda')
+  const [isManualModalOpen, setIsManualModalOpen] = useState(false)
 
   const handleLogout = () => {
     localStorage.removeItem(TOKEN_KEY)
@@ -41,6 +43,20 @@ function Dashboard() {
 
   const closeRecord = () => {
     setIsModalOpen(false)
+  }
+
+  // The walk-in endpoint returns the new appointment (its clinical record is
+  // already created), so we add it to the top of the table instead of
+  // refetching; "Ver Ficha" works on it right away.
+  const handleManualCreated = (appointment) => {
+    setAppointments((prev) => [appointment, ...prev])
+    setSearchTerm('')
+    setIsManualModalOpen(false)
+  }
+
+  const handleUnauthorized = () => {
+    localStorage.removeItem(TOKEN_KEY)
+    navigate('/login', { replace: true })
   }
 
   useEffect(() => {
@@ -149,62 +165,83 @@ function Dashboard() {
           <p className="dashboard__error" role="alert">
             {errorMessage}
           </p>
-        ) : appointments.length === 0 ? (
-          <p className="dashboard__message">No hay citas registradas.</p>
         ) : (
           <>
-            <input
-              type="text"
-              className="dashboard__search"
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Buscar por nombre o RUT..."
-              aria-label="Buscar por nombre o RUT"
-            />
-            {filteredAppointments.length === 0 ? (
-              <p className="dashboard__message">
-                No se encontraron citas para “{searchTerm.trim()}”.
-              </p>
+            <div className="dashboard__toolbar">
+              <button
+                type="button"
+                className="dashboard__new-attention"
+                onClick={() => setIsManualModalOpen(true)}
+              >
+                <UserPlus size={18} aria-hidden="true" />
+                Nueva Atención Manual
+              </button>
+            </div>
+            {appointments.length === 0 ? (
+              <p className="dashboard__message">No hay citas registradas.</p>
             ) : (
-              <div className="dashboard__table-wrapper">
-                <table className="dashboard__table">
-                  <thead>
-                    <tr>
-                      <th>Nombre</th>
-                      <th>RUT/ID</th>
-                      <th>Fecha</th>
-                      <th>Hora</th>
-                      <th>Email</th>
-                      <th>Teléfono</th>
-                      <th>Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredAppointments.map((appointment) => (
-                      <tr key={appointment.id}>
-                        <td>{appointment.patient_name}</td>
-                        <td>{appointment.rut}</td>
-                        <td>{appointment.appointment_date}</td>
-                        <td>{appointment.appointment_time?.slice(0, 5)}</td>
-                        <td>{appointment.email}</td>
-                        <td>{appointment.phone}</td>
-                        <td>
-                          <button
-                            type="button"
-                            className="dashboard__action"
-                            onClick={() => openRecord(appointment)}
-                          >
-                            Ver Ficha
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <>
+                <input
+                  type="text"
+                  className="dashboard__search"
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  placeholder="Buscar por nombre o RUT..."
+                  aria-label="Buscar por nombre o RUT"
+                />
+                {filteredAppointments.length === 0 ? (
+                  <p className="dashboard__message">
+                    No se encontraron citas para “{searchTerm.trim()}”.
+                  </p>
+                ) : (
+                  <div className="dashboard__table-wrapper">
+                    <table className="dashboard__table">
+                      <thead>
+                        <tr>
+                          <th>Nombre</th>
+                          <th>RUT/ID</th>
+                          <th>Fecha</th>
+                          <th>Hora</th>
+                          <th>Email</th>
+                          <th>Teléfono</th>
+                          <th>Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredAppointments.map((appointment) => (
+                          <tr key={appointment.id}>
+                            <td>{appointment.patient_name}</td>
+                            <td>{appointment.rut}</td>
+                            <td>{appointment.appointment_date}</td>
+                            <td>{appointment.appointment_time?.slice(0, 5)}</td>
+                            <td>{appointment.email}</td>
+                            <td>{appointment.phone}</td>
+                            <td>
+                              <button
+                                type="button"
+                                className="dashboard__action"
+                                onClick={() => openRecord(appointment)}
+                              >
+                                Ver Ficha
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </>
             )}
           </>
         ))}
+
+      <ManualAttentionModal
+        isOpen={isManualModalOpen}
+        onClose={() => setIsManualModalOpen(false)}
+        onCreated={handleManualCreated}
+        onUnauthorized={handleUnauthorized}
+      />
 
       <ClinicalRecordModal
         key={selectedAppointment?.id}

@@ -18,3 +18,13 @@ export function validarRut(rut) {
   const expected = result === 11 ? '0' : result === 10 ? 'K' : String(result)
   return verifier === expected
 }
+
+// "252370927" -> "25.237.092-7". Keeps only digits and K, max 9 characters.
+export function formatRUT(value) {
+  const clean = value.replace(/[^0-9kK]/g, '').toUpperCase().slice(0, 9)
+  if (clean.length <= 1) return clean
+
+  const body = clean.slice(0, -1).replace(/\D/g, '')
+  const verifier = clean.slice(-1)
+  return `${body.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}-${verifier}`
+}
