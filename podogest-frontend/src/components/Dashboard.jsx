@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Download, Home, LogOut, Trash2, UserPlus } from 'lucide-react'
+import { Home, LogOut, Trash2, UserPlus } from 'lucide-react'
 import ClinicalRecordModal from './ClinicalRecordModal'
 import DailyAgenda from './DailyAgenda'
 import ManualAttentionModal from './ManualAttentionModal'
@@ -9,16 +9,48 @@ import './Dashboard.css'
 
 const APPOINTMENTS_URL = `${API_BASE_URL}/api/appointments/`
 const BACKUP_URL = `${API_BASE_URL}/api/appointments/exportar-respaldo/`
+const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 const TOKEN_KEY = 'podogest_token'
 
 // "2026-09-25" en horario local (evita el corrimiento de un día que da
 // new Date().toISOString() cerca de medianoche por usar UTC).
+// Reads the name from Content-Disposition (exposed via CORS by the backend);
+// falls back to the backend's own naming pattern.
+function getBackupFileName(response) {
+  const header = response.headers.get('Content-Disposition') ?? ''
+  const match = header.match(/filename="?([^";]+)"?/)
+  return match?.[1] ?? `respaldo_pasos_saludables_${getTodayDateString().replaceAll('-', '')}.xlsx`
+}
+
 function getTodayDateString() {
   const now = new Date()
   const year = now.getFullYear()
   const month = String(now.getMonth() + 1).padStart(2, '0')
   const day = String(now.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
+}
+
+// Spreadsheet sheet with a download arrow, drawn inline to match the Excel look.
+function SpreadsheetIcon() {
+  return (
+    <svg
+      className="dashboard__backup-icon"
+      viewBox="0 0 24 24"
+      width="18"
+      height="18"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
+      <path d="M14 3v6h6" />
+      <path d="M8 13h8M8 17h3M12 13v4" />
+      <path d="M17 15v5m-2-2 2 2 2-2" />
+    </svg>
+  )
 }
 
 function Dashboard() {
@@ -81,18 +113,18 @@ function Dashboard() {
         return
       }
 
-      const blob = await response.blob()
+      // Re-wrap the bytes with the Excel MIME type so the browser saves an .xlsx.
+      const blob = new Blob([await response.arrayBuffer()], { type: XLSX_MIME })
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      // Same name the backend uses; its Content-Disposition isn't readable
-      // cross-origin unless CORS exposes it.
-      link.download = `respaldo_pasos_saludables_${getTodayDateString().replaceAll('-', '')}.csv`
+      link.download = getBackupFileName(response)
       link.style.display = 'none'
       document.body.appendChild(link)
       link.click()
       link.remove()
-      URL.revokeObjectURL(url)
+      // Give the browser a moment to start the download before freeing the blob.
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
     } catch {
       window.alert('No se pudo conectar con el servidor.')
     } finally {
@@ -253,8 +285,8 @@ function Dashboard() {
                 onClick={downloadBackup}
                 disabled={isDownloading}
               >
-                <Download size={18} aria-hidden="true" />
-                {isDownloading ? 'Descargando...' : 'Descargar Respaldo CSV'}
+                <SpreadsheetIcon />
+                {isDownloading ? 'Descargando...' : 'Descargar Respaldo Excel'}
               </button>
             </div>
             {appointments.length === 0 ? (
