@@ -42,6 +42,7 @@ const PROBLEMS = [
   'Onicocriptosis Leve',
   'Onicocriptosis Grave',
   'Onicogrifosis',
+  'VPH plantar',
 ]
 const CONSUMES = ['Alcohol', 'Drogas', 'Antimicóticos', 'Analgésicos']
 const FAMILY_HISTORY = [
@@ -63,6 +64,7 @@ const EMPTY_FORM = {
   direccion: '',
   telefono: '',
   email: '',
+  tallaCalzado: '',
   problemas: [],
   otros: '',
   observaciones: '',
@@ -87,6 +89,7 @@ const MEDICAL_KEYS = {
   direccion: 'Dirección',
   telefono: 'Teléfono',
   email: 'E-mail',
+  tallaCalzado: 'Talla de calzado',
   enfermedad: 'Enfermedad diagnosticada',
   medicamento: 'Medicamento',
   dosis: 'Dosis',
@@ -103,10 +106,10 @@ const LIST_FIELDS = { problemas: PROBLEMS, consume: CONSUMES, familiares: FAMILY
 const formatClp = (digits) =>
   digits
     ? new Intl.NumberFormat('es-CL', {
-        style: 'currency',
-        currency: 'CLP',
-        maximumFractionDigits: 0,
-      }).format(Number(digits))
+      style: 'currency',
+      currency: 'CLP',
+      maximumFractionDigits: 0,
+    }).format(Number(digits))
     : ''
 
 // Text -> { field: value } for known keys, plus the lines we don't own.
@@ -117,23 +120,23 @@ function parseLines(text, keys) {
   const values = {}
   const rest = []
 
-  ;(text ?? '').split('\n').forEach((line) => {
-    const separator = line.indexOf(': ')
-    const field = separator > 0 ? byLabel[line.slice(0, separator)] : undefined
-    if (field) {
-      const raw = line.slice(separator + 2)
-      values[field] = LIST_FIELDS[field]
-        ? raw
+    ; (text ?? '').split('\n').forEach((line) => {
+      const separator = line.indexOf(': ')
+      const field = separator > 0 ? byLabel[line.slice(0, separator)] : undefined
+      if (field) {
+        const raw = line.slice(separator + 2)
+        values[field] = LIST_FIELDS[field]
+          ? raw
             .split(',')
             .map((item) => item.trim())
             // Legacy records stored a single "Onicocriptosis".
             .map((item) => (item === 'Onicocriptosis' ? 'Onicocriptosis Leve' : item))
             .filter((item) => LIST_FIELDS[field].includes(item))
-        : raw
-    } else if (line.trim()) {
-      rest.push(line)
-    }
-  })
+          : raw
+      } else if (line.trim()) {
+        rest.push(line)
+      }
+    })
 
   return { values, rest }
 }
@@ -471,307 +474,317 @@ function ClinicalRecordModal({ isOpen, onClose, appointmentId, appointment }) {
   return (
     <AnimatePresence>
       {isOpen && (
-    <motion.div
-      key="clinical-modal"
-      className="clinical-overlay"
-      onClick={onClose}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.2 }}
-    >
-      <motion.form
-        className="clinical-modal"
-        onClick={(event) => event.stopPropagation()}
-        onSubmit={handleSave}
-        initial={{ scale: 0.95, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.95, opacity: 0 }}
-        transition={{ duration: 0.2 }}
-      >
-        <header className="clinical-header">
-          <div>
-            <h1 className="clinical-header__title">Ficha clínica podológica</h1>
-            <p className="clinical-header__meta">
-              Nº ficha {recordNumber} · Fecha {today}
-            </p>
-          </div>
-          <div className="clinical-header__actions">
-            <button
-              type="submit"
-              className="clinical-btn clinical-btn--primary"
-              disabled={isSaving || isLoading}
-            >
-              <Save className="clinical-btn__icon" strokeWidth={2} />
-              {isSaving ? 'Guardando...' : 'Guardar'}
-            </button>
-            <button type="button" className="clinical-btn" onClick={handleClear}>
-              <Eraser className="clinical-btn__icon" strokeWidth={2} />
-              Limpiar
-            </button>
-            <button type="button" className="clinical-btn" onClick={onClose}>
-              <X className="clinical-btn__icon" strokeWidth={2} />
-              Cerrar
-            </button>
-          </div>
-        </header>
-
-        {errorMessage && (
-          <p className="clinical-message clinical-message--error" role="alert">
-            {errorMessage}
-          </p>
-        )}
-        {successMessage && (
-          <p className="clinical-message clinical-message--success" role="status">
-            {successMessage}
-          </p>
-        )}
-
-        {isLoading ? (
-          <p className="clinical-loading">Cargando ficha...</p>
-        ) : (
-          <>
-            <Section icon={User} title="Datos del paciente">
-              <div className="clinical-grid clinical-grid--3">
-                <Field label="Nombre completo" span={3}>
-                  <input
-                    type="text"
-                    name="nombre"
-                    value={form.nombre}
-                    onChange={handleChange}
-                    placeholder="Ej: María González Pérez"
-                  />
-                </Field>
-                <Field label="Nacimiento">
-                  <input
-                    type="date"
-                    name="nacimiento"
-                    value={form.nacimiento}
-                    onChange={handleChange}
-                  />
-                </Field>
-                <Field label="Género">
-                  <select name="genero" value={form.genero} onChange={handleChange}>
-                    <option value="">Seleccionar...</option>
-                    {GENDERS.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="Estado civil">
-                  <select
-                    name="estadoCivil"
-                    value={form.estadoCivil}
-                    onChange={handleChange}
-                  >
-                    <option value="">Seleccionar...</option>
-                    {CIVIL_STATUSES.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="Escolaridad">
-                  <input
-                    type="text"
-                    name="escolaridad"
-                    value={form.escolaridad}
-                    onChange={handleChange}
-                    placeholder="Ej: Media completa"
-                  />
-                </Field>
-                <Field label="Ocupación" span={2}>
-                  <input
-                    type="text"
-                    name="ocupacion"
-                    value={form.ocupacion}
-                    onChange={handleChange}
-                    placeholder="Ej: Profesora"
-                  />
-                </Field>
-                <Field label="Dirección" span={2}>
-                  <input
-                    type="text"
-                    name="direccion"
-                    value={form.direccion}
-                    onChange={handleChange}
-                    placeholder="Ej: Av. Providencia 1234, Santiago"
-                  />
-                </Field>
-                <Field label="Teléfono">
-                  <input
-                    type="tel"
-                    name="telefono"
-                    value={form.telefono}
-                    onChange={handleChange}
-                    placeholder="Ej: +56 9 1234 5678"
-                  />
-                </Field>
-                <Field label="E-mail" span={3}>
-                  <input
-                    type="email"
-                    name="email"
-                    value={form.email}
-                    onChange={handleChange}
-                    placeholder="Ej: nombre@correo.cl"
-                  />
-                </Field>
-              </div>
-            </Section>
-
-            <Section icon={Footprints} title="Problemas actuales">
-              <div className="clinical-grid clinical-grid--4">
-                {PROBLEMS.map((option) => (
-                  <label key={option} className="clinical-check">
-                    <input
-                      type="checkbox"
-                      checked={form.problemas.includes(option)}
-                      onChange={() => toggleOption('problemas')(option)}
-                    />
-                    {option}
-                  </label>
-                ))}
-                <Field label="Otros" span={3}>
-                  <input
-                    type="text"
-                    name="otros"
-                    value={form.otros}
-                    onChange={handleChange}
-                    placeholder="Ej: Fisura en talón derecho"
-                  />
-                </Field>
-                <Field label="Observaciones" span={4}>
-                  <textarea
-                    name="observaciones"
-                    value={form.observaciones}
-                    onChange={handleChange}
-                    rows={3}
-                    placeholder="Ej: Paciente refiere dolor al caminar hace 2 semanas"
-                  />
-                </Field>
-              </div>
-            </Section>
-
-            <Section icon={Stethoscope} title="Antecedentes de salud">
-              <div className="clinical-grid clinical-grid--3">
-                <Field label="Enfermedad diagnosticada" span={3}>
-                  <input
-                    type="text"
-                    name="enfermedad"
-                    value={form.enfermedad}
-                    onChange={handleChange}
-                    placeholder="Ej: Diabetes tipo 2"
-                  />
-                </Field>
-                <Field label="Medicamento">
-                  <input
-                    type="text"
-                    name="medicamento"
-                    value={form.medicamento}
-                    onChange={handleChange}
-                    placeholder="Ej: Metformina"
-                  />
-                </Field>
-                <Field label="Dosis">
-                  <input
-                    type="text"
-                    name="dosis"
-                    value={form.dosis}
-                    onChange={handleChange}
-                    placeholder="Ej: 850 mg cada 12 horas"
-                  />
-                </Field>
-                <Field label="Desde cuándo">
-                  <input
-                    type="text"
-                    name="desdeCuando"
-                    value={form.desdeCuando}
-                    onChange={handleChange}
-                    placeholder="Ej: Marzo 2019"
-                  />
-                </Field>
-                <div className="clinical-field clinical-span-3">
-                  Consume
-                  <CheckGroup
-                    className="clinical-checks-row"
-                    options={CONSUMES}
-                    selected={form.consume}
-                    onToggle={toggleOption('consume')}
-                  />
-                </div>
-                <Field label="Cirugías previas" span={3}>
-                  <input
-                    type="text"
-                    name="cirugias"
-                    value={form.cirugias}
-                    onChange={handleChange}
-                    placeholder="Ej: Apendicectomía, 2010"
-                  />
-                </Field>
-              </div>
-            </Section>
-
-            <Section icon={Users} title="Antecedentes familiares">
-              <CheckGroup
-                className="clinical-grid clinical-grid--3"
-                options={FAMILY_HISTORY}
-                selected={form.familiares}
-                onToggle={toggleOption('familiares')}
-              />
-            </Section>
-
-            <Section icon={PenTool} title="Mapa Anatómico">
-              <div className="clinical-podogram">
-                <p className="clinical-podogram__hint">
-                  Dibuja sobre el pie para marcar zonas de interés.
+        <motion.div
+          key="clinical-modal"
+          className="clinical-overlay"
+          onClick={onClose}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+        >
+          <motion.form
+            className="clinical-modal"
+            onClick={(event) => event.stopPropagation()}
+            onSubmit={handleSave}
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.95, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <header className="clinical-header">
+              <div>
+                <h1 className="clinical-header__title">Ficha clínica podológica</h1>
+                <p className="clinical-header__meta">
+                  Nº ficha {recordNumber} · Fecha {today}
                 </p>
-                <div className="clinical-podogram__stage">
-                  <img
-                    className="clinical-podogram__image"
-                    src="/modelo_pie.avif"
-                    alt="Modelo anatómico del pie"
-                    draggable={false}
-                  />
-                  <canvas
-                    ref={canvasRef}
-                    className="clinical-podogram__canvas"
-                    width={CANVAS_WIDTH}
-                    height={CANVAS_HEIGHT}
-                    onPointerDown={handleDrawStart}
-                    onPointerMove={handleDrawMove}
-                    onPointerUp={handleDrawEnd}
-                    onPointerCancel={handleDrawEnd}
-                  />
-                </div>
-                <button type="button" className="clinical-btn" onClick={handleClearDrawing}>
+              </div>
+              <div className="clinical-header__actions">
+                <button
+                  type="submit"
+                  className="clinical-btn clinical-btn--primary"
+                  disabled={isSaving || isLoading}
+                >
+                  <Save className="clinical-btn__icon" strokeWidth={2} />
+                  {isSaving ? 'Guardando...' : 'Guardar'}
+                </button>
+                <button type="button" className="clinical-btn" onClick={handleClear}>
                   <Eraser className="clinical-btn__icon" strokeWidth={2} />
-                  Limpiar dibujo
+                  Limpiar
+                </button>
+                <button type="button" className="clinical-btn" onClick={onClose}>
+                  <X className="clinical-btn__icon" strokeWidth={2} />
+                  Cerrar
                 </button>
               </div>
-            </Section>
+            </header>
 
-            <Section icon={Wallet} title="Cobro">
-              <div className="clinical-billing">
-                <Field label="Precio a cobrar">
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    name="precio"
-                    value={price}
-                    onChange={handlePriceChange}
-                    placeholder="$15.000"
+            {errorMessage && (
+              <p className="clinical-message clinical-message--error" role="alert">
+                {errorMessage}
+              </p>
+            )}
+            {successMessage && (
+              <p className="clinical-message clinical-message--success" role="status">
+                {successMessage}
+              </p>
+            )}
+
+            {isLoading ? (
+              <p className="clinical-loading">Cargando ficha...</p>
+            ) : (
+              <>
+                <Section icon={User} title="Datos del paciente">
+                  <div className="clinical-grid clinical-grid--3">
+                    <Field label="Nombre completo" span={3}>
+                      <input
+                        type="text"
+                        name="nombre"
+                        value={form.nombre}
+                        onChange={handleChange}
+                        placeholder="Ej: María González Pérez"
+                      />
+                    </Field>
+                    <Field label="Nacimiento">
+                      <input
+                        type="date"
+                        name="nacimiento"
+                        value={form.nacimiento}
+                        onChange={handleChange}
+                      />
+                    </Field>
+                    <Field label="Género">
+                      <select name="genero" value={form.genero} onChange={handleChange}>
+                        <option value="">Seleccionar...</option>
+                        {GENDERS.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label="Estado civil">
+                      <select
+                        name="estadoCivil"
+                        value={form.estadoCivil}
+                        onChange={handleChange}
+                      >
+                        <option value="">Seleccionar...</option>
+                        {CIVIL_STATUSES.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label="Escolaridad">
+                      <input
+                        type="text"
+                        name="escolaridad"
+                        value={form.escolaridad}
+                        onChange={handleChange}
+                        placeholder="Ej: Media completa"
+                      />
+                    </Field>
+                    <Field label="Ocupación" span={2}>
+                      <input
+                        type="text"
+                        name="ocupacion"
+                        value={form.ocupacion}
+                        onChange={handleChange}
+                        placeholder="Ej: Profesora"
+                      />
+                    </Field>
+                    <Field label="Dirección" span={2}>
+                      <input
+                        type="text"
+                        name="direccion"
+                        value={form.direccion}
+                        onChange={handleChange}
+                        placeholder="Ej: Av. Providencia 1234, Santiago"
+                      />
+                    </Field>
+                    <Field label="Teléfono">
+                      <input
+                        type="tel"
+                        name="telefono"
+                        value={form.telefono}
+                        onChange={handleChange}
+                        placeholder="Ej: +56 9 1234 5678"
+                      />
+                    </Field>
+                    <Field label="E-mail" span={2}>
+                      <input
+                        type="email"
+                        name="email"
+                        value={form.email}
+                        onChange={handleChange}
+                        placeholder="Ej: nombre@correo.cl"
+                      />
+                    </Field>
+                    <Field label="Talla de calzado">
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        name="tallaCalzado"
+                        value={form.tallaCalzado}
+                        onChange={handleChange}
+                        placeholder="Ej: 38"
+                      />
+                    </Field>
+                  </div>
+                </Section>
+
+                <Section icon={Footprints} title="Problemas actuales">
+                  <div className="clinical-grid clinical-grid--4">
+                    {PROBLEMS.map((option) => (
+                      <label key={option} className="clinical-check">
+                        <input
+                          type="checkbox"
+                          checked={form.problemas.includes(option)}
+                          onChange={() => toggleOption('problemas')(option)}
+                        />
+                        {option}
+                      </label>
+                    ))}
+                    <Field label="Otros" span={4}>
+                      <input
+                        type="text"
+                        name="otros"
+                        value={form.otros}
+                        onChange={handleChange}
+                        placeholder="Ej: Fisura en talón derecho"
+                      />
+                    </Field>
+                    <Field label="Observaciones" span={4}>
+                      <textarea
+                        name="observaciones"
+                        value={form.observaciones}
+                        onChange={handleChange}
+                        rows={3}
+                        placeholder="Ej: Paciente refiere dolor al caminar hace 2 semanas"
+                      />
+                    </Field>
+                  </div>
+                </Section>
+
+                <Section icon={Stethoscope} title="Antecedentes de salud">
+                  <div className="clinical-grid clinical-grid--3">
+                    <Field label="Enfermedad diagnosticada" span={3}>
+                      <input
+                        type="text"
+                        name="enfermedad"
+                        value={form.enfermedad}
+                        onChange={handleChange}
+                        placeholder="Ej: Diabetes tipo 2"
+                      />
+                    </Field>
+                    <Field label="Medicamento">
+                      <input
+                        type="text"
+                        name="medicamento"
+                        value={form.medicamento}
+                        onChange={handleChange}
+                        placeholder="Ej: Metformina"
+                      />
+                    </Field>
+                    <Field label="Dosis">
+                      <input
+                        type="text"
+                        name="dosis"
+                        value={form.dosis}
+                        onChange={handleChange}
+                        placeholder="Ej: 850 mg cada 12 horas"
+                      />
+                    </Field>
+                    <Field label="Desde cuándo">
+                      <input
+                        type="text"
+                        name="desdeCuando"
+                        value={form.desdeCuando}
+                        onChange={handleChange}
+                        placeholder="Ej: Marzo 2019"
+                      />
+                    </Field>
+                    <div className="clinical-field clinical-span-3">
+                      Consume
+                      <CheckGroup
+                        className="clinical-checks-row"
+                        options={CONSUMES}
+                        selected={form.consume}
+                        onToggle={toggleOption('consume')}
+                      />
+                    </div>
+                    <Field label="Cirugías previas" span={3}>
+                      <input
+                        type="text"
+                        name="cirugias"
+                        value={form.cirugias}
+                        onChange={handleChange}
+                        placeholder="Ej: Apendicectomía, 2010"
+                      />
+                    </Field>
+                  </div>
+                </Section>
+
+                <Section icon={Users} title="Antecedentes familiares">
+                  <CheckGroup
+                    className="clinical-grid clinical-grid--3"
+                    options={FAMILY_HISTORY}
+                    selected={form.familiares}
+                    onToggle={toggleOption('familiares')}
                   />
-                </Field>
-                <p className="clinical-billing__total">{price || '$0'}</p>
-              </div>
-            </Section>
-          </>
-        )}
-      </motion.form>
-    </motion.div>
+                </Section>
+
+                <Section icon={PenTool} title="Mapa Anatómico">
+                  <div className="clinical-podogram">
+                    <p className="clinical-podogram__hint">
+                      Dibuja sobre el pie para marcar zonas de interés.
+                    </p>
+                    <div className="clinical-podogram__stage">
+                      <img
+                        className="clinical-podogram__image"
+                        src="/modelo_pie.avif"
+                        alt="Modelo anatómico del pie"
+                        draggable={false}
+                      />
+                      <canvas
+                        ref={canvasRef}
+                        className="clinical-podogram__canvas"
+                        width={CANVAS_WIDTH}
+                        height={CANVAS_HEIGHT}
+                        onPointerDown={handleDrawStart}
+                        onPointerMove={handleDrawMove}
+                        onPointerUp={handleDrawEnd}
+                        onPointerCancel={handleDrawEnd}
+                      />
+                    </div>
+                    <button type="button" className="clinical-btn" onClick={handleClearDrawing}>
+                      <Eraser className="clinical-btn__icon" strokeWidth={2} />
+                      Limpiar dibujo
+                    </button>
+                  </div>
+                </Section>
+
+                <Section icon={Wallet} title="Cobro">
+                  <div className="clinical-billing">
+                    <Field label="Precio a cobrar">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        name="precio"
+                        value={price}
+                        onChange={handlePriceChange}
+                        placeholder="$15.000"
+                      />
+                    </Field>
+                    <p className="clinical-billing__total">{price || '$0'}</p>
+                  </div>
+                </Section>
+              </>
+            )}
+          </motion.form>
+        </motion.div>
       )}
     </AnimatePresence>
   )
