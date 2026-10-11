@@ -26,6 +26,8 @@
   --color-danger: #b42318;
   --color-danger-soft: #fdf0ee;
   --color-danger-border: rgba(180, 35, 24, 0.2);
+  --color-warning: #7a4f00;          /* 6.5:1 sobre warning-soft */
+  --color-warning-soft: #fdf4e3;
   --color-success-border: rgba(103, 172, 83, 0.35);
   --color-on-primary: #ffffff;
   --color-overlay: rgba(26, 36, 51, 0.45);
@@ -52,6 +54,7 @@
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 14px;
+  --radius-pill: 999px;
 
   --shadow-sm: 0 1px 2px rgba(26, 36, 51, 0.05);
   --shadow-md: 0 1px 2px rgba(26, 36, 51, 0.04), 0 8px 24px rgba(26, 36, 51, 0.06);

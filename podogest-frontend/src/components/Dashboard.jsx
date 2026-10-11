@@ -216,7 +216,7 @@ function Dashboard() {
       appointment.rut?.toLowerCase().includes(normalizedSearch),
   )
 
-  // Citas de hoy para la pestaña "Agenda de Hoy", ordenadas por hora.
+  // Citas de hoy para la pestaña "Agenda de hoy", ordenadas por hora.
   const todayAppointments = useMemo(() => {
     const todayStr = getTodayDateString()
     return appointments
@@ -254,7 +254,7 @@ function Dashboard() {
           className={`dashboard__tab ${activeTab === 'agenda' ? 'dashboard__tab--active' : ''}`}
           onClick={() => setActiveTab('agenda')}
         >
-          Agenda de Hoy
+          Agenda de hoy
         </button>
         <button
           type="button"

@@ -25,13 +25,24 @@ function formatTime(time) {
   return time ? time.slice(0, 5) : '--:--'
 }
 
+// Sin status no se muestra etiqueta: no se inventa un estado que no conocemos.
+// Un status que no está en STATUS_META se muestra tal cual, en estilo neutro.
+function getStatusMeta(status) {
+  if (!status) return null
+  return (
+    STATUS_META[status] ?? {
+      label: capitalize(String(status).replaceAll('_', ' ')),
+      className: 'daily-agenda__badge--neutral',
+    }
+  )
+}
+
 function AppointmentCard({ appointment_time, patient_name, service_type, status }) {
-  // El backend aún no expone un estado propio de la cita: si existe en la
-  // agenda de hoy se asume confirmada, salvo que venga un status explícito.
-  const statusMeta = STATUS_META[status] ?? STATUS_META.confirmada
+  const statusMeta = getStatusMeta(status)
+  const isCancelled = status === 'cancelada'
 
   return (
-    <li className="daily-agenda__card">
+    <li className={`daily-agenda__card${isCancelled ? ' daily-agenda__card--cancelled' : ''}`}>
       <div className="daily-agenda__time">
         <Clock size={18} aria-hidden="true" />
         <span>{formatTime(appointment_time)}</span>
@@ -45,21 +56,25 @@ function AppointmentCard({ appointment_time, patient_name, service_type, status 
         <p className="daily-agenda__service">{service_type || 'Consulta general'}</p>
       </div>
 
-      <span className={`daily-agenda__badge ${statusMeta.className}`}>{statusMeta.label}</span>
+      {statusMeta && (
+        <span className={`daily-agenda__badge ${statusMeta.className}`}>{statusMeta.label}</span>
+      )}
     </li>
   )
 }
 
 function DailyAgenda({ appointments = [] }) {
   return (
-    <section className="daily-agenda">
+    <section className="daily-agenda" aria-labelledby="daily-agenda-title">
       <header className="daily-agenda__header">
-        <h2 className="daily-agenda__title">Agenda de hoy</h2>
+        <h2 id="daily-agenda-title" className="daily-agenda__title">
+          Agenda de hoy
+        </h2>
         <p className="daily-agenda__date">{getTodayLabel()}</p>
       </header>
 
       {appointments.length === 0 ? (
-        <div className="daily-agenda__empty">
+        <div className="daily-agenda__empty" role="status">
           <CalendarX size={32} strokeWidth={1.5} aria-hidden="true" />
           <p>No tienes citas agendadas para hoy</p>
         </div>
