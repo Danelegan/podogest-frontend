@@ -155,6 +155,18 @@ function buildLines(form, keys, rest) {
   return [...lines, ...rest].join('\n')
 }
 
+// Checkbox lists compare as sets: unchecking and rechecking is not a change.
+function isSameForm(a, b) {
+  return Object.keys(EMPTY_FORM).every((field) => {
+    if (!Array.isArray(a[field])) return a[field] === b[field]
+    return a[field].length === b[field].length && a[field].every((item) => b[field].includes(item))
+  })
+}
+
+const FOCUSABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), ' +
+  'textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+
 function Field({ label, span = 1, children }) {
   return (
     <label className={`clinical-field clinical-span-${span}`}>
@@ -207,6 +219,20 @@ function ClinicalRecordModal({ isOpen, onClose, appointmentId, appointment }) {
   const canvasRef = useRef(null)
   const isDrawingRef = useRef(false)
   const hasInkRef = useRef(false)
+  const dialogRef = useRef(null)
+  const titleRef = useRef(null)
+  const saveButtonRef = useRef(null)
+  const returnFocusRef = useRef(null)
+  const wasLoadingRef = useRef(false)
+  const wasSavingRef = useRef(false)
+  // Latest handlers for the document-level listeners (Escape fallback,
+  // beforeunload), which are registered once per opening.
+  const latestRef = useRef({ requestClose: () => {}, hasUnsavedChanges: () => false })
+  // Unsaved-changes tracking: the form as last loaded/saved, and a counter of
+  // podogram edits (the canvas is not React state).
+  const baselineRef = useRef({ form: EMPTY_FORM, drawEdits: 0 })
+  const submittedRef = useRef(null)
+  const drawEditsRef = useRef(0)
 
   const emptyForm = () => ({
     ...EMPTY_FORM,
@@ -301,21 +327,154 @@ function ClinicalRecordModal({ isOpen, onClose, appointmentId, appointment }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, appointmentId])
 
+  // On open: remember who opened the modal ("Ver Ficha"), make the rest of the
+  // page inert and focus the title. On close: undo that and hand focus back.
   useEffect(() => {
     if (!isOpen) return undefined
 
-    const handleKeyDown = (event) => {
-      if (event.key === 'Escape') onClose()
-    }
-
-    document.addEventListener('keydown', handleKeyDown)
+    returnFocusRef.current = document.activeElement
     document.body.style.overflow = 'hidden'
 
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown)
-      document.body.style.overflow = ''
+    // Every sibling of the overlay and of its ancestors, up to <body>, is
+    // background. Elements that were already inert are left alone.
+    const madeInert = []
+    let node = dialogRef.current?.parentElement
+    while (node && node !== document.body) {
+      for (const sibling of node.parentElement?.children ?? []) {
+        if (sibling !== node && !sibling.inert) {
+          sibling.inert = true
+          madeInert.push(sibling)
+        }
+      }
+      node = node.parentElement
     }
-  }, [isOpen, onClose])
+
+    titleRef.current?.focus()
+
+    const handleDocumentKeyDown = (event) => {
+      // Fallback for when focus is not inside the dialog (e.g. on <body>);
+      // inside it, the dialog's own onKeyDown handles Escape.
+      if (event.key !== 'Escape' || dialogRef.current?.contains(event.target)) return
+      event.preventDefault()
+      latestRef.current.requestClose()
+    }
+
+    const handleBeforeUnload = (event) => {
+      if (!latestRef.current.hasUnsavedChanges()) return
+      event.preventDefault()
+      event.returnValue = ''
+    }
+
+    document.addEventListener('keydown', handleDocumentKeyDown)
+    window.addEventListener('beforeunload', handleBeforeUnload)
+
+    return () => {
+      document.removeEventListener('keydown', handleDocumentKeyDown)
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+      document.body.style.overflow = ''
+      madeInert.forEach((element) => {
+        element.inert = false
+      })
+      const opener = returnFocusRef.current
+      if (opener?.isConnected) opener.focus()
+    }
+  }, [isOpen])
+
+  // While saving, the Save button is disabled and the browser drops its focus;
+  // give it back once the request finishes (successful or not), unless the
+  // user has already moved focus to something else inside the dialog.
+  useEffect(() => {
+    if (isSaving) {
+      wasSavingRef.current = true
+      return
+    }
+    if (!wasSavingRef.current) return
+    wasSavingRef.current = false
+    const active = document.activeElement
+    const focusIsLost =
+      !active ||
+      active === document.body ||
+      active === saveButtonRef.current ||
+      !dialogRef.current?.contains(active)
+    if (focusIsLost) saveButtonRef.current?.focus()
+  }, [isSaving])
+
+  // When loading finishes the form exists: snapshot it as "unchanged".
+  useEffect(() => {
+    if (!isOpen) return
+    if (isLoading) {
+      wasLoadingRef.current = true
+      return
+    }
+    if (!wasLoadingRef.current) return
+    wasLoadingRef.current = false
+    baselineRef.current = { form, drawEdits: drawEditsRef.current }
+    // Only the loading transition matters; `form` is read as of that moment.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, isLoading])
+
+  // A successful save makes what was submitted the new "unchanged" state.
+  useEffect(() => {
+    if (successMessage && submittedRef.current) {
+      baselineRef.current = submittedRef.current
+      submittedRef.current = null
+    }
+  }, [successMessage])
+
+  const hasUnsavedChanges = () =>
+    !isLoading &&
+    (!isSameForm(form, baselineRef.current.form) ||
+      drawEditsRef.current !== baselineRef.current.drawEdits)
+
+  // Closing is blocked while a save is in flight; if it fails, the normal
+  // unsaved-changes confirmation applies again.
+  const requestClose = () => {
+    if (isSaving) return
+    if (
+      hasUnsavedChanges() &&
+      !window.confirm('Hay cambios sin guardar en la ficha. ¿Cerrar y descartarlos?')
+    ) {
+      return
+    }
+    onClose()
+  }
+
+  useEffect(() => {
+    latestRef.current = { requestClose, hasUnsavedChanges }
+  })
+
+  // Escape closes; Tab cycles within the dialog.
+  const handleDialogKeyDown = (event) => {
+    if (event.key === 'Escape') {
+      // Browsers don't expose whether a <select> list is open, so Escape on a
+      // focused select is left to the select (closing its list).
+      if (event.target instanceof HTMLSelectElement) return
+      event.preventDefault()
+      requestClose()
+      return
+    }
+    if (event.key !== 'Tab') return
+
+    const focusables = [...dialogRef.current.querySelectorAll(FOCUSABLE)]
+    if (!focusables.length) return
+    const first = focusables[0]
+    const last = focusables[focusables.length - 1]
+    const active = document.activeElement
+
+    // The title and the dialog itself hold focus but are not in the Tab order.
+    if (event.shiftKey && (active === first || !focusables.includes(active))) {
+      event.preventDefault()
+      last.focus()
+    } else if (!event.shiftKey && active === last) {
+      event.preventDefault()
+      first.focus()
+    }
+  }
+
+  const handleSubmit = (event) => {
+    submittedRef.current = { form, drawEdits: drawEditsRef.current }
+    handleSave(event)
+  }
 
   // The canvas only exists once the form is rendered (after loading), so the
   // saved drawing is painted back here rather than in the fetch.
@@ -358,6 +517,7 @@ function ClinicalRecordModal({ isOpen, onClose, appointmentId, appointment }) {
     canvas.setPointerCapture(event.pointerId)
     isDrawingRef.current = true
     hasInkRef.current = true
+    drawEditsRef.current += 1
     ctx.strokeStyle = '#dc2626'
     ctx.lineWidth = 2
     ctx.lineCap = 'round'
@@ -383,6 +543,7 @@ function ClinicalRecordModal({ isOpen, onClose, appointmentId, appointment }) {
 
   const handleClearDrawing = () => {
     const canvas = canvasRef.current
+    if (hasInkRef.current) drawEditsRef.current += 1
     canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height)
     hasInkRef.current = false
     setSavedDrawing('')
@@ -489,10 +650,21 @@ function ClinicalRecordModal({ isOpen, onClose, appointmentId, appointment }) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
+            // Clicking the backdrop must not pull focus out of the dialog.
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) event.preventDefault()
+            }}
           >
             <motion.form
+              ref={dialogRef}
               className="clinical-modal"
-              onSubmit={handleSave}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="clinical-modal-title"
+              aria-describedby="clinical-modal-meta"
+              tabIndex={-1}
+              onKeyDown={handleDialogKeyDown}
+              onSubmit={handleSubmit}
               initial={{ scale: 0.96, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.96, opacity: 0 }}
@@ -500,25 +672,42 @@ function ClinicalRecordModal({ isOpen, onClose, appointmentId, appointment }) {
             >
               <header className="clinical-header">
                 <div>
-                  <h1 className="clinical-header__title">Ficha clínica podológica</h1>
-                  <p className="clinical-header__meta">
+                  <h1
+                    ref={titleRef}
+                    id="clinical-modal-title"
+                    className="clinical-header__title"
+                    tabIndex={-1}
+                  >
+                    Ficha clínica podológica
+                  </h1>
+                  <p id="clinical-modal-meta" className="clinical-header__meta">
                     {recordLabel} · {today}
                   </p>
                 </div>
                 <button
                   type="button"
                   className="clinical-close"
-                  onClick={onClose}
-                  aria-label="Cerrar ficha"
-                  title="Cerrar"
+                  onClick={requestClose}
+                  // aria-disabled instead of disabled so the button keeps focus.
+                  aria-disabled={isSaving || undefined}
+                  aria-label={isSaving ? 'Cerrar ficha (guardando…)' : 'Cerrar ficha'}
+                  title={isSaving ? 'Guardando…' : 'Cerrar'}
                 >
                   <X className="clinical-btn__icon" strokeWidth={2} />
                 </button>
               </header>
 
-              <div className="clinical-body">
+              {/* Always mounted, so screen readers announce when its text changes;
+                  the visible "Cargando ficha…" below is hidden from them. */}
+              <p className="clinical-sr-only" role="status">
+                {isLoading ? 'Cargando ficha…' : ''}
+              </p>
+
+              <div className="clinical-body" aria-busy={isLoading}>
                 {isLoading ? (
-                  <p className="clinical-loading">Cargando ficha…</p>
+                  <p className="clinical-loading" aria-hidden="true">
+                    Cargando ficha…
+                  </p>
                 ) : (
                   <>
                     <Section icon={User} title="Datos del paciente">
@@ -693,15 +882,15 @@ function ClinicalRecordModal({ isOpen, onClose, appointmentId, appointment }) {
                             placeholder="Ej.: Marzo 2019"
                           />
                         </Field>
-                        <div className="clinical-field clinical-span-3">
-                          Consume
+                        <fieldset className="clinical-field clinical-fieldset clinical-span-3">
+                          <legend className="clinical-fieldset__legend">Consume</legend>
                           <CheckGroup
                             className="clinical-checks-row"
                             options={CONSUMES}
                             selected={form.consume}
                             onToggle={toggleOption('consume')}
                           />
-                        </div>
+                        </fieldset>
                         <Field label="Cirugías previas" span={3}>
                           <input
                             type="text"
@@ -789,6 +978,7 @@ function ClinicalRecordModal({ isOpen, onClose, appointmentId, appointment }) {
                     Vaciar ficha
                   </button>
                   <button
+                    ref={saveButtonRef}
                     type="submit"
                     className="clinical-btn clinical-btn--primary"
                     disabled={isSaving || isLoading}
