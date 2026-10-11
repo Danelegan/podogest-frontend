@@ -11,20 +11,24 @@
   inset: 0;
   z-index: 1000;
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6) var(--space-5);
   background: var(--color-overlay);
   backdrop-filter: blur(4px);
 }
 
-/* Side panel: fixed header and footer, only the body scrolls. */
+/* Centered modal: fixed header and footer, only the body scrolls. */
 .clinical-modal {
   counter-reset: clinical-section;
   display: flex;
   flex-direction: column;
-  width: min(640px, 100%);
-  height: 100%;
+  width: min(920px, 100%);
+  max-height: 100%;
+  overflow: hidden;
   background: var(--color-bg);
-  border-left: 1px solid var(--color-border);
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
   box-shadow: var(--shadow-lg);
   font-family: var(--font-ui);
   font-size: var(--text-sm);
@@ -294,7 +298,7 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-/* Auto-fill so chips like "Onicocriptosis Grave" don't wrap in the 640px panel. */
+/* Auto-fill so long chips like "Onicocriptosis Grave" get a full column. */
 .clinical-grid--4 {
   grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
 }
@@ -488,12 +492,18 @@
   color: var(--color-text);
 }
 
-/* ---------- Mobile: full-screen panel ---------- */
+/* ---------- Mobile: full screen ---------- */
 
 @media (max-width: 720px) {
+  .clinical-overlay {
+    padding: 0;
+  }
+
   .clinical-modal {
     width: 100%;
-    border-left: none;
+    height: 100%;
+    border: none;
+    border-radius: 0;
   }
 
   .clinical-header {

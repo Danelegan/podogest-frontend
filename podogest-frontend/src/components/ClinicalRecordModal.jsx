@@ -485,7 +485,6 @@ function ClinicalRecordModal({ isOpen, onClose, appointmentId, appointment }) {
           <motion.div
             key="clinical-modal"
             className="clinical-overlay"
-            onClick={onClose}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -493,12 +492,11 @@ function ClinicalRecordModal({ isOpen, onClose, appointmentId, appointment }) {
           >
             <motion.form
               className="clinical-modal"
-              onClick={(event) => event.stopPropagation()}
               onSubmit={handleSave}
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ duration: 0.28, ease: [0.2, 0.7, 0.2, 1] }}
+              initial={{ scale: 0.96, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.96, opacity: 0 }}
+              transition={{ duration: 0.2, ease: [0.2, 0.7, 0.2, 1] }}
             >
               <header className="clinical-header">
                 <div>
