@@ -69,6 +69,8 @@ function AdminLogin() {
             value={credentials.username}
             onChange={handleChange}
             autoComplete="username"
+            autoCapitalize="none"
+            spellCheck={false}
             required
           />
         </label>
