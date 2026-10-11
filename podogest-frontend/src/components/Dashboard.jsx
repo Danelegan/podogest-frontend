@@ -294,7 +294,7 @@ function Dashboard() {
                 onClick={() => setIsManualModalOpen(true)}
               >
                 <UserPlus size={18} aria-hidden="true" />
-                Nueva Atención Manual
+                Nueva atención manual
               </button>
               <button
                 type="button"

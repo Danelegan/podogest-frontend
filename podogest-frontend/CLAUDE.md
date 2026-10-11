@@ -17,3 +17,4 @@ Quiero un rediseño premium del panel: propón una dirección estética nueva
   dímelo explícitamente en vez de suponerlo.
 - Commits: feat/fix/refactor(frontend): mensaje
 - Ejecuta lint y build directamente, sin subagentes.
+- responde siempre en español 
