@@ -26,7 +26,7 @@ function LandingPage() {
   return (
     <>
       <Navbar onOpenBooking={openBookingModal} />
-      <HeroSection onOpenBooking={openBookingModal} />
+      <HeroSection onOpenBooking={openBookingModal} onRequestService={requestService} />
       <ServicesSection onRequestService={requestService} />
       <AboutSection />
       <BookingModal

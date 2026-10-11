@@ -1,171 +1,209 @@
+/* Tipografía desde los tokens globales de :root (index.css). El hero usa
+   un fondo azul profundo derivado de --color-primary (#2e6ec5), cercano al
+   azul marino del uniforme de la foto; sus colores sobre oscuro van aquí. */
 .hero {
-  background: linear-gradient(135deg, #f0fdfe 0%, #e0f7fa 50%, #ffffff 100%);
-  padding: 4rem 1.5rem;
+  --hero-bg: #1c3766;                      /* azul profundo */
+  --hero-text: #ffffff;                    /* ≈ 11.8:1 sobre --hero-bg */
+  --hero-text-soft: rgba(255, 255, 255, 0.84); /* ≈ 8.8:1 */
+  --hero-line: rgba(255, 255, 255, 0.32);  /* bordes finos sobre oscuro */
+  --hero-focus: #ffffff;
+  --hero-home-bg: rgba(103, 172, 83, 0.16);
+  --hero-home-bg-hover: rgba(103, 172, 83, 0.26);
+  --hero-home-icon: #a8d898;               /* verde del logo aclarado */
+
+  background: var(--hero-bg);
+  color: var(--hero-text);
+  font-family: var(--font-ui);
+  padding: 4.5rem 1.5rem;
+  scroll-margin-top: 5rem; /* navbar sticky */
+}
+
+.hero *,
+.hero *::before,
+.hero *::after {
+  box-sizing: border-box;
 }
 
 .hero__container {
   max-width: 1200px;
   margin: 0 auto;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
   align-items: center;
-  justify-content: space-between;
-  gap: 3rem;
-}
-
-.hero__content {
-  flex: 1 1 480px;
-  max-width: 560px;
+  gap: 4rem;
 }
 
 .hero__title {
-  font-size: clamp(2.2rem, 4vw, 3.25rem);
-  font-weight: 800;
-  line-height: 1.15;
-  color: #0f172a;
+  font-family: var(--font-display);
+  font-size: clamp(2.25rem, 4.2vw, 3.4rem);
+  font-weight: 500;
+  line-height: 1.08;
+  letter-spacing: -0.01em;
+  color: var(--hero-text);
   margin: 0 0 1.25rem;
-  letter-spacing: -0.02em;
 }
 
 .hero__subtitle {
   font-size: 1.1rem;
   line-height: 1.6;
-  color: #475569;
+  color: var(--hero-text-soft);
   margin: 0 0 2rem;
+  max-width: 46ch;
 }
 
 .hero__actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
 .hero__btn {
-  display: inline-block;
-  padding: 0.85rem 1.75rem;
-  border: none;
-  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 0 1.5rem;
+  border: 1px solid var(--hero-text);
+  border-radius: 4px;
   font-family: inherit;
-  font-weight: 600;
   font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: inherit;
   text-decoration: none;
   cursor: pointer;
-  transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
 }
 
+/* Blanco con texto azul: 5.06:1. */
 .hero__btn--primary {
-  background-color: #0891b2;
-  color: #ffffff;
-  box-shadow: 0 8px 20px rgba(8, 145, 178, 0.25);
+  background-color: var(--color-surface);
+  color: var(--color-primary);
 }
 
+/* primary-strong sobre primary-soft: 5.92:1. */
 .hero__btn--primary:hover {
-  background-color: #0e7490;
-  transform: translateY(-2px);
+  background-color: var(--color-primary-soft);
+  border-color: var(--color-primary-soft);
+  color: var(--color-primary-strong);
 }
 
-.hero__actions .hero__specular {
-  font-weight: 600;
-  box-shadow: 0 8px 20px rgba(8, 145, 178, 0.25);
-}
-
+/* Secundario con presencia, sin competir con el blanco sólido del principal.
+   Texto blanco sobre el relleno resultante: ≈ 7.8:1 (reposo), ≈ 5.7:1 (hover). */
 .hero__btn--secondary {
-  background-color: #ffffff;
-  color: #0891b2;
-  border: 2px solid #0891b2;
-  padding: 0.7rem 1.6rem;
+  border-width: 1.5px;
+  background-color: rgba(255, 255, 255, 0.14);
+  color: var(--hero-text);
 }
 
 .hero__btn--secondary:hover {
-  background-color: #ecfeff;
-  transform: translateY(-2px);
+  background-color: rgba(255, 255, 255, 0.24);
+}
+
+.hero__btn:focus-visible,
+.hero__note:focus-visible {
+  outline: 2px solid var(--hero-focus);
+  outline-offset: 2px;
+}
+
+/* Bloque "Atención a domicilio": abre la reserva con el servicio elegido. */
+.hero__note {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: var(--control-height);
+  margin-top: 1.75rem;
+  padding: 0 1rem 0 0.85rem;
+  border: none;
+  border-left: 3px solid var(--color-success-brand);
+  border-radius: 0 4px 4px 0;
+  background: var(--hero-home-bg);
+  color: var(--hero-text);                 /* ≈ 9:1 sobre el fondo resultante */
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: inherit;
+  line-height: 1.3;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 150ms ease;
+}
+
+.hero__note:hover {
+  background: var(--hero-home-bg-hover);
+}
+
+.hero__note-icon {
+  flex-shrink: 0;
+  color: var(--hero-home-icon);
 }
 
 .hero__visual {
-  flex: 1 1 360px;
-  max-width: 550px;
   aspect-ratio: 4 / 5;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  border: 1px solid var(--hero-line);
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--hero-bg);
 }
 
 .hero__image {
+  display: block;
   width: 100%;
   height: 100%;
-  border-radius: 24px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
   object-fit: cover;
   object-position: center top;
-  display: block;
 }
 
-@media (max-width: 900px) {
+/* ---------- Tablet ---------- */
+
+@media (max-width: 1024px) {
+  .hero {
+    padding: 3.5rem 1.5rem;
+  }
+
   .hero__container {
-    flex-direction: column;
-    text-align: center;
-  }
-
-  .hero__actions {
-    justify-content: center;
-  }
-
-  .hero__content {
-    max-width: 100%;
+    grid-template-columns: minmax(0, 6fr) minmax(0, 5fr);
+    gap: 2.5rem;
   }
 }
+
+/* ---------- Móvil: una columna, alineada a la izquierda ---------- */
 
 @media (max-width: 768px) {
   .hero {
-    padding: 2.5rem 1.25rem;
+    padding: 2.5rem 1rem;
+    scroll-margin-top: 4.5rem;
   }
 
   .hero__container {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2.25rem;
   }
 
-  /* In a column, the desktop flex-basis would be read as a height. */
-  .hero__content,
-  .hero__visual {
-    flex: none;
-    width: 100%;
-    max-width: 420px;
-    margin-inline: auto;
-    text-align: center;
+  .hero__title {
+    font-size: clamp(2rem, 8vw, 2.5rem);
+  }
+
+  .hero__subtitle {
+    font-size: 1.05rem;
+    margin-bottom: 1.75rem;
   }
 
   .hero__actions {
     flex-direction: column;
-    flex-wrap: nowrap;
-    gap: 12px;
   }
 
-  .hero__btn,
-  .hero__actions .hero__specular {
+  .hero__btn {
     width: 100%;
-    box-sizing: border-box;
-    text-align: center;
   }
 
   .hero__visual {
-    margin-top: 2rem;
-  }
-
-  .hero__image {
-    max-width: 100%;
-    height: 100%;
+    aspect-ratio: 1 / 1;
   }
 }
 
-.hero__badge {
-  display: inline-block;
-  margin-top: 1.25rem;
-  padding: 0.4rem 0.9rem;
-  border-radius: 999px;
-  background: #ecfeff;
-  border: 1px solid #a5f3fc;
-  color: #0e7490;
-  font-size: 0.875rem;
-  font-weight: 500;
+@media (prefers-reduced-motion: reduce) {
+  .hero__btn,
+  .hero__note {
+    transition: none;
+  }
 }

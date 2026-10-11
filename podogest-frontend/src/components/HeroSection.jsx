@@ -1,39 +1,31 @@
-import { motion } from 'framer-motion'
-import SpecularButton from './SpecularButton'
+import { Home } from 'lucide-react'
+import { specialtiesData } from '../data/services'
 import './HeroSection.css'
 
-function HeroSection({ onOpenBooking }) {
+// Mismo título que la tarjeta de servicios, para que el modal lo preseleccione.
+const HOME_SERVICE = specialtiesData.find((service) => service.id === 'atencion-domicilio')?.title ?? ''
+
+function HeroSection({ onOpenBooking, onRequestService }) {
   return (
     <section className="hero" id="top">
       <div className="hero__container">
-        <motion.div
-          className="hero__content"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-        >
+        <div className="hero__content">
           <h1 className="hero__title">
             Podología clínica
             <br />
             para el cuidado diario de tus pies
           </h1>
           <p className="hero__subtitle">
-            "Atención podológica profesional y personalizada, para que cada paso que des sea firme, cómodo y sin dolor."
+            Atención podológica profesional y personalizada, para que cada paso que des sea firme, cómodo y sin dolor.
           </p>
           <div className="hero__actions">
-            <SpecularButton
-              className="hero__specular"
-              size="md"
-              radius={10}
-              tint="#0891b2"
-              tintOpacity={1}
-              textColor="#ffffff"
-              baseColor="#0e7490"
-              autoAnimate
+            <button
+              type="button"
+              className="hero__btn hero__btn--primary"
               onClick={onOpenBooking}
             >
               Reserva tu cita
-            </SpecularButton>
+            </button>
             <a
               href="https://wa.me/56972836396"
               target="_blank"
@@ -43,21 +35,23 @@ function HeroSection({ onOpenBooking }) {
               Haz tu consulta
             </a>
           </div>
-          <p className="hero__badge">🚑 Atención a domicilio disponible</p>
-        </motion.div>
+          <button
+            type="button"
+            className="hero__note"
+            onClick={() => onRequestService(HOME_SERVICE)}
+          >
+            <Home className="hero__note-icon" size={18} strokeWidth={2} aria-hidden="true" />
+            Atención a domicilio disponible
+          </button>
+        </div>
 
-        <motion.div
-          className="hero__visual"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.15 }}
-        >
+        <div className="hero__visual">
           <img
             src="/Traje.jpeg"
             alt="Atención podológica profesional"
             className="hero__image"
           />
-        </motion.div>
+        </div>
       </div>
     </section>
   )
