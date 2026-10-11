@@ -5,9 +5,17 @@
   box-sizing: border-box;
 }
 
+/* Colores y tipografía desde los tokens globales de :root (index.css);
+   aquí solo las medidas propias de la sección. */
 .services {
-  background: #ffffff;
-  padding: 4.5rem 1.5rem;
+  --services-gutter: 1.5rem;
+  --services-rule: var(--color-border);
+
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: var(--font-ui);
+  padding: 5rem var(--services-gutter);
+  scroll-margin-top: 7.5rem; /* navbar sticky */
 }
 
 .services__container {
@@ -15,210 +23,109 @@
   margin: 0 auto;
 }
 
-.services__header {
-  text-align: center;
-  max-width: 620px;
-  margin: 0 auto 3rem;
+/* ---------- Cabecera ---------- */
+
+.services__intro {
+  margin-bottom: 3rem;
 }
 
 .services__title {
-  font-size: clamp(1.8rem, 3vw, 2.5rem);
-  font-weight: 800;
-  color: #0f172a;
-  margin: 0 0 0.75rem;
-  letter-spacing: -0.02em;
+  font-family: var(--font-display);
+  font-size: clamp(2.1rem, 3.4vw, 2.75rem);
+  font-weight: 500;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  color: var(--color-text);
+  margin: 0 0 1rem;
 }
 
 .services__subtitle {
-  font-size: 1.05rem;
+  font-size: 1rem;
   line-height: 1.6;
-  color: #64748b;
-  margin: 0;
+  color: var(--color-text-muted);
+  margin: 0 0 1.75rem;
+  max-width: 52ch;
 }
 
-.services__divider {
-  width: 100%;
-  max-width: 220px;
-  height: 3px;
-  margin: 3.5rem auto 0.75rem;
-  background: linear-gradient(90deg, transparent, #0891b2, transparent);
-  border-radius: 999px;
+.services__book {
+  min-height: var(--control-height);
+  padding: 0 1.4rem;
+  border: 1px solid var(--color-primary);
+  border-radius: 4px;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: inherit;
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+.services__book:hover {
+  background: var(--color-primary-strong);
+  border-color: var(--color-primary-strong);
 }
 
 .services__subheading {
-  text-align: center;
-  font-size: clamp(1.4rem, 2.4vw, 1.9rem);
-  font-weight: 800;
-  color: #0f172a;
-  letter-spacing: -0.02em;
-  margin: 0 0 2rem;
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 2.4vw, 2rem);
+  font-weight: 500;
+  line-height: 1.15;
+  color: var(--color-text);
+  margin: 4.5rem 0 2rem;
+  padding-top: 2.5rem;
+  border-top: 1px solid var(--services-rule);
 }
 
-/* Desktop: grid layout */
-.services__grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1.75rem;
-  align-items: stretch;
+.services__subheading::after {
+  content: '';
+  display: block;
+  width: 2.5rem;
+  height: 2px;
+  margin-top: 0.75rem;
+  background: var(--color-success-brand); /* decorativo */
 }
+
+/* ---------- Cuadrícula ---------- */
+
+.services__grid {
+  position: relative; /* referencia de offsetLeft para el carrusel */
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 3rem 2rem;
+}
+
+/* Los controles del carrusel solo existen en móvil. */
+.services__controls {
+  display: none;
+}
+
+/* ---------- Tarjeta ---------- */
 
 .service-card {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  padding: 1.75rem;
   display: flex;
   flex-direction: column;
-  align-self: stretch;
-  height: auto;
-  transition: box-shadow 0.2s ease;
+  min-width: 0;
 }
 
-/* Lift/scale on hover is handled by framer-motion. */
-.service-card:hover {
-  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
-}
-
-.service-card__image-wrapper {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  border-radius: 12px;
+.service-card__media {
+  aspect-ratio: 4 / 3;
+  border: 1px solid var(--services-rule);
+  border-radius: 2px;
   overflow: hidden;
-  background-color: #e2e8f0;
-  margin-bottom: 1.25rem;
+  background: var(--color-bg);
+  margin-bottom: 1.1rem;
 }
 
 .service-card__image {
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  display: block;
-}
-
-.service-card__price {
-  position: absolute;
-  top: 0.6rem;
-  right: 0.6rem;
-  background: #e0f2fe;
-  color: #0c4a6e;
-  font-size: 0.8rem;
-  font-weight: 700;
-  line-height: 1;
-  padding: 0.4rem 0.7rem;
-  border-radius: 999px;
-  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.12);
-}
-
-.service-card__title {
-  font-size: 1.2rem;
-  font-weight: 700;
-  color: #0f172a;
-  margin: 0 0 0.5rem;
-}
-
-.service-card__description {
-  font-size: 0.95rem;
-  line-height: 1.5;
-  color: #64748b;
-  margin: 0;
-}
-
-.service-card__cta {
-  margin-top: auto;
-  align-self: stretch;
-  padding: 0.7rem 1rem;
-  border: none;
-  border-radius: 10px;
-  background: #0891b2;
-  color: #ffffff;
-  font-size: 0.95rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 0.2s ease, transform 0.2s ease;
-}
-
-.service-card__description {
-  margin-bottom: 1.25rem;
-}
-
-.service-card__description:has(+ .service-card__price-note) {
-  margin-bottom: 0.5rem;
-}
-
-.service-card__price-note {
-  font-size: 0.8rem;
-  line-height: 1.4;
-  color: #94a3b8;
-  margin: 0 0 1.25rem;
-}
-
-.service-card__cta:hover {
-  background: #0e7490;
-  transform: translateY(-1px);
-}
-
-.service-card__cta:focus-visible {
-  outline: 3px solid #bae6fd;
-  outline-offset: 2px;
-}
-
-/* Especialidades: centrar la última fila (5 tarjetas = 3 + 2) */
-@media (min-width: 901px) {
-  .services__grid--specialties {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-
-  .services__grid--specialties .service-card {
-    flex: 0 1 calc(33.333% - 1.1667rem);
-  }
-}
-
-/* Mobile: horizontal scroll slider */
-@media (max-width: 900px) {
-  .services__grid {
-    display: flex;
-    grid-template-columns: unset;
-    align-items: stretch;
-    gap: 1.25rem;
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    padding-bottom: 0.75rem;
-    margin: 0 -1.5rem;
-    padding-left: 1.5rem;
-    padding-right: 1.5rem;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: thin;
-    scrollbar-color: #0891b2 #e2e8f0;
-  }
-
-  .services__grid::-webkit-scrollbar {
-    height: 6px;
-  }
-
-  .services__grid::-webkit-scrollbar-track {
-    background: #e2e8f0;
-    border-radius: 999px;
-  }
-
-  .services__grid::-webkit-scrollbar-thumb {
-    background: #0891b2;
-    border-radius: 999px;
-  }
-
-  .service-card {
-    flex: 0 0 82%;
-    max-width: 320px;
-    scroll-snap-align: start;
-  }
-}
-
-@media (max-width: 480px) {
-  .service-card {
-    flex-basis: 88%;
-  }
 }
 
 .service-card__icon {
@@ -227,6 +134,277 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #0891b2;
-  background: linear-gradient(135deg, #ecfeff, #cffafe);
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+
+/* Título · puntos guía · precio, como en una carta. El precio tiene su
+   columna (ancho de su contenido, nunca se parte) y se alinea con la
+   última línea del título. */
+.service-card__head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  align-items: last baseline;
+  column-gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.service-card__title {
+  position: relative;
+  isolation: isolate;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--color-text);
+  margin: 0;
+  overflow-wrap: break-word;
+}
+
+/* Sin precio, el título ocupa toda la fila. */
+.service-card__title:only-child {
+  grid-column: 1 / -1;
+}
+
+/* Puntos guía: una línea punteada a la altura de la última línea; el fondo
+   del texto la tapa, así que solo asoma en el hueco que sobra en esa línea.
+   Si la línea va llena, no se ven. */
+.service-card__title--leader::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0.32em;
+  border-bottom: 1px dotted var(--color-border-input);
+}
+
+.service-card__title-text {
+  position: relative;
+  z-index: 1;
+  padding-right: 0.3em;
+  background: var(--color-surface); /* mismo fondo que .services */
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+.service-card__price {
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums lining-nums;
+  white-space: nowrap;
+  text-align: right;
+  color: var(--color-text);
+}
+
+.service-card__description {
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.service-card__price-note {
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--color-text-muted);
+  margin: 0.4rem 0 0;
+}
+
+.service-card__cta {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: var(--control-height);
+  margin-top: auto;
+  padding: 0.5rem 0 0;
+  border: none;
+  background: none;
+  color: var(--color-primary);
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--color-border-input);
+  text-underline-offset: 0.25em;
+  cursor: pointer;
+  transition: color 150ms ease, text-decoration-color 150ms ease;
+}
+
+.service-card__arrow {
+  transition: transform 150ms ease;
+}
+
+.service-card__cta:hover {
+  color: var(--color-primary-strong);
+  text-decoration-color: currentColor;
+}
+
+.service-card__cta:hover .service-card__arrow {
+  transform: translateX(2px);
+}
+
+/* ---------- Foco ---------- */
+
+.services__book:focus-visible,
+.service-card__cta:focus-visible,
+.services__arrow:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.services__sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------- Tablet: 2 columnas ---------- */
+
+@media (max-width: 1024px) {
+  .services {
+    padding-block: 4rem;
+  }
+
+  .services__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 2.5rem 1.5rem;
+  }
+}
+
+/* ---------- Móvil: carrusel con scroll-snap ---------- */
+
+@media (max-width: 600px) {
+  .services {
+    --services-gutter: 1rem;
+    padding-block: 3rem;
+  }
+
+  .services__intro {
+    margin-bottom: 2rem;
+  }
+
+  .services__subheading {
+    margin-top: 3rem;
+    padding-top: 2rem;
+  }
+
+  .services__grid {
+    display: flex;
+    gap: 1rem;
+    overflow-x: auto;
+    /* Espacio para que el anillo de foco no se recorte con el overflow. */
+    padding-block: 0.25rem 0.5rem;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: var(--services-gutter);
+    margin-inline: calc(var(--services-gutter) * -1);
+    padding-inline: var(--services-gutter);
+    scrollbar-width: none;
+    overscroll-behavior-x: contain;
+  }
+
+  .services__grid::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* 84% deja ver el borde de la siguiente tarjeta. */
+  .service-card {
+    flex: 0 0 84%;
+    scroll-snap-align: start;
+  }
+
+  .services__controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 0.75rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--services-rule);
+  }
+
+  .services__counter {
+    position: relative;
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-text-muted);
+  }
+
+  .services__arrow {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--control-height);
+    height: var(--control-height);
+    padding: 0;
+    border: 1px solid var(--color-border-input);
+    border-radius: 4px;
+    background: var(--color-surface);
+    color: var(--color-primary);
+    cursor: pointer;
+    transition: border-color 150ms ease, color 150ms ease;
+  }
+
+  .services__arrow:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary-strong);
+  }
+
+  .services__arrow[aria-disabled='true'] {
+    border-color: var(--services-rule);
+    color: var(--color-placeholder);
+    cursor: default;
+  }
+}
+
+/* Anchos donde la columna de la tarjeta es más estrecha (móvil pequeño,
+   inicio de tablet e inicio de escritorio, donde la base vuelve a 18px):
+   se compacta la cabecera para que "Podología" quepa junto a
+   "$30.000 - $40.000" sin partirse. */
+@media (max-width: 375px),
+  (min-width: 601px) and (max-width: 720px),
+  (min-width: 1025px) and (max-width: 1120px) {
+  .service-card__head {
+    column-gap: 0.4rem;
+  }
+
+  .service-card__title {
+    font-size: 1.12rem;
+  }
+
+  .service-card__price {
+    font-size: 0.95rem;
+  }
+}
+
+@media print {
+  /* Sin fondos impresos, el texto no taparía los puntos. */
+  .service-card__title--leader::after {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .services__book,
+  .service-card__cta,
+  .service-card__arrow,
+  .services__arrow {
+    transition: none;
+  }
+
+  .service-card__cta:hover .service-card__arrow {
+    transform: none;
+  }
 }

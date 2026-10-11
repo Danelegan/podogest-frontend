@@ -19,7 +19,9 @@ Quiero un rediseño premium del panel: propón una dirección estética nueva
 - Ejecuta lint y build directamente, sin subagentes.
 - responde siempre en español 
 
+
 ## Sitio público (landing)
 - No modifiques el tamaño base, el modo oscuro ni los estilos globales de index.css sin avisarme.
 - Prioriza que el usuario entienda los servicios y pueda reservar fácilmente.
 - Cuida el SEO: textos claros, encabezados en orden, imágenes con alt.
+- Las imágenes, textos y precios de src/data/services.js no se modifican: solo cambia la presentación.
