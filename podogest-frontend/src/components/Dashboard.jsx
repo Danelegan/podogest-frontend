@@ -30,6 +30,17 @@ function getTodayDateString() {
   return `${year}-${month}-${day}`
 }
 
+// "2026-09-25" -> "jue, 25 sept"; adds the year when it isn't the current one
+// so old records can't be mistaken for this year's.
+function formatDisplayDate(dateString) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateString ?? '')
+  if (!match) return dateString
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+  const options = { weekday: 'short', day: 'numeric', month: 'short' }
+  if (date.getFullYear() !== new Date().getFullYear()) options.year = 'numeric'
+  return date.toLocaleDateString('es-CL', options)
+}
+
 // Spreadsheet sheet with a download arrow, drawn inline to match the Excel look.
 function SpreadsheetIcon() {
   return (
@@ -221,7 +232,13 @@ function Dashboard() {
             <Home size={20} aria-hidden="true" />
             Ir al sitio web
           </button>
-          <h1 className="dashboard__title">Panel de Administración</h1>
+          <div className="dashboard__brand">
+            <img src="/logo_sinfondo.png" alt="" className="dashboard__logo" />
+            <div>
+              <p className="dashboard__eyebrow">Pasos Saludables</p>
+              <h1 className="dashboard__title">Panel de Administración</h1>
+            </div>
+          </div>
         </div>
         <button type="button" className="dashboard__logout" onClick={handleLogout}>
           <LogOut size={20} aria-hidden="true" />
@@ -322,13 +339,25 @@ function Dashboard() {
                       <tbody>
                         {filteredAppointments.map((appointment) => (
                           <tr key={appointment.id}>
-                            <td>{appointment.patient_name}</td>
-                            <td>{appointment.rut}</td>
-                            <td>{appointment.appointment_date}</td>
-                            <td>{appointment.appointment_time?.slice(0, 5)}</td>
-                            <td>{appointment.email}</td>
-                            <td>{appointment.phone}</td>
-                            <td>
+                            <td className="dashboard__cell-name">{appointment.patient_name}</td>
+                            <td className="dashboard__cell-mono" data-label="RUT/ID">
+                              {appointment.rut}
+                            </td>
+                            <td className="dashboard__cell-mono" data-label="Fecha">
+                              <time dateTime={appointment.appointment_date}>
+                                {formatDisplayDate(appointment.appointment_date)}
+                              </time>
+                            </td>
+                            <td className="dashboard__cell-mono" data-label="Hora">
+                              {appointment.appointment_time?.slice(0, 5)}
+                            </td>
+                            <td className="dashboard__cell-muted" data-label="Email">
+                              {appointment.email}
+                            </td>
+                            <td className="dashboard__cell-muted dashboard__cell-mono" data-label="Teléfono">
+                              {appointment.phone}
+                            </td>
+                            <td className="dashboard__cell-actions">
                               <div className="dashboard__actions">
                                 <button
                                   type="button"
