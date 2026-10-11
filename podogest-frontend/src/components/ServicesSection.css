@@ -96,6 +96,7 @@
   padding: 0;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start; /* cada tarjeta termina donde termina su contenido */
   gap: 3rem 2rem;
 }
 
@@ -189,8 +190,9 @@
 }
 
 .service-card__price {
-  font-size: 1rem;
-  font-weight: 600;
+  position: relative; /* contiene el texto solo para lectores de pantalla */
+  font-size: 0.95rem; /* algo menor que el título (1.25rem) */
+  font-weight: 500;
   line-height: 1.25;
   font-variant-numeric: tabular-nums lining-nums;
   white-space: nowrap;
@@ -218,8 +220,8 @@
   align-items: center;
   gap: 0.4rem;
   min-height: var(--control-height);
-  margin-top: auto;
-  padding: 0.5rem 0 0;
+  margin-top: 0.5rem; /* misma separación en todas, tras descripción o nota */
+  padding: 0;
   border: none;
   background: none;
   color: var(--color-primary);
@@ -369,13 +371,9 @@
   }
 }
 
-/* Anchos donde la columna de la tarjeta es más estrecha (móvil pequeño,
-   inicio de tablet e inicio de escritorio, donde la base vuelve a 18px):
-   se compacta la cabecera para que "Podología" quepa junto a
-   "$30.000 - $40.000" sin partirse. */
-@media (max-width: 375px),
-  (min-width: 601px) and (max-width: 720px),
-  (min-width: 1025px) and (max-width: 1120px) {
+/* Pantallas muy estrechas: se compacta la cabecera para que "Podología"
+   quepa junto a "$30.000–40.000" sin partirse. */
+@media (max-width: 340px) {
   .service-card__head {
     column-gap: 0.4rem;
   }
@@ -385,7 +383,7 @@
   }
 
   .service-card__price {
-    font-size: 0.95rem;
+    font-size: 0.9rem;
   }
 }
 

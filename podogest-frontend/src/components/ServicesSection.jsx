@@ -5,6 +5,34 @@ import './ServicesSection.css'
 
 const ICONS = { home: Home }
 
+// Une las palabras de una o dos letras ("a", "y", "de") con la siguiente
+// mediante un espacio no separable, para que nunca queden solas al final
+// de una línea: "Podología a Domicilio" se muestra con "a" y "Domicilio" unidos.
+const keepShortWordsAttached = (text) => {
+  const words = text.trim().split(/ +/)
+  return words
+    .map((word, i) =>
+      i === words.length - 1 ? word : `${word}${word.length <= 2 ? '\u00a0' : ' '}`,
+    )
+    .join('')
+}
+
+// Solo presentación: "$30.000 - $40.000" se muestra como "$30.000–40.000";
+// el lector de pantalla oye "$30.000 a $40.000".
+function Price({ value }) {
+  const range = value.match(/^(\$[\d.,]+)\s*-\s*\$?([\d.,]+)$/)
+  if (!range) {
+    return <span className="service-card__price">{value}</span>
+  }
+  const [, from, to] = range
+  return (
+    <span className="service-card__price">
+      <span aria-hidden="true">{`${from}\u2013${to}`}</span>
+      <span className="services__sr-only">{`${from} a $${to}`}</span>
+    </span>
+  )
+}
+
 function ServiceCard({
   title,
   description,
@@ -34,9 +62,9 @@ function ServiceCard({
       </div>
       <div className="service-card__head">
         <Heading className={`service-card__title${price ? ' service-card__title--leader' : ''}`}>
-          <span className="service-card__title-text">{title}</span>
+          <span className="service-card__title-text">{keepShortWordsAttached(title)}</span>
         </Heading>
-        {price && <span className="service-card__price">{price}</span>}
+        {price && <Price value={price} />}
       </div>
       <p className="service-card__description">{description}</p>
       {priceNote && <p className="service-card__price-note">{priceNote}</p>}
