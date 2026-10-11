@@ -163,6 +163,30 @@ function isSameForm(a, b) {
   })
 }
 
+// The backend sends `appointment` as the appointment's id. A record for any
+// other appointment is never shown or overwritten.
+const belongsToAppointment = (record, appointmentId) =>
+  record != null && String(record.appointment) === String(appointmentId)
+
+const MISMATCH_MESSAGE =
+  'La ficha recibida no corresponde a esta cita, por eso no se muestra. ' +
+  'Recarga la página o avisa a soporte.'
+
+const SAVE_TIMEOUT_MS = 20000
+const SAVE_TIMEOUT_MESSAGE =
+  'No se pudo confirmar el guardado. Revisa tu conexión antes de reintentar.'
+
+const saveErrorMessage = (status, body) =>
+  `No pudimos guardar la ficha (error ${status}). ${body ? JSON.stringify(body) : ''}`.trim()
+
+const readJson = async (response) => {
+  try {
+    return await response.json()
+  } catch {
+    return null // response body was not JSON
+  }
+}
+
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), ' +
   'textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
@@ -215,6 +239,9 @@ function ClinicalRecordModal({ isOpen, onClose, appointmentId, appointment }) {
   const [isSaving, setIsSaving] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
+  // The load returned a record for another appointment: it is not shown and
+  // saving stays blocked until the modal is reopened.
+  const [hasForeignRecord, setHasForeignRecord] = useState(false)
   const [savedDrawing, setSavedDrawing] = useState('')
   const canvasRef = useRef(null)
   const isDrawingRef = useRef(false)
@@ -260,6 +287,7 @@ function ClinicalRecordModal({ isOpen, onClose, appointmentId, appointment }) {
       setIsLoading(true)
       setErrorMessage('')
       setSuccessMessage('')
+      setHasForeignRecord(false)
       setRecordId(null)
       setRest({ medical: [], symptoms: [], treatment: [] })
       setSavedDrawing('')
@@ -287,8 +315,13 @@ function ClinicalRecordModal({ isOpen, onClose, appointmentId, appointment }) {
 
         const data = await response.json()
         const records = Array.isArray(data) ? data : data.results ?? []
-        const record = records[0]
-        if (!record) return // no record yet: the next save is a POST
+        const record = records.find((item) => belongsToAppointment(item, appointmentId))
+        if (!record) {
+          // Records came back, but none for this appointment: show nothing and
+          // block saving. An empty list just means "no record yet" (next save POSTs).
+          if (records.length) setHasForeignRecord(true)
+          return
+        }
 
         const medical = parseLines(record.antecedentes_medicos, MEDICAL_KEYS)
         const symptoms = parseLines(record.sintomas, SYMPTOM_KEYS)
@@ -474,6 +507,10 @@ function ClinicalRecordModal({ isOpen, onClose, appointmentId, appointment }) {
   }
 
   const handleSubmit = (event) => {
+    if (hasForeignRecord) {
+      event.preventDefault()
+      return
+    }
     submittedRef.current = { form, drawEdits: drawEditsRef.current }
     handleSave(event)
   }
@@ -600,38 +637,83 @@ function ClinicalRecordModal({ isOpen, onClose, appointmentId, appointment }) {
       observaciones: `${form.observaciones}${drawing}`,
     }
     const isUpdate = recordId != null
-    if (!isUpdate) payload.appointment = appointmentId
 
-    try {
-      const response = await fetch(isUpdate ? `${API_URL}${recordId}/` : API_URL, {
-        method: isUpdate ? 'PATCH' : 'POST',
+    // One deadline for the whole save, including the lookup and PATCH retry.
+    const timeout = new AbortController()
+    const timeoutId = setTimeout(() => timeout.abort(), SAVE_TIMEOUT_MS)
+    const patch = (id) =>
+      fetch(`${API_URL}${id}/`, {
+        method: 'PATCH',
         headers: authHeaders(),
         body: JSON.stringify(payload),
+        signal: timeout.signal,
       })
+
+    try {
+      let targetId = recordId
+      let response = isUpdate
+        ? await patch(recordId)
+        : await fetch(API_URL, {
+          method: 'POST',
+          headers: authHeaders(),
+          body: JSON.stringify({ ...payload, appointment: appointmentId }),
+          signal: timeout.signal,
+        })
 
       if (response.status === 401) {
         handleUnauthorized()
         return
       }
+      let errorBody = response.ok ? null : await readJson(response)
+
+      // The appointment already has a record (one per appointment, e.g. from a
+      // POST whose answer never arrived): find it and update it instead.
+      if (!isUpdate && response.status === 400 && errorBody?.appointment) {
+        const lookup = await fetch(`${API_URL}?appointment=${appointmentId}`, {
+          headers: authHeaders(),
+          signal: timeout.signal,
+        })
+        if (lookup.status === 401) {
+          handleUnauthorized()
+          return
+        }
+        const data = lookup.ok ? await readJson(lookup) : null
+        // undefined when the lookup failed or did not return a list.
+        const records = Array.isArray(data) ? data : data?.results
+        const existing = records?.find((record) => belongsToAppointment(record, appointmentId))
+        if (!existing) {
+          setErrorMessage(
+            records
+              ? 'Esta cita ya tiene una ficha, pero no pudimos recuperarla para actualizarla. ' +
+                  'Recarga la página antes de reintentar.'
+              // The lookup itself failed: the POST's error is the useful one.
+              : saveErrorMessage(response.status, errorBody),
+          )
+          return
+        }
+
+        targetId = existing.id
+        response = await patch(targetId)
+        if (response.status === 401) {
+          handleUnauthorized()
+          return
+        }
+        errorBody = response.ok ? null : await readJson(response)
+      }
 
       if (response.ok) {
         const saved = await response.json()
-        setRecordId(saved.id ?? recordId)
+        setRecordId(saved.id ?? targetId)
         setSuccessMessage('Ficha guardada correctamente.')
       } else {
-        let detail = ''
-        try {
-          detail = JSON.stringify(await response.json())
-        } catch {
-          // response body was not JSON
-        }
-        setErrorMessage(
-          `No pudimos guardar la ficha (error ${response.status}). ${detail}`.trim(),
-        )
+        setErrorMessage(saveErrorMessage(response.status, errorBody))
       }
     } catch {
-      setErrorMessage('No se pudo conectar con el servidor.')
+      setErrorMessage(
+        timeout.signal.aborted ? SAVE_TIMEOUT_MESSAGE : 'No se pudo conectar con el servidor.',
+      )
     } finally {
+      clearTimeout(timeoutId)
       setIsSaving(false)
     }
   }
@@ -964,6 +1046,12 @@ function ClinicalRecordModal({ isOpen, onClose, appointmentId, appointment }) {
               </div>
 
               <footer className="clinical-footer">
+                {/* Separate from errorMessage so "Vaciar ficha" or a save can't clear it. */}
+                {hasForeignRecord && (
+                  <p className="clinical-message clinical-message--error" role="alert">
+                    {MISMATCH_MESSAGE}
+                  </p>
+                )}
                 {errorMessage && (
                   <p className="clinical-message clinical-message--error" role="alert">
                     {errorMessage}
@@ -983,7 +1071,7 @@ function ClinicalRecordModal({ isOpen, onClose, appointmentId, appointment }) {
                     ref={saveButtonRef}
                     type="submit"
                     className="clinical-btn clinical-btn--primary"
-                    disabled={isSaving || isLoading}
+                    disabled={isSaving || isLoading || hasForeignRecord}
                   >
                     <Save className="clinical-btn__icon" strokeWidth={2} />
                     {isSaving ? 'Guardando…' : 'Guardar'}
