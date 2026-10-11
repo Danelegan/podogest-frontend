@@ -107,6 +107,7 @@
 
 /* Bloque "Atención a domicilio": abre la reserva con el servicio elegido. */
 .hero__note {
+  position: relative; /* contiene el texto solo para lectores de pantalla */
   display: inline-flex;
   align-items: center;
   gap: 0.6rem;
@@ -124,6 +125,7 @@
   letter-spacing: inherit;
   line-height: 1.3;
   text-align: left;
+  text-wrap: balance; /* si se parte, evita "disponible" solo en la segunda línea */
   cursor: pointer;
   transition: background-color 150ms ease;
 }
@@ -135,6 +137,30 @@
 .hero__note-icon {
   flex-shrink: 0;
   color: var(--hero-home-icon);
+}
+
+/* Flecha que indica que el bloque abre la reserva; mismo gesto que
+   "Solicitar →" en servicios. */
+.hero__note-arrow {
+  flex-shrink: 0;
+  transition: transform 150ms ease;
+}
+
+.hero__note:hover .hero__note-arrow,
+.hero__note:focus-visible .hero__note-arrow {
+  transform: translateX(2px);
+}
+
+.hero__sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .hero__visual {
@@ -179,8 +205,11 @@
     gap: 2.25rem;
   }
 
+  /* En una columna ancha (≈630–768px) el título cabría en dos líneas; el
+     ancho máximo mantiene "para el cuidado diario / de tus pies". */
   .hero__title {
     font-size: clamp(2rem, 8vw, 2.5rem);
+    max-width: 12.5em;
   }
 
   .hero__subtitle {
@@ -201,9 +230,22 @@
   }
 }
 
+/* Móviles pequeños: con 2rem "diario" no cabría junto a "para el cuidado". */
+@media (max-width: 360px) {
+  .hero__title {
+    font-size: 1.75rem;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .hero__btn,
-  .hero__note {
+  .hero__note,
+  .hero__note-arrow {
     transition: none;
+  }
+
+  .hero__note:hover .hero__note-arrow,
+  .hero__note:focus-visible .hero__note-arrow {
+    transform: none;
   }
 }

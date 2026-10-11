@@ -1,4 +1,4 @@
-import { Home } from 'lucide-react'
+import { ArrowRight, Home } from 'lucide-react'
 import { specialtiesData } from '../data/services'
 import './HeroSection.css'
 
@@ -10,10 +10,12 @@ function HeroSection({ onOpenBooking, onRequestService }) {
     <section className="hero" id="top">
       <div className="hero__container">
         <div className="hero__content">
+          {/* "de&nbsp;tus&nbsp;pies" es intencional: mantiene "de tus pies" junto
+              para que "de" nunca quede al final de una línea. */}
           <h1 className="hero__title">
             Podología clínica
             <br />
-            para el cuidado diario de tus pies
+            para el cuidado diario de&nbsp;tus&nbsp;pies
           </h1>
           <p className="hero__subtitle">
             Atención podológica profesional y personalizada, para que cada paso que des sea firme, cómodo y sin dolor.
@@ -42,6 +44,8 @@ function HeroSection({ onOpenBooking, onRequestService }) {
           >
             <Home className="hero__note-icon" size={18} strokeWidth={2} aria-hidden="true" />
             Atención a domicilio disponible
+            <span className="hero__sr-only">, abre la reserva</span>
+            <ArrowRight className="hero__note-arrow" size={16} strokeWidth={2} aria-hidden="true" />
           </button>
         </div>
 
