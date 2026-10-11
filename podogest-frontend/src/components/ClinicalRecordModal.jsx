@@ -390,6 +390,8 @@ function ClinicalRecordModal({ isOpen, onClose, appointmentId, appointment }) {
     }
     if (!wasSavingRef.current) return
     wasSavingRef.current = false
+    // A closed (or closing) modal must not take focus back from "Ver Ficha".
+    if (!isOpen) return
     const active = document.activeElement
     const focusIsLost =
       !active ||
@@ -397,7 +399,7 @@ function ClinicalRecordModal({ isOpen, onClose, appointmentId, appointment }) {
       active === saveButtonRef.current ||
       !dialogRef.current?.contains(active)
     if (focusIsLost) saveButtonRef.current?.focus()
-  }, [isSaving])
+  }, [isOpen, isSaving])
 
   // When loading finishes the form exists: snapshot it as "unchanged".
   useEffect(() => {
