@@ -16,6 +16,8 @@
   --color-success-strong: #326826;
   --color-success-soft: #edf6ea;
   --color-bg: #f7f5f2;
+  --color-bg-warm: #f2eee7;          /* landing · crema de Nosotros, un paso más oscuro que --color-bg */
+  --color-border-warm: #ddd6cb;      /* decorativo · líneas finas sobre bg-warm */
   --color-surface: #ffffff;
   --color-surface-hover: #faf9f7;
   --color-text: #1a2433;

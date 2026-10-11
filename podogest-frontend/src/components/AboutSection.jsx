@@ -9,15 +9,25 @@ const HIGHLIGHTS = [
 
 function AboutSection() {
   return (
-    <section className="about" id="nosotros">
+    <section className="about" id="nosotros" aria-labelledby="nosotros-title">
       <div className="about__container">
-        <img src="/foto-perfil.jpeg" alt="Fotografía de la podóloga" className="about__image" />
+        <div className="about__media">
+          <img
+            src="/foto-perfil.jpeg"
+            alt="Podóloga con mascarilla y guantes realizando un procedimiento en el pie de un paciente bajo una lámpara clínica"
+            className="about__image"
+          />
+        </div>
 
         <div className="about__content">
-          <h2 className="about__title">Conoce a tu especialista</h2>
+          {/* "a&nbsp;tu&nbsp;especialista" es intencional: evita que "a" o "tu"
+              queden al final de una línea. */}
+          <h2 className="about__title" id="nosotros-title">
+            Conoce a&nbsp;tu&nbsp;especialista
+          </h2>
 
           <p className="about__paragraph">
-            Con mas de 2 años de experiencia en el cuidado podológico, me especializo en
+            Con más de 2 años de experiencia en el cuidado podológico, me especializo en
             brindar soluciones efectivas y personalizadas para cada paciente. Mi enfoque
             combina un diagnóstico clínico riguroso con un trato cercano, abordando
             cada afección del pie desde sus causas y no solo sus síntomas.
@@ -33,9 +43,12 @@ function AboutSection() {
           <ul className="about__highlights">
             {HIGHLIGHTS.map((highlight) => (
               <li key={highlight} className="about__highlight">
-                <span className="about__highlight-icon" aria-hidden="true">
-                  <Check size={16} strokeWidth={3} />
-                </span>
+                <Check
+                  className="about__highlight-icon"
+                  size={18}
+                  strokeWidth={2.5}
+                  aria-hidden="true"
+                />
                 {highlight}
               </li>
             ))}

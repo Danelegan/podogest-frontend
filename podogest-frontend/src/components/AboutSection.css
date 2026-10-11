@@ -5,92 +5,136 @@
   box-sizing: border-box;
 }
 
+/* Colores y tipografía desde los tokens globales de :root (index.css).
+   Fondo crema para marcar el ritmo: hero azul, servicios blanco, nosotros crema. */
 .about {
-  background: #f8fafc;
-  padding: 4.5rem 1.5rem;
+  background: var(--color-bg-warm);
+  color: var(--color-text);
+  font-family: var(--font-ui);
+  padding: 5rem 1.5rem;
+  scroll-margin-top: 5.25rem; /* navbar sticky */
 }
 
 .about__container {
   max-width: 1200px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 3rem;
-  align-items: center;
-
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: 4rem;
+  align-items: start;
 }
 
+/* ---------- Foto ---------- */
+
+.about__media {
+  aspect-ratio: 4 / 5;
+  border: 1px solid var(--color-border-warm);
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--color-surface);
+}
 
 .about__image {
-  width: 100%;
-  max-width: 480px;
-  margin: 0 auto;
-  aspect-ratio: 4 / 5;
-  object-fit: cover;
-  border-radius: 24px;
-  border: 8px solid #ffffff;
-  box-shadow: 0 15px 30px rgba(0, 0, 0, 3);
   display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
 }
 
+/* ---------- Texto ---------- */
+
 .about__content {
-  display: flex;
-  flex-direction: column;
+  min-width: 0;
 }
 
 .about__title {
-  font-size: clamp(1.8rem, 3vw, 2.5rem);
-  font-weight: 800;
-  color: #0f172a;
-  margin: 0 0 1.25rem;
-  letter-spacing: -0.02em;
+  font-family: var(--font-display);
+  font-size: clamp(2.1rem, 3.4vw, 2.75rem);
+  font-weight: 500;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  color: var(--color-text);
+  margin: 0 0 1.75rem;
+}
+
+/* Mismo filete verde que "Especialidades" en servicios. */
+.about__title::after {
+  content: '';
+  display: block;
+  width: 2.5rem;
+  height: 2px;
+  margin-top: 0.85rem;
+  background: var(--color-success-brand); /* decorativo */
 }
 
 .about__paragraph {
   font-size: 1rem;
   line-height: 1.65;
-  color: #64748b;
+  color: var(--color-text-muted);   /* ≈ 5.1:1 sobre --color-bg-warm */
   margin: 0 0 1.1rem;
+  max-width: 60ch;
 }
 
+/* Garantías como filas de carta, separadas por líneas finas. */
 .about__highlights {
   list-style: none;
-  margin: 1.25rem 0 0;
+  margin: 1.75rem 0 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.85rem;
+  max-width: 60ch;
+  border-bottom: 1px solid var(--color-border-warm);
 }
 
 .about__highlight {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  font-size: 0.98rem;
-  font-weight: 600;
-  color: #0f172a;
+  min-height: 52px;
+  padding: 0.75rem 0;
+  border-top: 1px solid var(--color-border-warm);
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--color-text);
 }
 
 .about__highlight-icon {
   flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  background: linear-gradient(135deg, #e0f7fa 0%, #cffafe 100%);
-  color: #0891b2;
+  color: var(--color-success);   /* 5.02:1 sobre blanco, ≈ 4.3:1 sobre crema */
 }
 
-/* Mobile: stack image above text */
-@media (max-width: 900px) {
+/* ---------- Tablet ---------- */
+
+@media (max-width: 1024px) {
+  .about {
+    padding: 4rem 1.5rem;
+  }
+
   .about__container {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+    gap: 2.5rem;
+  }
+
+  /* La foto es casi cuadrada: 1:1 recorta menos en los laterales. */
+  .about__media {
+    aspect-ratio: 1 / 1;
+  }
+}
+
+/* ---------- Móvil: una columna, alineada a la izquierda ---------- */
+
+@media (max-width: 768px) {
+  .about {
+    padding: 3rem 1rem;
+    scroll-margin-top: 4.5rem;
+  }
+
+  .about__container {
+    grid-template-columns: minmax(0, 1fr);
     gap: 2rem;
   }
 
-  .about__image-placeholder {
-    aspect-ratio: 16 / 10;
+  .about__title {
+    margin-bottom: 1.5rem;
   }
 }
