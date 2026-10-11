@@ -93,7 +93,11 @@ const SpecularButton = ({
   const fxRef = useRef(null);
   const propsRef = useRef({});
 
-  propsRef.current = { radius, lineColor, baseColor, intensity, shineSize, shineFade, thickness, speed, followMouse, proximity, autoAnimate };
+  // Latest props for the animation loop, synced after every render. Declared
+  // before the setup effect so it is already filled when that effect starts.
+  useEffect(() => {
+    propsRef.current = { radius, lineColor, baseColor, intensity, shineSize, shineFade, thickness, speed, followMouse, proximity, autoAnimate };
+  });
 
   useEffect(() => {
     const btn = btnRef.current;
