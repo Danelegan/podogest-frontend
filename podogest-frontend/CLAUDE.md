@@ -16,3 +16,4 @@ Quiero un rediseño premium del panel: propón una dirección estética nueva
 - Este entorno no conoce el backend: si un cambio necesita un endpoint o campo nuevo,
   dímelo explícitamente en vez de suponerlo.
 - Commits: feat/fix/refactor(frontend): mensaje
+- Ejecuta lint y build directamente, sin subagentes.

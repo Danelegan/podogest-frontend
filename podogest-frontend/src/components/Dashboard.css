@@ -47,7 +47,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  min-height: 44px;
+  min-height: var(--control-height);
   margin-left: calc(var(--space-3) * -1);
   padding: 0 var(--space-3);
   border: none;
@@ -102,7 +102,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  min-height: 44px;
+  min-height: var(--control-height);
   padding: 0 var(--space-4);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
@@ -182,7 +182,7 @@
   max-width: var(--panel-width);
   margin: 0 auto;
   padding: var(--space-3) var(--space-4);
-  border: 1px solid rgba(180, 35, 24, 0.2);
+  border: 1px solid var(--color-danger-border);
   border-radius: var(--radius-md);
   background: var(--color-danger-soft);
   color: var(--color-danger);
@@ -205,7 +205,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  min-height: 44px;
+  min-height: var(--control-height);
   padding: 0 var(--space-5);
   border-radius: var(--radius-md);
   font-family: inherit;
@@ -222,14 +222,14 @@
 .dashboard__new-attention {
   border: 1px solid var(--color-primary);
   background: var(--color-primary);
-  color: #ffffff;
+  color: var(--color-on-primary);
   box-shadow: var(--shadow-sm);
 }
 
 .dashboard__new-attention:hover {
   border-color: var(--color-primary-strong);
   background: var(--color-primary-strong);
-  box-shadow: 0 6px 16px rgba(46, 110, 197, 0.25);
+  box-shadow: var(--shadow-primary);
   transform: translateY(-1px);
 }
 
@@ -265,7 +265,7 @@
   display: block;
   width: 100%;
   max-width: var(--panel-width);
-  min-height: 44px;
+  min-height: var(--control-height);
   margin: 0 auto var(--space-4);
   padding: 0 var(--space-4) 0 2.6rem;
   border: 1px solid var(--color-border-input);
@@ -422,7 +422,7 @@
   }
 
   .dashboard__title {
-    font-size: 1.5rem;
+    font-size: var(--text-xl-compact);
   }
 
   .dashboard__tabs {
@@ -515,7 +515,7 @@
   .dashboard__action {
     flex: 1 1 0;
     justify-content: center;
-    min-height: 44px;
+    min-height: var(--control-height);
   }
 
   /* No hover on touch: keep the delete color visible but light. */
