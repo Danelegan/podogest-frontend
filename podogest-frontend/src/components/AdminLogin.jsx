@@ -50,6 +50,8 @@ function AdminLogin() {
 
   return (
     <main className="admin-login">
+      {/* React 19 la lleva al <head>; respaldo de la cabecera X-Robots-Tag de vercel.json. */}
+      <meta name="robots" content="noindex, nofollow" />
       <button type="button" className="admin-login__back" onClick={() => navigate('/')}>
         <ArrowLeft size={20} aria-hidden="true" />
         Volver al inicio

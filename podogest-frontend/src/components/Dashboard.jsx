@@ -226,6 +226,8 @@ function Dashboard() {
 
   return (
     <div className="dashboard">
+      {/* React 19 la lleva al <head>; respaldo de la cabecera X-Robots-Tag de vercel.json. */}
+      <meta name="robots" content="noindex, nofollow" />
       <header className="dashboard__header">
         <div className="dashboard__heading">
           <button type="button" className="dashboard__back" onClick={() => navigate('/')}>
