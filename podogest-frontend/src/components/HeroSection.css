@@ -1,8 +1,8 @@
 /* Tipografía desde los tokens globales de :root (index.css). El hero usa
-   un fondo azul profundo derivado de --color-primary (#2e6ec5), cercano al
+   un fondo azul profundo (--color-bg-deep, derivado de --color-primary), cercano al
    azul marino del uniforme de la foto; sus colores sobre oscuro van aquí. */
 .hero {
-  --hero-bg: #1c3766;                      /* azul profundo */
+  --hero-bg: var(--color-bg-deep);         /* azul profundo, compartido con el footer */
   --hero-text: #ffffff;                    /* ≈ 11.8:1 sobre --hero-bg */
   --hero-text-soft: rgba(255, 255, 255, 0.84); /* ≈ 8.8:1 */
   --hero-line: rgba(255, 255, 255, 0.32);  /* bordes finos sobre oscuro */

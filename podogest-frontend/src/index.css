@@ -18,6 +18,8 @@
   --color-bg: #f7f5f2;
   --color-bg-warm: #f2eee7;          /* landing · crema de Nosotros, un paso más oscuro que --color-bg */
   --color-border-warm: #ddd6cb;      /* decorativo · líneas finas sobre bg-warm */
+  --color-bg-deep: #1c3766;          /* landing · azul profundo del hero (blanco ≈ 11.8:1) */
+  --color-bg-deeper: #0f1c33;        /* landing · marino casi negro del footer (blanco ≈ 17:1) */
   --color-surface: #ffffff;
   --color-surface-hover: #faf9f7;
   --color-text: #1a2433;
