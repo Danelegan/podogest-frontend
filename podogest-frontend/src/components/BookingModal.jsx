@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react'
-import { ChevronLeft } from 'lucide-react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { useEffect, useRef, useState } from 'react'
+import { Check, ChevronLeft, CircleCheck, Clock, MapPin, X } from 'lucide-react'
 import { formatRUT, validarRut } from '../utils/rutValidation'
 import { servicesData, specialtiesData } from '../data/services'
 import API_BASE_URL from '../config/api'
@@ -56,6 +55,11 @@ const API_URL = `${API_BASE_URL}/api/appointments/`
 
 const BUSY_SLOTS_URL = `${API_BASE_URL}/api/appointments/horarios-ocupados/`
 
+// Same list as the panel modals: what Tab can land on inside the dialog.
+const FOCUSABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), ' +
+  'textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+
 const formatDate = (year, monthIndex, day) =>
   `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 
@@ -76,6 +80,22 @@ const formatName = (value) => value.replace(/[^\p{L}\s'’-]/gu, '')
 
 // Per-field input filters. Fields not listed here are left as typed.
 const FIELD_FORMATTERS = { nombre: formatName, rut: formatRUT }
+
+// Accessible name for a calendar day: "martes 14 de octubre de 2026", plus
+// ", no disponible" when isUnavailable (past or closed days). The visible text
+// stays the number. es-CL writes "martes, 14 de…"; only the comma right after
+// the weekday is dropped.
+function dayAccessibleLabel(year, monthIndex, day, isUnavailable) {
+  const label = new Date(year, monthIndex, day)
+    .toLocaleDateString('es-CL', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    })
+    .replace(/^(\p{L}+),/u, '$1')
+  return isUnavailable ? `${label}, no disponible` : label
+}
 
 function buildMonthGrid(referenceDate) {
   const year = referenceDate.getFullYear()
@@ -139,21 +159,90 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
     return () => controller.abort()
   }, [isOpen])
 
+  const dialogRef = useRef(null)
+  const panelRef = useRef(null)
+  const returnFocusRef = useRef(null)
+  // Latest onClose for the document-level Escape listener, which is
+  // registered once per opening.
+  const onCloseRef = useRef(onClose)
+  useEffect(() => {
+    onCloseRef.current = onClose
+  })
+
+  // Same pattern as the panel modals. On open: remember who opened the modal,
+  // make the rest of the page inert and focus the dialog. On close: undo that
+  // and hand focus back.
   useEffect(() => {
     if (!isOpen) return undefined
 
+    returnFocusRef.current = document.activeElement
+    document.body.style.overflow = 'hidden'
+
+    // Every sibling of the overlay and of its ancestors, up to <body>, is
+    // background. Elements that were already inert are left alone.
+    const madeInert = []
+    let node = dialogRef.current?.parentElement
+    while (node && node !== document.body) {
+      for (const sibling of node.parentElement?.children ?? []) {
+        if (sibling !== node && !sibling.inert) {
+          sibling.inert = true
+          madeInert.push(sibling)
+        }
+      }
+      node = node.parentElement
+    }
+
+    dialogRef.current?.focus()
+
     const handleKeyDown = (event) => {
-      if (event.key === 'Escape') onClose()
+      if (event.key === 'Escape') onCloseRef.current()
     }
 
     document.addEventListener('keydown', handleKeyDown)
-    document.body.style.overflow = 'hidden'
 
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
       document.body.style.overflow = ''
+      madeInert.forEach((element) => {
+        element.inert = false
+      })
+      const opener = returnFocusRef.current
+      if (opener?.isConnected) opener.focus()
     }
-  }, [isOpen, onClose])
+  }, [isOpen])
+
+  // The clicked day or hour unmounts when the step changes; move focus to the
+  // new step so keyboard users are not dropped on <body>.
+  // Compares against the previous step instead of a "first render" flag, so
+  // StrictMode's double effect run in development does not move focus on open.
+  const prevStepRef = useRef({ step, isConfirmed })
+  useEffect(() => {
+    const prev = prevStepRef.current
+    if (prev.step === step && prev.isConfirmed === isConfirmed) return
+    prevStepRef.current = { step, isConfirmed }
+    panelRef.current?.focus()
+  }, [step, isConfirmed])
+
+  // Tab cycles within the dialog.
+  const handleDialogKeyDown = (event) => {
+    if (event.key !== 'Tab') return
+
+    const focusables = [...dialogRef.current.querySelectorAll(FOCUSABLE)]
+    if (!focusables.length) return
+    const first = focusables[0]
+    const last = focusables[focusables.length - 1]
+    const active = document.activeElement
+
+    // From the panel (focused after a step change) Shift+Tab is left to the
+    // browser, so it goes to the step buttons instead of wrapping to the end.
+    if (event.shiftKey && (active === first || active === dialogRef.current)) {
+      event.preventDefault()
+      last.focus()
+    } else if (!event.shiftKey && active === last) {
+      event.preventDefault()
+      first.focus()
+    }
+  }
 
   const selectedDate =
     selectedDay != null
@@ -273,121 +362,135 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
     if (isConfirmed) handleReset()
   }
 
+  if (!isOpen) return null
+
   return (
-    <AnimatePresence>
-      {isOpen && (
-    <motion.div
-      key="booking-modal"
+    <div
       className="booking-modal-overlay"
       onClick={handleClose}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.2 }}
+      // Clicking the backdrop must not pull focus out of the dialog.
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) event.preventDefault()
+      }}
     >
-      <motion.div
+      <div
+        ref={dialogRef}
         className="booking-modal"
         role="dialog"
         aria-modal="true"
         aria-labelledby="booking-modal-title"
+        tabIndex={-1}
+        onKeyDown={handleDialogKeyDown}
         onClick={(event) => event.stopPropagation()}
-        initial={{ scale: 0.95, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.95, opacity: 0 }}
-        transition={{ duration: 0.2 }}
       >
-        <button
-          type="button"
-          className="booking-modal__close"
-          onClick={handleClose}
-          aria-label="Cerrar"
-        >
-          ×
-        </button>
-
         <div className="booking-modal__header">
-          <h2 id="booking-modal-title" className="booking-modal__title">
-            Agenda tu Hora
-          </h2>
-          <p className="booking-modal__subtitle">
-            Reserva tu atención podológica en simples pasos, sin llamadas ni
-            esperas.
-          </p>
+          <div>
+            <h2 id="booking-modal-title" className="booking-modal__title">
+              Agenda tu hora
+            </h2>
+            <p className="booking-modal__subtitle">
+              Reserva tu atención podológica en simples pasos, sin llamadas ni
+              esperas.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="booking-modal__close"
+            onClick={handleClose}
+            aria-label="Cerrar"
+          >
+            <X size={20} strokeWidth={2} aria-hidden="true" />
+          </button>
         </div>
 
         <div className="booking-modal__card">
           <aside className="booking-modal__info">
-            <h3 className="booking-modal__info-title">Consulta Podológica</h3>
+            <h3 className="booking-modal__info-title">Consulta podológica</h3>
             <ul className="booking-modal__info-meta">
               <li>
-                <span aria-hidden="true">⏱️</span> Duración: 40 min
+                <Clock size={16} strokeWidth={1.5} aria-hidden="true" /> Duración: 40 min
               </li>
               <li>
-                <span aria-hidden="true">📍</span> Atención presencial
+                <MapPin size={16} strokeWidth={1.5} aria-hidden="true" /> Atención presencial
               </li>
             </ul>
 
             <ol className="booking-modal__steps">
-              <li
-                className={`booking-modal__step ${step === 1 ? 'is-active' : ''
-                  } ${selectedDay != null ? 'is-done' : ''}`}
-                onClick={() => goToStep(1)}
-              >
-                <span className="booking-modal__step-index">1</span>
-                <div>
-                  <p className="booking-modal__step-label">Fecha</p>
-                  <p className="booking-modal__step-value">
-                    {selectedDay != null
-                      ? `${selectedDay} de ${monthLabel}`
-                      : 'Sin seleccionar'}
-                  </p>
-                </div>
+              <li>
+                <button
+                  type="button"
+                  className={`booking-modal__step ${step === 1 ? 'is-active' : ''
+                    } ${selectedDay != null ? 'is-done' : ''}`}
+                  onClick={() => goToStep(1)}
+                  disabled={isConfirmed}
+                  aria-current={step === 1 && !isConfirmed ? 'step' : undefined}
+                >
+                  <span className="booking-modal__step-index" aria-hidden="true">
+                    {selectedDay != null ? <Check size={14} strokeWidth={2.5} /> : 1}
+                  </span>
+                  <span>
+                    <span className="booking-modal__step-label">Fecha</span>
+                    <span className="booking-modal__step-value">
+                      {selectedDay != null
+                        ? `${selectedDay} de ${monthLabel}`
+                        : 'Sin seleccionar'}
+                    </span>
+                  </span>
+                </button>
               </li>
 
-              <li
-                className={`booking-modal__step ${step === 2 ? 'is-active' : ''
-                  } ${selectedTime ? 'is-done' : ''}`}
-                onClick={() => goToStep(2)}
-              >
-                <span className="booking-modal__step-index">2</span>
-                <div>
-                  <p className="booking-modal__step-label">Hora</p>
-                  <p className="booking-modal__step-value">
-                    {selectedTime ?? 'Sin seleccionar'}
-                  </p>
-                </div>
+              <li>
+                <button
+                  type="button"
+                  className={`booking-modal__step ${step === 2 ? 'is-active' : ''
+                    } ${selectedTime ? 'is-done' : ''}`}
+                  onClick={() => goToStep(2)}
+                  disabled={isConfirmed || selectedDay == null}
+                  aria-current={step === 2 && !isConfirmed ? 'step' : undefined}
+                >
+                  <span className="booking-modal__step-index" aria-hidden="true">
+                    {selectedTime ? <Check size={14} strokeWidth={2.5} /> : 2}
+                  </span>
+                  <span>
+                    <span className="booking-modal__step-label">Hora</span>
+                    <span className="booking-modal__step-value">
+                      {selectedTime ?? 'Sin seleccionar'}
+                    </span>
+                  </span>
+                </button>
               </li>
 
-              <li
-                className={`booking-modal__step ${step === 3 ? 'is-active' : ''
-                  } ${isConfirmed ? 'is-done' : ''}`}
-              >
-                <span className="booking-modal__step-index">3</span>
-                <div>
-                  <p className="booking-modal__step-label">Tus Datos</p>
-                  <p className="booking-modal__step-value">
-                    {isConfirmed ? 'Confirmado' : 'Pendiente'}
-                  </p>
+              <li>
+                <div
+                  className={`booking-modal__step ${step === 3 ? 'is-active' : ''
+                    } ${isConfirmed ? 'is-done' : ''}`}
+                  aria-current={step === 3 && !isConfirmed ? 'step' : undefined}
+                >
+                  <span className="booking-modal__step-index" aria-hidden="true">
+                    {isConfirmed ? <Check size={14} strokeWidth={2.5} /> : 3}
+                  </span>
+                  <span>
+                    <span className="booking-modal__step-label">Tus datos</span>
+                    <span className="booking-modal__step-value">
+                      {isConfirmed ? 'Confirmado' : 'Pendiente'}
+                    </span>
+                  </span>
                 </div>
               </li>
             </ol>
           </aside>
 
-          <div className="booking-modal__panel">
+          <div className="booking-modal__panel" ref={panelRef} tabIndex={-1}>
             {isConfirmed ? (
-              <motion.div
-                className="booking-modal__confirmation"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.5 }}
-              >
-                <div
-                  className="booking-modal__confirmation-icon"
-                  aria-hidden="true"
-                >
-                  ✅
-                </div>
-                <h3 className="booking-modal__confirmation-title">¡Reserva Confirmada!</h3>
+              <div className="booking-modal__confirmation">
+                <h3 className="booking-modal__confirmation-title">
+                  <CircleCheck
+                    className="booking-modal__confirmation-icon"
+                    strokeWidth={1.75}
+                    aria-hidden="true"
+                  />
+                  <span>¡Reserva confirmada!</span>
+                </h3>
                 <p>
                   Hemos agendado tu hora para el{' '}
                   <strong>
@@ -396,7 +499,7 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
                   a las <strong>{selectedTime}</strong>.
                 </p>
                 <p className="booking-modal__confirmation-name">
-                  Te esperamos, {formData.nombre || 'paciente'}.
+                  Te esperamos, {formData.nombre?.trim() || 'paciente'}.
                 </p>
 
                 <div className="booking-modal__location">
@@ -408,7 +511,8 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
                     rel="noopener noreferrer"
                     className="booking-modal__map-btn"
                   >
-                    📍 Cómo llegar
+                    <MapPin size={18} strokeWidth={1.5} aria-hidden="true" />
+                    Cómo llegar
                   </a>
                 </div>
 
@@ -419,11 +523,11 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
                 >
                   Reservar otra hora
                 </button>
-              </motion.div>
+              </div>
             ) : step === 1 ? (
               <div className="booking-modal__calendar">
                 <p className="booking-modal__calendar-month">{monthLabel}</p>
-                <div className="booking-modal__weekdays">
+                <div className="booking-modal__weekdays" aria-hidden="true">
                   {WEEKDAY_LABELS.map((label) => (
                     <span key={label}>{label}</span>
                   ))}
@@ -446,6 +550,19 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
                           } ${isPast ? 'is-disabled' : ''} ${isToday ? 'is-today' : ''
                           } ${isSelected ? 'is-selected' : ''}`}
                         disabled={day == null || isPast}
+                        aria-hidden={day == null ? 'true' : undefined}
+                        aria-label={
+                          day == null
+                            ? undefined
+                            : dayAccessibleLabel(
+                                today.getFullYear(),
+                                today.getMonth(),
+                                day,
+                                isPast,
+                              )
+                        }
+                        aria-current={isToday ? 'date' : undefined}
+                        aria-pressed={day == null ? undefined : isSelected}
                         onClick={() => handleDayClick(day)}
                       >
                         {day}
@@ -461,7 +578,7 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
                   className="booking-modal__back"
                   onClick={() => setStep(1)}
                 >
-                  <ChevronLeft className="booking-modal__back-icon" strokeWidth={2.5} />
+                  <ChevronLeft className="booking-modal__back-icon" strokeWidth={2} aria-hidden="true" />
                   Volver al calendario
                 </button>
                 <p className="booking-modal__times-label">
@@ -489,7 +606,7 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
                   className="booking-modal__back"
                   onClick={() => setStep(2)}
                 >
-                  <ChevronLeft className="booking-modal__back-icon" strokeWidth={2.5} />
+                  <ChevronLeft className="booking-modal__back-icon" strokeWidth={2} aria-hidden="true" />
                   Volver a las horas
                 </button>
                 <p className="booking-modal__times-label">
@@ -553,7 +670,7 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
                     required
                   >
                     <option value="" disabled>
-                      Seleccione un servicio...
+                      Selecciona un servicio…
                     </option>
                     {SERVICE_OPTIONS.map((service) => (
                       <option key={service} value={service}>
@@ -574,16 +691,14 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
                   className="booking-modal__submit"
                   disabled={isLoading}
                 >
-                  {isLoading ? 'Enviando...' : 'Confirmar Reserva'}
+                  {isLoading ? 'Enviando…' : 'Confirmar reserva'}
                 </button>
               </form>
             )}
           </div>
         </div>
-      </motion.div>
-    </motion.div>
-      )}
-    </AnimatePresence>
+      </div>
+    </div>
   )
 }
 

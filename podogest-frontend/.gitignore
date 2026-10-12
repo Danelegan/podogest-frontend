@@ -30,3 +30,4 @@ dist-ssr
 
 # Claude Code: permisos locales de cada usuario
 .claude/settings.local.json
+
