@@ -143,9 +143,14 @@ function Dashboard() {
     }
   }
 
-  // Deletes the appointment; the backend removes its clinical record too (CASCADE).
+  // Deletes the appointment; the backend refuses with 409 if its clinical record has data.
   const deleteAppointment = async (appointment) => {
-    if (!window.confirm('¿Estás seguro de eliminar este registro por completo?')) return
+    if (
+      !window.confirm(
+        'Solo se pueden eliminar citas sin ficha o con la ficha vacía. Las fichas con datos clínicos se conservan. ¿Eliminar esta cita?',
+      )
+    )
+      return
 
     setDeletingId(appointment.id)
     try {
@@ -156,6 +161,13 @@ function Dashboard() {
 
       if (response.status === 401) {
         handleUnauthorized()
+        return
+      }
+
+      // 409: the record has clinical data; show the backend's reason and keep the row.
+      if (response.status === 409) {
+        const data = await response.json().catch(() => null)
+        window.alert(data?.detail || `No se pudo eliminar el registro (error ${response.status}).`)
         return
       }
 
