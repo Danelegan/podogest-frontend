@@ -105,6 +105,17 @@
   outline-offset: 2px;
 }
 
+/* Foco programático (tabIndex -1) tras cerrar la reserva desde /reservar. */
+.hero__title:focus {
+  outline: none;
+}
+
+.hero__title:focus-visible {
+  outline: 2px solid var(--hero-focus);
+  outline-offset: 4px;
+  border-radius: 2px;
+}
+
 /* Bloque "Atención a domicilio": abre la reserva con el servicio elegido. */
 .hero__note {
   position: relative; /* contiene el texto solo para lectores de pantalla */

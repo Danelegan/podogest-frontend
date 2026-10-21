@@ -5,14 +5,15 @@ import './HeroSection.css'
 // Mismo título que la tarjeta de servicios, para que el modal lo preseleccione.
 const HOME_SERVICE = specialtiesData.find((service) => service.id === 'atencion-domicilio')?.title ?? ''
 
-function HeroSection({ onOpenBooking, onRequestService }) {
+function HeroSection({ onOpenBooking, onRequestService, titleRef }) {
   return (
     <section className="hero" id="top">
       <div className="hero__container">
         <div className="hero__content">
           {/* "de&nbsp;tus&nbsp;pies" es intencional: mantiene "de tus pies" junto
               para que "de" nunca quede al final de una línea. */}
-          <h1 className="hero__title">
+          {/* tabIndex -1: recibe el foco al cerrar la reserva abierta desde /reservar. */}
+          <h1 className="hero__title" ref={titleRef} tabIndex={-1}>
             Podología clínica
             <br />
             para el cuidado diario de&nbsp;tus&nbsp;pies
