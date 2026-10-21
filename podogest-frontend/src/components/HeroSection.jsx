@@ -51,11 +51,18 @@ function HeroSection({ onOpenBooking, onRequestService, titleRef }) {
         </div>
 
         <div className="hero__visual">
-          <img
-            src="/Traje.jpeg"
-            alt="Atención podológica profesional"
-            className="hero__image"
-          />
+          {/* Imagen LCP: WebP liviano con el JPEG original como respaldo. */}
+          <picture>
+            <source srcSet="/Traje.webp" type="image/webp" />
+            <img
+              src="/Traje.jpeg"
+              alt="Atención podológica profesional"
+              className="hero__image"
+              width="1600"
+              height="1600"
+              fetchPriority="high"
+            />
+          </picture>
         </div>
       </div>
     </section>
