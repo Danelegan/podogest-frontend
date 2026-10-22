@@ -417,7 +417,7 @@
   position: sticky;
   top: 0;
   z-index: 1;
-  padding: var(--space-3) var(--space-4);
+  padding: 0;
   background: var(--color-bg);
   /* Shadows instead of borders: they travel with the sticky cell. */
   box-shadow:
@@ -430,9 +430,40 @@
   text-align: left;
 }
 
-.dashboard .dashboard__month:focus-visible {
-  outline: var(--focus-ring);
+/* The whole header opens or closes its month. */
+.dashboard__month-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: var(--control-height);
+  padding: var(--space-2) var(--space-4);
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* Inside: the wrapper's clip would cut a ring drawn outside. */
+.dashboard .dashboard__month-toggle:focus-visible {
   outline-offset: -2px;
+}
+
+.dashboard__month-icon {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  transition: transform var(--duration) var(--ease), color var(--duration) var(--ease);
+}
+
+.dashboard__month-toggle:hover .dashboard__month-icon {
+  color: var(--color-primary-strong);
+}
+
+/* Closed: the arrow points right. Reduced motion drops the turn (see the end). */
+.dashboard__month-toggle[aria-expanded='false'] .dashboard__month-icon {
+  transform: rotate(-90deg);
 }
 
 .dashboard__month-count {
@@ -645,8 +676,11 @@
   /* On the page background, so it reads as a divider, not a card. */
   .dashboard__month {
     margin-bottom: var(--space-1);
-    padding: var(--space-3) 0;
     box-shadow: inset 0 -1px 0 var(--color-border);
+  }
+
+  .dashboard__month-toggle {
+    padding: var(--space-2) 0;
   }
 
   .dashboard__day {

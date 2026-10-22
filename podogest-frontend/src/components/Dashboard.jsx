@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Home, LogOut, Trash2, UserPlus } from 'lucide-react'
+import { ChevronDown, Home, LogOut, Trash2, UserPlus } from 'lucide-react'
 import ClinicalRecordModal from './ClinicalRecordModal'
 import DailyAgenda, { StatusBadge } from './DailyAgenda'
 import ManualAttentionModal from './ManualAttentionModal'
@@ -100,6 +100,25 @@ const VIEWS = [
 // "Pasadas" shows this many months with appointments, and as many more per click.
 const PAST_MONTHS_STEP = 3
 
+const OPEN_MONTHS_KEY = 'podogest_open_months'
+
+// Months the user opened or closed, per view, since the current month shows
+// up in both: { upcoming: { '2026-10': true }, past: { '2026-09': false } }.
+// Storage may be unavailable (private mode, blocked): then start empty.
+function readOpenMonths() {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(OPEN_MONTHS_KEY))
+    if (saved && typeof saved === 'object') {
+      const isMap = (value) => value && typeof value === 'object' && !Array.isArray(value)
+      const views = VIEWS.map(({ id }) => [id, isMap(saved[id]) ? saved[id] : {}])
+      return Object.fromEntries(views)
+    }
+  } catch {
+    // Unreadable: fall back to the defaults.
+  }
+  return { upcoming: {}, past: {} }
+}
+
 // Spreadsheet sheet with a download arrow, drawn inline to match the Excel look.
 function SpreadsheetIcon() {
   return (
@@ -140,6 +159,18 @@ function Dashboard() {
   const [pastMonthsShown, setPastMonthsShown] = useState(PAST_MONTHS_STEP)
   // Month to focus once "Ver meses anteriores" has rendered it.
   const focusMonthRef = useRef(null)
+  const [openMonths, setOpenMonths] = useState(readOpenMonths)
+  // Opened/closed while searching: kept apart so the saved state comes back
+  // untouched. Any change to the search text clears it, opening everything again.
+  const [searchOpen, setSearchOpen] = useState({})
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(OPEN_MONTHS_KEY, JSON.stringify(openMonths))
+    } catch {
+      // Storage unavailable: the state just won't outlive this page.
+    }
+  }, [openMonths])
 
   const handleLogout = async () => {
     setIsLoggingOut(true)
@@ -174,6 +205,7 @@ function Dashboard() {
   const handleManualCreated = (appointment) => {
     setAppointments((prev) => [appointment, ...prev])
     setSearchTerm('')
+    setSearchOpen({})
     setIsManualModalOpen(false)
   }
 
@@ -316,6 +348,24 @@ function Dashboard() {
       ? upcomingMonths
       : pastMonths.slice(0, pastMonthsShown)
   const hasOlderMonths = !isSearching && view === 'past' && pastMonths.length > pastMonthsShown
+
+  // Unless the user chose otherwise, only the first month of the list is open:
+  // the current one in "Próximas", the latest in "Pasadas". While searching,
+  // every month with results is open.
+  const shownMonths = visibleMonths.map((month, index) => ({
+    ...month,
+    isOpen: isSearching
+      ? (searchOpen[month.key] ?? true)
+      : (openMonths[view][month.key] ?? index === 0),
+  }))
+
+  const toggleMonth = (monthKey, wasOpen) => {
+    if (isSearching) {
+      setSearchOpen((prev) => ({ ...prev, [monthKey]: !wasOpen }))
+      return
+    }
+    setOpenMonths((prev) => ({ ...prev, [view]: { ...prev[view], [monthKey]: !wasOpen } }))
+  }
 
   const showOlderMonths = () => {
     focusMonthRef.current = pastMonths[pastMonthsShown]?.key ?? null
@@ -465,7 +515,10 @@ function Dashboard() {
                   type="text"
                   className="dashboard__search"
                   value={searchTerm}
-                  onChange={(event) => setSearchTerm(event.target.value)}
+                  onChange={(event) => {
+                    setSearchTerm(event.target.value)
+                    setSearchOpen({})
+                  }}
                   placeholder="Buscar por nombre o RUT..."
                   aria-label="Buscar por nombre o RUT"
                 />
@@ -489,25 +542,36 @@ function Dashboard() {
                           <th scope="col" className="dashboard__col-actions">Acciones</th>
                         </tr>
                       </thead>
-                      {/* One tbody per month, so its sticky header stays within it. */}
-                      {visibleMonths.map((month) => (
-                        <tbody key={month.key}>
+                      {/* One tbody per month, so its sticky header stays within it.
+                          A closed month keeps only its header row. */}
+                      {shownMonths.map((month) => (
+                        <tbody key={month.key} id={`dashboard-month-body-${month.key}`}>
                           <tr>
-                            <th
-                              id={`dashboard-month-${month.key}`}
-                              className="dashboard__month"
-                              colSpan={5}
-                              scope="rowgroup"
-                              tabIndex={-1}
-                            >
-                              {month.label}
-                              <span className="dashboard__month-count">
-                                {' · '}
-                                {month.count} {month.count === 1 ? 'cita' : 'citas'}
-                              </span>
+                            <th className="dashboard__month" colSpan={5} scope="rowgroup">
+                              <button
+                                id={`dashboard-month-${month.key}`}
+                                type="button"
+                                className="dashboard__month-toggle"
+                                aria-expanded={month.isOpen}
+                                aria-controls={`dashboard-month-body-${month.key}`}
+                                onClick={() => toggleMonth(month.key, month.isOpen)}
+                              >
+                                <ChevronDown
+                                  className="dashboard__month-icon"
+                                  size={18}
+                                  aria-hidden="true"
+                                />
+                                <span>
+                                  {month.label}
+                                  <span className="dashboard__month-count">
+                                    {' · '}
+                                    {month.count} {month.count === 1 ? 'cita' : 'citas'}
+                                  </span>
+                                </span>
+                              </button>
                             </th>
                           </tr>
-                          {month.days.map((day) => (
+                          {month.isOpen && month.days.map((day) => (
                             <Fragment key={day.key}>
                               <tr>
                                 <th className="dashboard__day" colSpan={5}>
