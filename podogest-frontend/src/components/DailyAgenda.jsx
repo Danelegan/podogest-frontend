@@ -37,8 +37,14 @@ function getStatusMeta(status) {
   )
 }
 
-function AppointmentCard({ appointment_time, patient_name, service_type, status }) {
+// Also used by the "Todas las citas" table, so both views share one style.
+export function StatusBadge({ status }) {
   const statusMeta = getStatusMeta(status)
+  if (!statusMeta) return null
+  return <span className={`daily-agenda__badge ${statusMeta.className}`}>{statusMeta.label}</span>
+}
+
+function AppointmentCard({ appointment_time, patient_name, service_type, status }) {
   const isCancelled = status === 'cancelada'
 
   return (
@@ -56,9 +62,7 @@ function AppointmentCard({ appointment_time, patient_name, service_type, status 
         <p className="daily-agenda__service">{service_type || 'Consulta general'}</p>
       </div>
 
-      {statusMeta && (
-        <span className={`daily-agenda__badge ${statusMeta.className}`}>{statusMeta.label}</span>
-      )}
+      <StatusBadge status={status} />
     </li>
   )
 }

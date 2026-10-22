@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Home, LogOut, Trash2, UserPlus } from 'lucide-react'
 import ClinicalRecordModal from './ClinicalRecordModal'
-import DailyAgenda from './DailyAgenda'
+import DailyAgenda, { StatusBadge } from './DailyAgenda'
 import ManualAttentionModal from './ManualAttentionModal'
 import API_BASE_URL from '../config/api'
 import { authFetch, getAccessToken, logout, SESSION_EXPIRED_MESSAGE } from '../utils/auth'
@@ -30,16 +30,75 @@ function getTodayDateString() {
   return `${year}-${month}-${day}`
 }
 
+// "2026-09-25" -> local Date (no UTC day shift); null if it isn't a date.
+function parseLocalDate(dateString) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateString ?? '')
+  return match ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])) : null
+}
+
+const capitalize = (text) => text.charAt(0).toUpperCase() + text.slice(1)
+
 // "2026-09-25" -> "jue, 25 sept"; adds the year when it isn't the current one
 // so old records can't be mistaken for this year's.
 function formatDisplayDate(dateString) {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateString ?? '')
-  if (!match) return dateString
-  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+  const date = parseLocalDate(dateString)
+  if (!date) return dateString
   const options = { weekday: 'short', day: 'numeric', month: 'short' }
   if (date.getFullYear() !== new Date().getFullYear()) options.year = 'numeric'
   return date.toLocaleDateString('es-CL', options)
 }
+
+// "Octubre 2026" (es-CL alone would give "octubre de 2026").
+function formatMonthLabel(dateString) {
+  const date = parseLocalDate(dateString)
+  if (!date) return 'Sin fecha'
+  return `${capitalize(date.toLocaleDateString('es-CL', { month: 'long' }))} ${date.getFullYear()}`
+}
+
+// "Jueves 22".
+function formatDayLabel(dateString) {
+  const date = parseLocalDate(dateString)
+  if (!date) return 'Sin fecha'
+  return `${capitalize(date.toLocaleDateString('es-CL', { weekday: 'long' }))} ${date.getDate()}`
+}
+
+// "2026-10-22 10:30:00": sorts by date, then by time.
+const sortKey = (appointment) =>
+  `${appointment.appointment_date ?? ''} ${appointment.appointment_time ?? ''}`
+
+const byDateAscending = (a, b) => sortKey(a).localeCompare(sortKey(b))
+const byDateDescending = (a, b) => sortKey(b).localeCompare(sortKey(a))
+
+// Sorted appointments -> months -> days, keeping the order they come in:
+// [{ key: '2026-10', label: 'Octubre 2026', count, days: [{ key, label, appointments }] }]
+function groupByMonth(appointments) {
+  const months = []
+  for (const appointment of appointments) {
+    const dateKey = appointment.appointment_date ?? ''
+    const monthKey = dateKey.slice(0, 7) || 'sin-fecha'
+    let month = months.at(-1)
+    if (month?.key !== monthKey) {
+      month = { key: monthKey, label: formatMonthLabel(dateKey), count: 0, days: [] }
+      months.push(month)
+    }
+    let day = month.days.at(-1)
+    if (day?.key !== dateKey) {
+      day = { key: dateKey, label: formatDayLabel(dateKey), appointments: [] }
+      month.days.push(day)
+    }
+    day.appointments.push(appointment)
+    month.count += 1
+  }
+  return months
+}
+
+const VIEWS = [
+  { id: 'upcoming', label: 'Próximas' },
+  { id: 'past', label: 'Pasadas' },
+]
+
+// "Pasadas" shows this many months with appointments, and as many more per click.
+const PAST_MONTHS_STEP = 3
 
 // Spreadsheet sheet with a download arrow, drawn inline to match the Excel look.
 function SpreadsheetIcon() {
@@ -77,6 +136,10 @@ function Dashboard() {
   const [deletingId, setDeletingId] = useState(null)
   const [isDownloading, setIsDownloading] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [view, setView] = useState('upcoming')
+  const [pastMonthsShown, setPastMonthsShown] = useState(PAST_MONTHS_STEP)
+  // Month to focus once "Ver meses anteriores" has rendered it.
+  const focusMonthRef = useRef(null)
 
   const handleLogout = async () => {
     setIsLoggingOut(true)
@@ -224,11 +287,61 @@ function Dashboard() {
   }, [navigate])
 
   const normalizedSearch = searchTerm.trim().toLowerCase()
-  const filteredAppointments = appointments.filter(
-    (appointment) =>
-      appointment.patient_name?.toLowerCase().includes(normalizedSearch) ||
-      appointment.rut?.toLowerCase().includes(normalizedSearch),
-  )
+  const isSearching = normalizedSearch !== ''
+
+  // "Próximas": today onwards, soonest first. "Pasadas": before today, latest first.
+  const { upcomingMonths, pastMonths } = useMemo(() => {
+    const todayStr = getTodayDateString()
+    const sorted = [...appointments].sort(byDateAscending)
+    return {
+      upcomingMonths: groupByMonth(sorted.filter((item) => (item.appointment_date ?? '') >= todayStr)),
+      pastMonths: groupByMonth(sorted.filter((item) => (item.appointment_date ?? '') < todayStr).reverse()),
+    }
+  }, [appointments])
+
+  // The search covers every appointment, whatever the view, latest first.
+  const searchMonths = useMemo(() => {
+    if (!isSearching) return []
+    const matches = appointments.filter(
+      (appointment) =>
+        appointment.patient_name?.toLowerCase().includes(normalizedSearch) ||
+        appointment.rut?.toLowerCase().includes(normalizedSearch),
+    )
+    return groupByMonth(matches.sort(byDateDescending))
+  }, [appointments, isSearching, normalizedSearch])
+
+  const visibleMonths = isSearching
+    ? searchMonths
+    : view === 'upcoming'
+      ? upcomingMonths
+      : pastMonths.slice(0, pastMonthsShown)
+  const hasOlderMonths = !isSearching && view === 'past' && pastMonths.length > pastMonthsShown
+
+  const showOlderMonths = () => {
+    focusMonthRef.current = pastMonths[pastMonthsShown]?.key ?? null
+    setPastMonthsShown((count) => count + PAST_MONTHS_STEP)
+  }
+
+  // Focus the first month just added: the button may have disappeared, and
+  // this tells keyboard and screen reader users where the new rows begin.
+  useEffect(() => {
+    if (focusMonthRef.current == null) return
+    document.getElementById(`dashboard-month-${focusMonthRef.current}`)?.focus()
+    focusMonthRef.current = null
+  }, [pastMonthsShown])
+
+  const resultCount = searchMonths.reduce((total, month) => total + month.count, 0)
+  const tableLabel = isSearching
+    ? 'Resultados de la búsqueda'
+    : view === 'upcoming'
+      ? 'Citas próximas'
+      : 'Citas pasadas'
+
+  const emptyMessage = isSearching
+    ? `No se encontraron citas para “${searchTerm.trim()}”.`
+    : view === 'upcoming'
+      ? 'No hay citas próximas.'
+      : 'No hay citas pasadas.'
 
   // Citas de hoy para la pestaña "Agenda de hoy", ordenadas por hora.
   const todayAppointments = useMemo(() => {
@@ -309,6 +422,23 @@ function Dashboard() {
         ) : (
           <>
             <div className="dashboard__toolbar">
+              {appointments.length > 0 && (
+                <div className="dashboard__segmented" role="group" aria-label="Mostrar citas">
+                  {VIEWS.map(({ id, label }) => (
+                    <button
+                      key={id}
+                      type="button"
+                      className={`dashboard__segment${view === id ? ' dashboard__segment--active' : ''}`}
+                      aria-pressed={view === id}
+                      // The search ignores the view, so the selector rests meanwhile.
+                      disabled={isSearching}
+                      onClick={() => setView(id)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
               <button
                 type="button"
                 className="dashboard__new-attention"
@@ -339,70 +469,121 @@ function Dashboard() {
                   placeholder="Buscar por nombre o RUT..."
                   aria-label="Buscar por nombre o RUT"
                 />
-                {filteredAppointments.length === 0 ? (
-                  <p className="dashboard__message">
-                    No se encontraron citas para “{searchTerm.trim()}”.
-                  </p>
+                {/* Always mounted, so the change is announced. */}
+                <p className="dashboard__search-note" role="status">
+                  {isSearching
+                    ? `${resultCount} ${resultCount === 1 ? 'cita encontrada' : 'citas encontradas'} entre todas las citas.`
+                    : ''}
+                </p>
+                {visibleMonths.length === 0 ? (
+                  <p className="dashboard__message">{emptyMessage}</p>
                 ) : (
                   <div className="dashboard__table-wrapper">
-                    <table className="dashboard__table">
+                    <table className="dashboard__table" aria-label={tableLabel}>
                       <thead>
                         <tr>
-                          <th>Nombre</th>
-                          <th>RUT/ID</th>
-                          <th>Fecha</th>
-                          <th>Hora</th>
-                          <th>Email</th>
-                          <th>Teléfono</th>
-                          <th>Acciones</th>
+                          <th scope="col">Paciente</th>
+                          <th scope="col" className="dashboard__col-date">Cita</th>
+                          <th scope="col">Contacto</th>
+                          <th scope="col" className="dashboard__col-status">Estado</th>
+                          <th scope="col" className="dashboard__col-actions">Acciones</th>
                         </tr>
                       </thead>
-                      <tbody>
-                        {filteredAppointments.map((appointment) => (
-                          <tr key={appointment.id}>
-                            <td className="dashboard__cell-name">{appointment.patient_name}</td>
-                            <td className="dashboard__cell-mono" data-label="RUT/ID">
-                              {appointment.rut}
-                            </td>
-                            <td className="dashboard__cell-mono" data-label="Fecha">
-                              <time dateTime={appointment.appointment_date}>
-                                {formatDisplayDate(appointment.appointment_date)}
-                              </time>
-                            </td>
-                            <td className="dashboard__cell-mono" data-label="Hora">
-                              {appointment.appointment_time?.slice(0, 5)}
-                            </td>
-                            <td className="dashboard__cell-muted" data-label="Email">
-                              {appointment.email}
-                            </td>
-                            <td className="dashboard__cell-muted dashboard__cell-mono" data-label="Teléfono">
-                              {appointment.phone}
-                            </td>
-                            <td className="dashboard__cell-actions">
-                              <div className="dashboard__actions">
-                                <button
-                                  type="button"
-                                  className="dashboard__action"
-                                  onClick={() => openRecord(appointment)}
-                                >
-                                  Ver Ficha
-                                </button>
-                                <button
-                                  type="button"
-                                  className="dashboard__action dashboard__action--danger"
-                                  onClick={() => deleteAppointment(appointment)}
-                                  disabled={deletingId === appointment.id}
-                                >
-                                  <Trash2 size={14} aria-hidden="true" />
-                                  {deletingId === appointment.id ? 'Eliminando...' : 'Eliminar'}
-                                </button>
-                              </div>
-                            </td>
+                      {/* One tbody per month, so its sticky header stays within it. */}
+                      {visibleMonths.map((month) => (
+                        <tbody key={month.key}>
+                          <tr>
+                            <th
+                              id={`dashboard-month-${month.key}`}
+                              className="dashboard__month"
+                              colSpan={5}
+                              scope="rowgroup"
+                              tabIndex={-1}
+                            >
+                              {month.label}
+                              <span className="dashboard__month-count">
+                                {' · '}
+                                {month.count} {month.count === 1 ? 'cita' : 'citas'}
+                              </span>
+                            </th>
                           </tr>
-                        ))}
-                      </tbody>
+                          {month.days.map((day) => (
+                            <Fragment key={day.key}>
+                              <tr>
+                                <th className="dashboard__day" colSpan={5}>
+                                  {day.key ? <time dateTime={day.key}>{day.label}</time> : day.label}
+                                </th>
+                              </tr>
+                              {day.appointments.map((appointment) => (
+                                <tr key={appointment.id} className="dashboard__row">
+                                  {/* Row header: screen readers name each cell after the patient. */}
+                                  <th scope="row" className="dashboard__cell-patient">
+                                    <span className="dashboard__lines">
+                                      <span className="dashboard__name">{appointment.patient_name}</span>
+                                      <span className="dashboard__secondary dashboard__cell-mono">
+                                        {appointment.rut}
+                                      </span>
+                                    </span>
+                                  </th>
+                                  <td data-label="Cita">
+                                    <span className="dashboard__lines">
+                                      <time dateTime={appointment.appointment_date}>
+                                        {formatDisplayDate(appointment.appointment_date)}
+                                      </time>
+                                      <span className="dashboard__secondary dashboard__cell-mono">
+                                        {appointment.appointment_time?.slice(0, 5)}
+                                      </span>
+                                    </span>
+                                  </td>
+                                  <td data-label="Contacto">
+                                    <span className="dashboard__lines">
+                                      <span className="dashboard__cell-mono">{appointment.phone}</span>
+                                      {appointment.email && (
+                                        <span
+                                          className="dashboard__secondary dashboard__email"
+                                          title={appointment.email}
+                                        >
+                                          {appointment.email}
+                                        </span>
+                                      )}
+                                    </span>
+                                  </td>
+                                  <td data-label="Estado">
+                                    <StatusBadge status={appointment.status} />
+                                  </td>
+                                  <td className="dashboard__cell-actions">
+                                    <div className="dashboard__actions">
+                                      <button
+                                        type="button"
+                                        className="dashboard__action"
+                                        onClick={() => openRecord(appointment)}
+                                      >
+                                        Ver Ficha
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="dashboard__action dashboard__action--danger"
+                                        onClick={() => deleteAppointment(appointment)}
+                                        disabled={deletingId === appointment.id}
+                                      >
+                                        <Trash2 size={14} aria-hidden="true" />
+                                        {deletingId === appointment.id ? 'Eliminando...' : 'Eliminar'}
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                            </Fragment>
+                          ))}
+                        </tbody>
+                      ))}
                     </table>
                   </div>
+                )}
+                {hasOlderMonths && (
+                  <button type="button" className="dashboard__more" onClick={showOlderMonths}>
+                    Ver meses anteriores
+                  </button>
                 )}
               </>
             )}

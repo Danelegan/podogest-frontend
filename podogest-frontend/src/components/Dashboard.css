@@ -199,6 +199,7 @@
 .dashboard__toolbar {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   justify-content: flex-end;
   gap: var(--space-3);
   max-width: var(--panel-width);
@@ -264,6 +265,55 @@
   flex-shrink: 0;
 }
 
+/* "Próximas / Pasadas": a segmented control on the toolbar's left edge. */
+.dashboard__segmented {
+  display: flex;
+  margin-right: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.dashboard__segment {
+  flex: 1 1 auto;
+  min-height: var(--control-height);
+  padding: 0 var(--space-5);
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--duration) var(--ease), color var(--duration) var(--ease);
+}
+
+.dashboard__segment + .dashboard__segment {
+  border-left: 1px solid var(--color-border);
+}
+
+.dashboard__segment:hover:not(:disabled) {
+  color: var(--color-text);
+}
+
+.dashboard__segment--active,
+.dashboard__segment--active:hover:not(:disabled) {
+  background: var(--color-primary-soft);
+  color: var(--color-primary-strong);
+}
+
+/* The ring would be cut by the control's rounded clip; draw it inside. */
+.dashboard .dashboard__segment:focus-visible {
+  outline-offset: -3px;
+}
+
+.dashboard__segment:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 /* ---------- Search ---------- */
 
 .dashboard__search {
@@ -296,67 +346,186 @@
   border-color: var(--color-primary);
 }
 
+/* Kept in the DOM (live region); it only takes space when it has text. */
+.dashboard__search-note {
+  max-width: var(--panel-width);
+  margin: 0 auto;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.dashboard__search-note:not(:empty) {
+  margin-top: calc(var(--space-2) * -1);
+  margin-bottom: var(--space-3);
+}
+
 /* ---------- Table ---------- */
 
+/* overflow: clip rounds the corners without becoming a scroll container,
+   which would keep the month headers from sticking to the page. */
 .dashboard__table-wrapper {
   max-width: var(--panel-width);
   margin: 0 auto;
-  overflow-x: auto;
+  overflow: clip;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-surface);
   box-shadow: var(--shadow-md);
 }
 
+/* Fixed layout: columns take the widths below and never push the table
+   wider than the panel; Paciente and Contacto share the rest. */
 .dashboard__table {
   width: 100%;
-  border-collapse: collapse;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: var(--text-base);
   color: var(--color-text);
 }
 
-.dashboard__table th,
-.dashboard__table td {
-  padding: var(--space-3) var(--space-4);
-  text-align: left;
-  white-space: nowrap;
+.dashboard__col-date {
+  width: 9rem;
 }
 
-.dashboard__table th {
+.dashboard__col-status {
+  width: 8.5rem;
+}
+
+/* Room for "Ver Ficha" and "Eliminando..." side by side. */
+.dashboard__col-actions {
+  width: 16rem;
+}
+
+.dashboard__table thead th {
+  padding: var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--color-border);
   color: var(--color-text-muted);
   font-size: var(--text-xs);
   font-weight: 600;
   letter-spacing: 0.06em;
+  text-align: left;
   text-transform: uppercase;
 }
 
-.dashboard__table td {
-  height: 3.25rem;
+.dashboard__table thead th.dashboard__col-actions {
+  text-align: right;
 }
 
-.dashboard__table tbody tr + tr td {
+/* "Octubre 2026 · 12 citas": stays on top while its month scrolls by. */
+.dashboard__month {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-bg);
+  /* Shadows instead of borders: they travel with the sticky cell. */
+  box-shadow:
+    inset 0 1px 0 var(--color-border),
+    inset 0 -1px 0 var(--color-border);
+  color: var(--color-text);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  text-align: left;
+}
+
+.dashboard .dashboard__month:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.dashboard__month-count {
+  color: var(--color-text-muted);
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+/* "Jueves 22". */
+.dashboard__day {
+  padding: var(--space-4) var(--space-4) var(--space-1);
+  color: var(--color-primary-strong);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-align: left;
+}
+
+/* The patient cell is a row header (th); it looks like any other cell. */
+.dashboard__row > th,
+.dashboard__row > td {
+  padding: var(--space-3) var(--space-4);
+  font-weight: 400;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.dashboard__row + .dashboard__row > * {
   border-top: 1px solid var(--color-border);
 }
 
-.dashboard__table tbody tr {
+.dashboard__row {
   transition: background-color var(--duration) var(--ease);
 }
 
-.dashboard__table tbody tr:hover {
+.dashboard__row:hover {
   background: var(--color-surface-hover);
 }
 
-.dashboard__cell-name {
+/* Two lines per cell: main value, then the secondary one in gray. */
+.dashboard__lines {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.dashboard__name {
   font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.dashboard__secondary {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+/* Long addresses end in "…"; the full one is in the title attribute. */
+.dashboard__email {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .dashboard__cell-mono {
   font-variant-numeric: tabular-nums;
 }
 
-.dashboard__cell-muted {
-  color: var(--color-text-muted);
+.dashboard__more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--control-height);
+  margin: var(--space-4) auto 0;
+  padding: 0 var(--space-5);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-primary);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color var(--duration) var(--ease),
+    border-color var(--duration) var(--ease),
+    color var(--duration) var(--ease);
+}
+
+.dashboard__more:hover {
+  border-color: var(--color-primary-strong);
+  background: var(--color-primary-soft);
+  color: var(--color-primary-strong);
 }
 
 .dashboard__actions {
@@ -378,6 +547,7 @@
   font-family: inherit;
   font-size: var(--text-sm);
   font-weight: 600;
+  white-space: nowrap;
   cursor: pointer;
   transition:
     background-color var(--duration) var(--ease),
@@ -439,10 +609,19 @@
     justify-content: center;
   }
 
-  /* Each appointment becomes a card; labels come from data-label. */
+  .dashboard__segmented {
+    flex: 1 1 100%;
+    margin-right: 0;
+  }
+}
+
+/* Five columns with two 44px buttons need about 960px; below that each
+   appointment becomes a card, with labels from data-label. */
+@media (max-width: 960px) {
   .dashboard__table-wrapper {
     overflow: visible;
     border: none;
+    border-radius: 0;
     background: transparent;
     box-shadow: none;
   }
@@ -450,6 +629,7 @@
   .dashboard__table,
   .dashboard__table tbody,
   .dashboard__table tr,
+  .dashboard__table th,
   .dashboard__table td {
     display: block;
   }
@@ -462,7 +642,18 @@
     clip-path: inset(50%);
   }
 
-  .dashboard__table tbody tr {
+  /* On the page background, so it reads as a divider, not a card. */
+  .dashboard__month {
+    margin-bottom: var(--space-1);
+    padding: var(--space-3) 0;
+    box-shadow: inset 0 -1px 0 var(--color-border);
+  }
+
+  .dashboard__day {
+    padding: var(--space-3) 0 var(--space-2);
+  }
+
+  .dashboard__row {
     margin-bottom: var(--space-3);
     padding: var(--space-3) var(--space-4);
     border: 1px solid var(--color-border);
@@ -471,26 +662,31 @@
     box-shadow: var(--shadow-sm);
   }
 
-  .dashboard__table tbody tr:hover {
+  .dashboard__row:hover {
     background: var(--color-surface);
   }
 
-  .dashboard__table tbody tr + tr td {
+  .dashboard__row + .dashboard__row > * {
     border-top: none;
   }
 
-  .dashboard__table td {
+  /* No status: no empty "Estado" line on the card. */
+  .dashboard__row > td:empty {
+    display: none;
+  }
+
+  .dashboard__row > th,
+  .dashboard__row > td {
     display: flex;
     justify-content: space-between;
+    align-items: flex-start;
     gap: var(--space-4);
-    height: auto;
     padding: var(--space-1) 0;
-    white-space: normal;
     overflow-wrap: anywhere;
     text-align: right;
   }
 
-  .dashboard__table td[data-label]::before {
+  .dashboard__row td[data-label]::before {
     content: attr(data-label);
     flex-shrink: 0;
     color: var(--color-text-muted);
@@ -499,15 +695,33 @@
     text-align: left;
   }
 
-  .dashboard__table td.dashboard__cell-name {
+  .dashboard__lines {
+    align-items: flex-end;
+  }
+
+  /* No hover on touch to reveal a title: show the whole address. */
+  .dashboard__email {
+    overflow: visible;
+    white-space: normal;
+  }
+
+  .dashboard__row > .dashboard__cell-patient {
+    display: block;
     margin-bottom: var(--space-2);
     padding-bottom: var(--space-2);
     border-bottom: 1px solid var(--color-border);
-    font-size: var(--text-lg);
     text-align: left;
   }
 
-  .dashboard__table td.dashboard__cell-actions {
+  .dashboard__cell-patient .dashboard__lines {
+    align-items: flex-start;
+  }
+
+  .dashboard__cell-patient .dashboard__name {
+    font-size: var(--text-lg);
+  }
+
+  .dashboard__row > .dashboard__cell-actions {
     margin-top: var(--space-2);
     padding-top: var(--space-3);
     border-top: 1px solid var(--color-border);
