@@ -1,14 +1,16 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import API_BASE_URL from '../config/api'
+import { saveTokens } from '../utils/auth'
 import './AdminLogin.css'
 
 const TOKEN_URL = `${API_BASE_URL}/api/token/`
-const TOKEN_KEY = 'podogest_token'
 
 function AdminLogin() {
   const navigate = useNavigate()
+  // Set by the panel when it sends the user back here (e.g. expired session).
+  const notice = useLocation().state?.notice
   const [credentials, setCredentials] = useState({ username: '', password: '' })
   const [isLoading, setIsLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
@@ -32,7 +34,7 @@ function AdminLogin() {
 
       if (response.ok) {
         const data = await response.json()
-        localStorage.setItem(TOKEN_KEY, data.access)
+        saveTokens(data.access, data.refresh)
         navigate('/dashboard')
       } else if (response.status === 401) {
         setErrorMessage('Credenciales inválidas')
@@ -60,6 +62,13 @@ function AdminLogin() {
       <form className="admin-login__card" onSubmit={handleSubmit}>
         <h1 className="admin-login__title">Panel de Administración</h1>
         <p className="admin-login__subtitle">Inicia sesión para continuar</p>
+
+        {notice && (
+          // alert, not status: it is there on load, and status only announces changes.
+          <p className="admin-login__notice" role="alert">
+            {notice}
+          </p>
+        )}
 
         <label className="admin-login__field">
           Usuario

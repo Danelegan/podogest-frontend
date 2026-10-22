@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { AnimatePresence, MotionConfig, motion } from 'framer-motion'
 import {
   Eraser,
@@ -14,10 +13,11 @@ import {
   X,
 } from 'lucide-react'
 import API_BASE_URL from '../config/api'
+import { authFetch, SESSION_EXPIRED_UNSAVED_MESSAGE } from '../utils/auth'
 import './ClinicalRecordModal.css'
 
 const API_URL = `${API_BASE_URL}/api/clinical-records/`
-const TOKEN_KEY = 'podogest_token'
+const JSON_HEADERS = { 'Content-Type': 'application/json' }
 
 // The podogram is stored at the end of `observaciones`: "text|||DRAWING:<data URL>".
 const DRAWING_MARK = '|||DRAWING:'
@@ -229,8 +229,7 @@ function Section({ icon: Icon, title, children }) {
   )
 }
 
-function ClinicalRecordModal({ isOpen, onClose, appointmentId, appointment }) {
-  const navigate = useNavigate()
+function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId, appointment }) {
   const [form, setForm] = useState(EMPTY_FORM)
   const [recordId, setRecordId] = useState(null)
   // Lines in each backend field that this form doesn't manage; kept on save.
@@ -268,14 +267,12 @@ function ClinicalRecordModal({ isOpen, onClose, appointmentId, appointment }) {
     telefono: appointment?.phone ?? '',
   })
 
-  const authHeaders = () => ({
-    'Content-Type': 'application/json',
-    Authorization: `Bearer ${localStorage.getItem(TOKEN_KEY)}`,
-  })
-
-  const handleUnauthorized = () => {
-    localStorage.removeItem(TOKEN_KEY)
-    navigate('/login', { replace: true })
+  // Expired session while saving: unsaved changes keep the modal open so they
+  // can be copied before signing in again. Read through latestRef: edits made
+  // while the save was in flight count too.
+  const handleSessionExpired = () => {
+    if (latestRef.current.hasUnsavedChanges()) setErrorMessage(SESSION_EXPIRED_UNSAVED_MESSAGE)
+    else onSessionExpired()
   }
 
   useEffect(() => {
@@ -299,13 +296,14 @@ function ClinicalRecordModal({ isOpen, onClose, appointmentId, appointment }) {
       })
 
       try {
-        const response = await fetch(`${API_URL}?appointment=${appointmentId}`, {
-          headers: authHeaders(),
+        const response = await authFetch(`${API_URL}?appointment=${appointmentId}`, {
+          headers: JSON_HEADERS,
           signal: controller.signal,
         })
 
+        // Nothing typed yet while loading, so there is nothing to keep.
         if (response.status === 401) {
-          handleUnauthorized()
+          onSessionExpired()
           return
         }
         if (!response.ok) {
@@ -642,9 +640,9 @@ function ClinicalRecordModal({ isOpen, onClose, appointmentId, appointment }) {
     const timeout = new AbortController()
     const timeoutId = setTimeout(() => timeout.abort(), SAVE_TIMEOUT_MS)
     const patch = (id) =>
-      fetch(`${API_URL}${id}/`, {
+      authFetch(`${API_URL}${id}/`, {
         method: 'PATCH',
-        headers: authHeaders(),
+        headers: JSON_HEADERS,
         body: JSON.stringify(payload),
         signal: timeout.signal,
       })
@@ -653,15 +651,15 @@ function ClinicalRecordModal({ isOpen, onClose, appointmentId, appointment }) {
       let targetId = recordId
       let response = isUpdate
         ? await patch(recordId)
-        : await fetch(API_URL, {
+        : await authFetch(API_URL, {
           method: 'POST',
-          headers: authHeaders(),
+          headers: JSON_HEADERS,
           body: JSON.stringify({ ...payload, appointment: appointmentId }),
           signal: timeout.signal,
         })
 
       if (response.status === 401) {
-        handleUnauthorized()
+        handleSessionExpired()
         return
       }
       let errorBody = response.ok ? null : await readJson(response)
@@ -669,12 +667,12 @@ function ClinicalRecordModal({ isOpen, onClose, appointmentId, appointment }) {
       // The appointment already has a record (one per appointment, e.g. from a
       // POST whose answer never arrived): find it and update it instead.
       if (!isUpdate && response.status === 400 && errorBody?.appointment) {
-        const lookup = await fetch(`${API_URL}?appointment=${appointmentId}`, {
-          headers: authHeaders(),
+        const lookup = await authFetch(`${API_URL}?appointment=${appointmentId}`, {
+          headers: JSON_HEADERS,
           signal: timeout.signal,
         })
         if (lookup.status === 401) {
-          handleUnauthorized()
+          handleSessionExpired()
           return
         }
         const data = lookup.ok ? await readJson(lookup) : null
@@ -695,7 +693,7 @@ function ClinicalRecordModal({ isOpen, onClose, appointmentId, appointment }) {
         targetId = existing.id
         response = await patch(targetId)
         if (response.status === 401) {
-          handleUnauthorized()
+          handleSessionExpired()
           return
         }
         errorBody = response.ok ? null : await readJson(response)

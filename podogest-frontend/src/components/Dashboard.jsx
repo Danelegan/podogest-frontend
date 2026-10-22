@@ -5,12 +5,12 @@ import ClinicalRecordModal from './ClinicalRecordModal'
 import DailyAgenda from './DailyAgenda'
 import ManualAttentionModal from './ManualAttentionModal'
 import API_BASE_URL from '../config/api'
+import { authFetch, getAccessToken, logout, SESSION_EXPIRED_MESSAGE } from '../utils/auth'
 import './Dashboard.css'
 
 const APPOINTMENTS_URL = `${API_BASE_URL}/api/appointments/`
 const BACKUP_URL = `${API_BASE_URL}/api/appointments/exportar-respaldo/`
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-const TOKEN_KEY = 'podogest_token'
 
 // "2026-09-25" en horario local (evita el corrimiento de un día que da
 // new Date().toISOString() cerca de medianoche por usar UTC).
@@ -76,10 +76,16 @@ function Dashboard() {
   const [isManualModalOpen, setIsManualModalOpen] = useState(false)
   const [deletingId, setDeletingId] = useState(null)
   const [isDownloading, setIsDownloading] = useState(false)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
 
-  const handleLogout = () => {
-    localStorage.removeItem(TOKEN_KEY)
+  const handleLogout = async () => {
+    setIsLoggingOut(true)
+    await logout()
     navigate('/login')
+  }
+
+  const handleSessionExpired = () => {
+    navigate('/login', { replace: true, state: { notice: SESSION_EXPIRED_MESSAGE } })
   }
 
   const openRecord = (appointment) => {
@@ -87,8 +93,16 @@ function Dashboard() {
     setIsModalOpen(true)
   }
 
+  // A modal with unsaved changes stays open when the session expires; once it
+  // is closed, the user goes on to the login.
   const closeRecord = () => {
     setIsModalOpen(false)
+    if (!getAccessToken()) handleSessionExpired()
+  }
+
+  const closeManualAttention = () => {
+    setIsManualModalOpen(false)
+    if (!getAccessToken()) handleSessionExpired()
   }
 
   // The walk-in endpoint returns the new appointment (its clinical record is
@@ -100,22 +114,15 @@ function Dashboard() {
     setIsManualModalOpen(false)
   }
 
-  const handleUnauthorized = () => {
-    localStorage.removeItem(TOKEN_KEY)
-    navigate('/login', { replace: true })
-  }
-
   // Fetches the CSV with the JWT (a plain <a href> can't send it) and triggers
   // the download through a temporary object URL.
   const downloadBackup = async () => {
     setIsDownloading(true)
     try {
-      const response = await fetch(BACKUP_URL, {
-        headers: { Authorization: `Bearer ${localStorage.getItem(TOKEN_KEY)}` },
-      })
+      const response = await authFetch(BACKUP_URL)
 
       if (response.status === 401) {
-        handleUnauthorized()
+        handleSessionExpired()
         return
       }
 
@@ -154,13 +161,12 @@ function Dashboard() {
 
     setDeletingId(appointment.id)
     try {
-      const response = await fetch(`${APPOINTMENTS_URL}${appointment.id}/`, {
+      const response = await authFetch(`${APPOINTMENTS_URL}${appointment.id}/`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${localStorage.getItem(TOKEN_KEY)}` },
       })
 
       if (response.status === 401) {
-        handleUnauthorized()
+        handleSessionExpired()
         return
       }
 
@@ -190,14 +196,10 @@ function Dashboard() {
 
     const loadAppointments = async () => {
       try {
-        const response = await fetch(APPOINTMENTS_URL, {
-          headers: { Authorization: `Bearer ${localStorage.getItem(TOKEN_KEY)}` },
-          signal: controller.signal,
-        })
+        const response = await authFetch(APPOINTMENTS_URL, { signal: controller.signal })
 
         if (response.status === 401) {
-          localStorage.removeItem(TOKEN_KEY)
-          navigate('/login', { replace: true })
+          navigate('/login', { replace: true, state: { notice: SESSION_EXPIRED_MESSAGE } })
           return
         }
 
@@ -254,9 +256,14 @@ function Dashboard() {
             </div>
           </div>
         </div>
-        <button type="button" className="dashboard__logout" onClick={handleLogout}>
+        <button
+          type="button"
+          className="dashboard__logout"
+          onClick={handleLogout}
+          disabled={isLoggingOut}
+        >
           <LogOut size={20} aria-hidden="true" />
-          Cerrar Sesión
+          {isLoggingOut ? 'Cerrando sesión…' : 'Cerrar Sesión'}
         </button>
       </header>
 
@@ -404,15 +411,16 @@ function Dashboard() {
 
       <ManualAttentionModal
         isOpen={isManualModalOpen}
-        onClose={() => setIsManualModalOpen(false)}
+        onClose={closeManualAttention}
         onCreated={handleManualCreated}
-        onUnauthorized={handleUnauthorized}
+        onSessionExpired={handleSessionExpired}
       />
 
       <ClinicalRecordModal
         key={selectedAppointment?.id}
         isOpen={isModalOpen}
         onClose={closeRecord}
+        onSessionExpired={handleSessionExpired}
         appointmentId={selectedAppointment?.id}
         appointment={selectedAppointment}
       />

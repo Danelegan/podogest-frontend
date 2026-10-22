@@ -115,9 +115,14 @@
   transition: color var(--duration) var(--ease), border-color var(--duration) var(--ease);
 }
 
-.dashboard__logout:hover {
+.dashboard__logout:hover:not(:disabled) {
   border-color: var(--color-border-input);
   color: var(--color-text);
+}
+
+.dashboard__logout:disabled {
+  opacity: 0.65;
+  cursor: progress;
 }
 
 /* ---------- Tabs (segmented control) ---------- */

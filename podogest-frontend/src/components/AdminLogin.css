@@ -143,6 +143,19 @@
   word-break: break-word;
 }
 
+/* Aviso informativo (sesión expirada): mismo formato, en azul. */
+.admin-login__notice {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-left: 4px solid var(--color-primary);
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-soft);
+  color: var(--color-primary-strong);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  line-height: 1.5;
+}
+
 /* ---------- Botón principal ---------- */
 
 .admin-login__submit {

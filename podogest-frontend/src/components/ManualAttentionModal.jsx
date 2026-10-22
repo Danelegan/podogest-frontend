@@ -3,10 +3,10 @@ import { AnimatePresence, MotionConfig, motion } from 'framer-motion'
 import { Save, X } from 'lucide-react'
 import { formatRUT, validarRut } from '../utils/rutValidation'
 import API_BASE_URL from '../config/api'
+import { authFetch, SESSION_EXPIRED_UNSAVED_MESSAGE } from '../utils/auth'
 import './ManualAttentionModal.css'
 
 const API_URL = `${API_BASE_URL}/api/appointments/atencion-espontanea/`
-const TOKEN_KEY = 'podogest_token'
 
 const EMPTY_FORM = { nombre: '', rut: '', email: '', telefono: '' }
 
@@ -31,7 +31,7 @@ function describeErrors(data) {
 
 // Walk-in patient: the backend creates today's appointment (at the current
 // time) plus its empty clinical record in one request.
-function ManualAttentionModal({ isOpen, onClose, onCreated, onUnauthorized }) {
+function ManualAttentionModal({ isOpen, onClose, onCreated, onSessionExpired }) {
   const [formData, setFormData] = useState(EMPTY_FORM)
   const [errorMessage, setErrorMessage] = useState('')
   const [isSaving, setIsSaving] = useState(false)
@@ -164,12 +164,9 @@ function ManualAttentionModal({ isOpen, onClose, onCreated, onUnauthorized }) {
     const timeout = new AbortController()
     const timeoutId = setTimeout(() => timeout.abort(), SAVE_TIMEOUT_MS)
     try {
-      const response = await fetch(API_URL, {
+      const response = await authFetch(API_URL, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem(TOKEN_KEY)}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           patient_name: formData.nombre.trim(),
           rut: formData.rut,
@@ -179,8 +176,10 @@ function ManualAttentionModal({ isOpen, onClose, onCreated, onUnauthorized }) {
         signal: timeout.signal,
       })
 
+      // Expired session: unsaved data keeps the modal open so it can be copied.
       if (response.status === 401) {
-        onUnauthorized()
+        if (latestRef.current.hasUnsavedChanges()) setErrorMessage(SESSION_EXPIRED_UNSAVED_MESSAGE)
+        else onSessionExpired()
         return
       }
 
