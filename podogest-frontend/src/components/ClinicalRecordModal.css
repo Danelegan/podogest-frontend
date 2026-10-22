@@ -392,6 +392,37 @@
   border-color: var(--color-primary);
 }
 
+/* After hover/focus so an invalid value stays marked while it is edited. */
+.clinical-field input[aria-invalid='true'] {
+  border-color: var(--color-danger);
+}
+
+.clinical-field__error {
+  margin: 0;
+  font-weight: 500;
+  letter-spacing: normal;
+  line-height: 1.4;
+  color: var(--color-danger);
+}
+
+/* Blood pressure: systolic / diastolic side by side, "117 / 65". */
+.clinical-pressure {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.clinical-pressure input {
+  flex: 1;
+  min-width: 0;
+}
+
+.clinical-pressure__separator {
+  font-size: var(--text-lg);
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
 /* ---------- Checkbox chips ---------- */
 
 .clinical-check {
@@ -510,6 +541,13 @@
 }
 
 /* ---------- Billing ---------- */
+
+/* Anesthesia above the price row. */
+.clinical-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
 
 .clinical-billing {
   display: flex;

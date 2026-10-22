@@ -3,6 +3,7 @@ import { AnimatePresence, MotionConfig, motion } from 'framer-motion'
 import {
   Eraser,
   Footprints,
+  HeartPulse,
   PenTool,
   RotateCcw,
   Save,
@@ -43,6 +44,7 @@ const PROBLEMS = [
   'Onicocriptosis Leve',
   'Onicocriptosis Grave',
   'Onicogrifosis',
+  'Onicomicosis',
   'VPH plantar',
 ]
 const CONSUMES = ['Alcohol', 'Drogas', 'Antimicóticos', 'Analgésicos']
@@ -76,6 +78,11 @@ const EMPTY_FORM = {
   consume: [],
   cirugias: '',
   familiares: [],
+  presionSistolica: '',
+  presionDiastolica: '',
+  frecuenciaCardiaca: '',
+  pulso: '',
+  anestesia: '',
   precio: '',
 }
 
@@ -98,9 +105,94 @@ const MEDICAL_KEYS = {
   consume: 'Consume',
   cirugias: 'Cirugías previas',
   familiares: 'Antecedentes familiares',
+  presion: 'Presión arterial',
+  frecuenciaCardiaca: 'Frecuencia cardíaca',
+  pulso: 'Pulso pedio',
 }
 const SYMPTOM_KEYS = { problemas: 'Problemas', otros: 'Otros' }
-const TREATMENT_KEYS = { precio: 'Precio' }
+const TREATMENT_KEYS = { anestesia: 'Anestesia', precio: 'Precio' }
+
+// Measurements are stored with their unit so the Excel backup reads
+// "Presión arterial: 117/65 mmHg"; the form holds only the numbers.
+const MEASURE_UNITS = { frecuenciaCardiaca: 'lpm', pulso: 'lpm', anestesia: 'ml' }
+
+// Only called with validated values: "007" -> "7", "01,50" -> "1,50".
+const trimZeros = (value) => value.replace(/^0+(?=\d)/, '')
+
+function toStoredValues(form) {
+  const withUnit = (field) =>
+    form[field] ? `${trimZeros(form[field])} ${MEASURE_UNITS[field]}` : ''
+  const systolic = trimZeros(form.presionSistolica)
+  const diastolic = trimZeros(form.presionDiastolica)
+  return {
+    ...form,
+    presion: systolic || diastolic ? `${systolic}/${diastolic} mmHg` : '',
+    frecuenciaCardiaca: withUnit('frecuenciaCardiaca'),
+    pulso: withUnit('pulso'),
+    anestesia: withUnit('anestesia'),
+  }
+}
+
+function fromStoredValues({ presion, ...values }) {
+  const withoutUnit = (text) => text.replace(/\s*(mmHg|lpm|ml)\s*$/i, '').trim()
+  Object.keys(MEASURE_UNITS).forEach((field) => {
+    if (values[field] != null) values[field] = withoutUnit(values[field])
+  })
+  if (presion != null) {
+    const [systolic = '', diastolic = ''] = withoutUnit(presion).split('/')
+    values.presionSistolica = systolic.trim()
+    values.presionDiastolica = diastolic.trim()
+  }
+  return values
+}
+
+// Wide limits: they catch typos (1170 instead of 117), never a rare but real
+// reading. Keys follow the on-screen order, so the first one gets the focus.
+function validateMeasures(form) {
+  const errors = {}
+  const inRange = (value, min, max) =>
+    /^\d+$/.test(value) && Number(value) >= min && Number(value) <= max
+
+  const { presionSistolica: systolic, presionDiastolica: diastolic } = form
+  if (systolic || diastolic) {
+    if (!systolic || !diastolic) {
+      errors.presion = 'Completa la presión sistólica y la diastólica.'
+    } else if (!inRange(systolic, 50, 300)) {
+      errors.presion = 'La presión sistólica debe estar entre 50 y 300 mmHg.'
+    } else if (!inRange(diastolic, 20, 200)) {
+      errors.presion = 'La presión diastólica debe estar entre 20 y 200 mmHg.'
+    } else if (Number(systolic) <= Number(diastolic)) {
+      errors.presion = 'La presión sistólica debe ser mayor que la diastólica.'
+    }
+  }
+
+  if (form.frecuenciaCardiaca && !inRange(form.frecuenciaCardiaca, 20, 250)) {
+    errors.frecuenciaCardiaca = 'La frecuencia cardíaca debe estar entre 20 y 250 lpm.'
+  }
+  if (form.pulso && !inRange(form.pulso, 20, 250)) {
+    errors.pulso = 'El pulso pedio debe estar entre 20 y 250 lpm.'
+  }
+
+  if (form.anestesia) {
+    const ml = Number(form.anestesia.replace(',', '.'))
+    if (!/^\d+(,\d{1,2})?$/.test(form.anestesia)) {
+      errors.anestesia = 'Escribe la cantidad como número, por ejemplo 1,50.'
+    } else if (ml <= 0 || ml > 20) {
+      errors.anestesia = 'La anestesia debe ser mayor que 0 y de hasta 20 ml.'
+    }
+  }
+  return errors
+}
+
+const MEASURE_INPUT_IDS = {
+  presion: 'clinical-presion-sistolica',
+  frecuenciaCardiaca: 'clinical-frecuencia-cardiaca',
+  pulso: 'clinical-pulso',
+  anestesia: 'clinical-anestesia',
+}
+
+const MEASURES_ERROR_MESSAGE =
+  'Revisa los valores marcados en Signos vitales o Anestesia antes de guardar.'
 
 const LIST_FIELDS = { problemas: PROBLEMS, consume: CONSUMES, familiares: FAMILY_HISTORY }
 
@@ -200,6 +292,29 @@ function Field({ label, span = 1, children }) {
   )
 }
 
+// Numeric field with its error outside the <label>, so screen readers hear it
+// as a description (aria-describedby) instead of as part of the field's name.
+function MeasureField({ id, label, error, ...inputProps }) {
+  const errorId = `${id}-error`
+  return (
+    <div className="clinical-field">
+      <label htmlFor={id}>{label}</label>
+      <input
+        id={id}
+        type="text"
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? errorId : undefined}
+        {...inputProps}
+      />
+      {error && (
+        <p id={errorId} className="clinical-field__error">
+          {error}
+        </p>
+      )}
+    </div>
+  )
+}
+
 function CheckGroup({ options, selected, onToggle, className }) {
   return (
     <div className={className}>
@@ -242,6 +357,12 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
   // saving stays blocked until the modal is reopened.
   const [hasForeignRecord, setHasForeignRecord] = useState(false)
   const [savedDrawing, setSavedDrawing] = useState('')
+  // Measurements whose errors are visible: shown once the user leaves the
+  // field or tries to save, not while still typing.
+  const [checkedMeasures, setCheckedMeasures] = useState({})
+  // Save was stopped by invalid measurements; the footer notice lasts only
+  // while some of them are still invalid.
+  const [isSaveBlocked, setIsSaveBlocked] = useState(false)
   const canvasRef = useRef(null)
   const isDrawingRef = useRef(false)
   const hasInkRef = useRef(false)
@@ -288,6 +409,8 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
       setRecordId(null)
       setRest({ medical: [], symptoms: [], treatment: [] })
       setSavedDrawing('')
+      setCheckedMeasures({})
+      setIsSaveBlocked(false)
       setForm({
         ...EMPTY_FORM,
         nombre: appointment?.patient_name ?? '',
@@ -340,9 +463,7 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
         )
         setForm((prev) => ({
           ...prev,
-          ...medical.values,
-          ...symptoms.values,
-          ...treatment.values,
+          ...fromStoredValues({ ...medical.values, ...symptoms.values, ...treatment.values }),
           observaciones: observations,
         }))
       } catch (error) {
@@ -509,6 +630,17 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
       event.preventDefault()
       return
     }
+    // Impossible readings block the save with the reason next to each field.
+    const invalid = Object.keys(validateMeasures(form))
+    if (invalid.length) {
+      event.preventDefault()
+      setCheckedMeasures(Object.fromEntries(invalid.map((field) => [field, true])))
+      setSuccessMessage('')
+      setErrorMessage('')
+      setIsSaveBlocked(true)
+      document.getElementById(MEASURE_INPUT_IDS[invalid[0]])?.focus()
+      return
+    }
     submittedRef.current = { form, drawEdits: drawEditsRef.current }
     handleSave(event)
   }
@@ -596,6 +728,28 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
     setForm((prev) => ({ ...prev, precio: digits }))
   }
 
+  // Nothing is cut short: an extra digit ("1170") must reach the range check
+  // and show its error instead of silently becoming a valid value.
+  const handleWholeNumberChange = (event) => {
+    const { name, value } = event.target
+    setForm((prev) => ({ ...prev, [name]: value.replace(/\D/g, '') }))
+  }
+
+  // Anesthesia: "1,50" or "1.50", shown with a comma.
+  const handleAnesthesiaChange = (event) => {
+    const value = event.target.value.replace(/\./g, ',').replace(/[^\d,]/g, '')
+    setForm((prev) => ({ ...prev, anestesia: value }))
+  }
+
+  const checkMeasure = (field) => () => {
+    setCheckedMeasures((prev) => ({ ...prev, [field]: true }))
+  }
+
+  // Both pressure inputs count as one field: checked once focus leaves the pair.
+  const handlePressureBlur = (event) => {
+    if (!event.currentTarget.contains(event.relatedTarget)) checkMeasure('presion')()
+  }
+
   const toggleOption = (name) => (option) => {
     setForm((prev) => ({
       ...prev,
@@ -612,6 +766,8 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
     )
     if (!confirmed) return
     setForm(emptyForm())
+    setCheckedMeasures({})
+    setIsSaveBlocked(false)
     handleClearDrawing()
     setErrorMessage('')
     setSuccessMessage('')
@@ -619,6 +775,7 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
 
   const handleSave = async (event) => {
     event.preventDefault()
+    setIsSaveBlocked(false)
     setIsSaving(true)
     setErrorMessage('')
     setSuccessMessage('')
@@ -628,10 +785,11 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
         ? `${DRAWING_MARK}${canvasRef.current.toDataURL('image/png')}`
         : ''
 
+    const stored = toStoredValues(form)
     const payload = {
-      antecedentes_medicos: buildLines(form, MEDICAL_KEYS, rest.medical),
-      sintomas: buildLines(form, SYMPTOM_KEYS, rest.symptoms),
-      tratamiento_realizado: buildLines(form, TREATMENT_KEYS, rest.treatment),
+      antecedentes_medicos: buildLines(stored, MEDICAL_KEYS, rest.medical),
+      sintomas: buildLines(stored, SYMPTOM_KEYS, rest.symptoms),
+      tratamiento_realizado: buildLines(stored, TREATMENT_KEYS, rest.treatment),
       observaciones: `${form.observaciones}${drawing}`,
     }
     const isUpdate = recordId != null
@@ -720,6 +878,12 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
   const recordLabel =
     recordId != null ? `Ficha n.º ${String(recordId).padStart(4, '0')}` : 'Ficha nueva'
   const price = formatClp(form.precio)
+  const measureErrors = validateMeasures(form)
+  // Once everything is fixed the block is over: a later typo only shows its
+  // own field error until the next save attempt.
+  if (isSaveBlocked && Object.keys(measureErrors).length === 0) setIsSaveBlocked(false)
+  const measureError = (field) => (checkedMeasures[field] ? measureErrors[field] : undefined)
+  const pressureError = measureError('presion')
 
   return (
     <MotionConfig reducedMotion="user">
@@ -985,6 +1149,74 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
                       </div>
                     </Section>
 
+                    <Section icon={HeartPulse} title="Signos vitales">
+                      <div className="clinical-grid clinical-grid--3">
+                        <fieldset
+                          className="clinical-field clinical-fieldset"
+                          onBlur={handlePressureBlur}
+                        >
+                          <legend className="clinical-fieldset__legend">
+                            Presión arterial (mmHg)
+                          </legend>
+                          <div className="clinical-pressure">
+                            <input
+                              id={MEASURE_INPUT_IDS.presion}
+                              type="text"
+                              inputMode="numeric"
+                              name="presionSistolica"
+                              value={form.presionSistolica}
+                              onChange={handleWholeNumberChange}
+                              placeholder="117"
+                              aria-label="Sistólica"
+                              aria-invalid={pressureError ? true : undefined}
+                              aria-describedby={pressureError ? 'clinical-presion-error' : undefined}
+                            />
+                            <span className="clinical-pressure__separator" aria-hidden="true">
+                              /
+                            </span>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              name="presionDiastolica"
+                              value={form.presionDiastolica}
+                              onChange={handleWholeNumberChange}
+                              placeholder="65"
+                              aria-label="Diastólica"
+                              aria-invalid={pressureError ? true : undefined}
+                              aria-describedby={pressureError ? 'clinical-presion-error' : undefined}
+                            />
+                          </div>
+                          {pressureError && (
+                            <p id="clinical-presion-error" className="clinical-field__error">
+                              {pressureError}
+                            </p>
+                          )}
+                        </fieldset>
+                        <MeasureField
+                          id={MEASURE_INPUT_IDS.frecuenciaCardiaca}
+                          label="Frecuencia cardíaca (lpm)"
+                          error={measureError('frecuenciaCardiaca')}
+                          inputMode="numeric"
+                          name="frecuenciaCardiaca"
+                          value={form.frecuenciaCardiaca}
+                          onChange={handleWholeNumberChange}
+                          onBlur={checkMeasure('frecuenciaCardiaca')}
+                          placeholder="Ej.: 72"
+                        />
+                        <MeasureField
+                          id={MEASURE_INPUT_IDS.pulso}
+                          label="Pulso pedio (lpm)"
+                          error={measureError('pulso')}
+                          inputMode="numeric"
+                          name="pulso"
+                          value={form.pulso}
+                          onChange={handleWholeNumberChange}
+                          onBlur={checkMeasure('pulso')}
+                          placeholder="Ej.: 70"
+                        />
+                      </div>
+                    </Section>
+
                     <Section icon={Users} title="Antecedentes familiares">
                       <CheckGroup
                         className="clinical-grid clinical-grid--3"
@@ -1024,19 +1256,34 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
                       </div>
                     </Section>
 
-                    <Section icon={Wallet} title="Cobro">
-                      <div className="clinical-billing">
-                        <Field label="Precio a cobrar">
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            name="precio"
-                            value={price}
-                            onChange={handlePriceChange}
-                            placeholder="$15.000"
+                    <Section icon={Wallet} title="Tratamiento y cobro">
+                      <div className="clinical-stack">
+                        <div className="clinical-grid clinical-grid--3">
+                          <MeasureField
+                            id={MEASURE_INPUT_IDS.anestesia}
+                            label="Anestesia (ml)"
+                            error={measureError('anestesia')}
+                            inputMode="decimal"
+                            name="anestesia"
+                            value={form.anestesia}
+                            onChange={handleAnesthesiaChange}
+                            onBlur={checkMeasure('anestesia')}
+                            placeholder="Ej.: 1,50"
                           />
-                        </Field>
-                        <p className="clinical-billing__total">{price || '$0'}</p>
+                        </div>
+                        <div className="clinical-billing">
+                          <Field label="Precio a cobrar">
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              name="precio"
+                              value={price}
+                              onChange={handlePriceChange}
+                              placeholder="$15.000"
+                            />
+                          </Field>
+                          <p className="clinical-billing__total">{price || '$0'}</p>
+                        </div>
                       </div>
                     </Section>
                   </>
@@ -1048,6 +1295,11 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
                 {hasForeignRecord && (
                   <p className="clinical-message clinical-message--error" role="alert">
                     {MISMATCH_MESSAGE}
+                  </p>
+                )}
+                {isSaveBlocked && Object.keys(measureErrors).length > 0 && (
+                  <p className="clinical-message clinical-message--error" role="alert">
+                    {MEASURES_ERROR_MESSAGE}
                   </p>
                 )}
                 {errorMessage && (
