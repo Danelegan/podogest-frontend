@@ -91,7 +91,7 @@ function Footer() {
         <div className="footer__col">
           <h2 className="footer__heading">Ubicación</h2>
           <p className="footer__address">
-            Av. José Joaquín Pérez 4435, Quinta Normal, Santiago, Chile
+            Av. José Joaquín Pérez 4435, Local A, Quinta Normal, Santiago
           </p>
           <div className="footer__map">
             <iframe

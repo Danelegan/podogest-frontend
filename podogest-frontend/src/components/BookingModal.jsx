@@ -72,8 +72,10 @@ const INITIAL_FORM = {
 }
 
 // Same address as the footer; the link opens Google Maps directions to it.
-const CLINIC_ADDRESS = 'Av. José Joaquín Pérez 4435, Quinta Normal, Santiago, Chile'
-const CLINIC_MAPS_URL = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(CLINIC_ADDRESS)}`
+const CLINIC_ADDRESS = 'Av. José Joaquín Pérez 4435, Local A, Quinta Normal, Santiago'
+// The maps query keeps the original address so the "how to get there" link points to the same place.
+const CLINIC_MAPS_QUERY = 'Av. José Joaquín Pérez 4435, Quinta Normal, Santiago, Chile'
+const CLINIC_MAPS_URL = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(CLINIC_MAPS_QUERY)}`
 
 // Name: letters (accents and ñ included), spaces, apostrophes and hyphens.
 const formatName = (value) => value.replace(/[^\p{L}\s'’-]/gu, '')
