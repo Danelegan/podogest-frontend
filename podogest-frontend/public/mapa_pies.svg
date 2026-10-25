@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 800 560" width="800" height="560">
+  <!-- Podogram v2 background. Each foot is drawn once with the big toe on the
+       left (medial side) and mirrored for the other side, so in both views the
+       big toes point toward the centre. Plantar is seen from below (patient's
+       right foot on the viewer's left); dorsal from above (left foot on the left). -->
+  <defs>
+    <g id="plantar">
+      <path d="M14 110C6 80 30 62 60 66C90 70 120 78 134 100C142 130 136 170 130 210C124 250 120 290 118 320C116 370 96 398 70 398C42 398 24 375 24 340C24 305 40 280 40 245C40 205 18 170 14 110Z"/>
+      <ellipse cx="31" cy="38" rx="20" ry="25"/>
+      <ellipse cx="66" cy="30" rx="11" ry="14"/>
+      <ellipse cx="92" cy="37" rx="10" ry="13"/>
+      <ellipse cx="114" cy="48" rx="9" ry="12"/>
+      <ellipse cx="132" cy="64" rx="8" ry="10"/>
+      <path d="M30 118C60 108 100 112 128 128" stroke-dasharray="4 6" opacity="0.5"/>
+      <path d="M44 342C56 334 84 334 98 342" stroke-dasharray="4 6" opacity="0.5"/>
+    </g>
+    <g id="dorsal">
+      <path d="M40 400C40 350 36 300 28 250C20 200 8 150 10 100C8 60 14 22 32 20C50 18 54 50 52 82C54 50 58 28 70 28C82 28 84 50 82 84C84 56 88 40 98 40C108 40 110 60 106 90C110 66 112 54 120 54C128 54 130 72 126 98C130 82 132 72 138 74C145 76 144 96 138 116C138 170 128 240 118 300C112 340 106 375 104 400"/>
+      <path d="M21 48Q20 30 32 29Q44 30 43 48Q32 52 21 48Z"/>
+      <path d="M63 50Q62 36 70 35Q78 36 77 50Q70 53 63 50Z"/>
+      <path d="M92 60Q92 48 98 47Q104 48 104 60Q98 62 92 60Z"/>
+      <path d="M115 70Q115 61 120 60Q125 61 125 70Q120 72 115 70Z"/>
+      <path d="M134 89Q134 82 138 81Q142 82 142 89Q138 91 134 89Z"/>
+      <path d="M42 372C62 362 88 362 106 370" stroke-dasharray="4 6" opacity="0.5"/>
+    </g>
+  </defs>
+
+  <rect width="800" height="560" fill="#ffffff"/>
+  <line x1="400" y1="24" x2="400" y2="536" stroke="#d1d5db" stroke-width="1.5" stroke-dasharray="6 6"/>
+
+  <g font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" fill="#1f2937" text-anchor="middle">
+    <text x="200" y="36" font-size="26" font-weight="600">Plantar</text>
+    <text x="200" y="60" font-size="17" fill="#4b5563">vista desde abajo</text>
+    <text x="600" y="36" font-size="26" font-weight="600">Dorsal</text>
+    <text x="600" y="60" font-size="17" fill="#4b5563">vista desde arriba</text>
+    <text x="112" y="520" font-size="24" font-weight="600">Der.</text>
+    <text x="288" y="520" font-size="24" font-weight="600">Izq.</text>
+    <text x="512" y="520" font-size="24" font-weight="600">Izq.</text>
+    <text x="688" y="520" font-size="24" font-weight="600">Der.</text>
+  </g>
+
+  <g fill="none" stroke="#1f2937" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <use xlink:href="#plantar" href="#plantar" transform="translate(185 82) scale(-1 1)"/>
+    <use xlink:href="#plantar" href="#plantar" transform="translate(215 82)"/>
+    <use xlink:href="#dorsal" href="#dorsal" transform="translate(585 82) scale(-1 1)"/>
+    <use xlink:href="#dorsal" href="#dorsal" transform="translate(615 82)"/>
+  </g>
+</svg>

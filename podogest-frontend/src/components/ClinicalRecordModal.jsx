@@ -15,15 +15,11 @@ import {
 } from 'lucide-react'
 import API_BASE_URL from '../config/api'
 import { authFetch, SESSION_EXPIRED_UNSAVED_MESSAGE } from '../utils/auth'
+import { buildObservations, parseObservations, PODOGRAM_MAPS } from '../utils/podogram'
 import './ClinicalRecordModal.css'
 
 const API_URL = `${API_BASE_URL}/api/clinical-records/`
 const JSON_HEADERS = { 'Content-Type': 'application/json' }
-
-// The podogram is stored at the end of `observaciones`: "text|||DRAWING:<data URL>".
-const DRAWING_MARK = '|||DRAWING:'
-const CANVAS_WIDTH = 400
-const CANVAS_HEIGHT = 600
 
 const GENDERS = ['Femenino', 'Masculino', 'Otro', 'Prefiero no decir']
 const CIVIL_STATUSES = [
@@ -357,6 +353,8 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
   // saving stays blocked until the modal is reopened.
   const [hasForeignRecord, setHasForeignRecord] = useState(false)
   const [savedDrawing, setSavedDrawing] = useState('')
+  // Old drawings keep the map they were drawn on; everything else uses v2.
+  const [mapVersion, setMapVersion] = useState('v2')
   // Measurements whose errors are visible: shown once the user leaves the
   // field or tries to save, not while still typing.
   const [checkedMeasures, setCheckedMeasures] = useState({})
@@ -409,6 +407,7 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
       setRecordId(null)
       setRest({ medical: [], symptoms: [], treatment: [] })
       setSavedDrawing('')
+      setMapVersion('v2')
       setCheckedMeasures({})
       setIsSaveBlocked(false)
       setForm({
@@ -454,13 +453,9 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
           symptoms: symptoms.rest,
           treatment: treatment.rest,
         })
-        const rawObservations = record.observaciones ?? ''
-        const markIndex = rawObservations.indexOf(DRAWING_MARK)
-        const observations =
-          markIndex === -1 ? rawObservations : rawObservations.slice(0, markIndex)
-        setSavedDrawing(
-          markIndex === -1 ? '' : rawObservations.slice(markIndex + DRAWING_MARK.length),
-        )
+        const { observations, drawing, version } = parseObservations(record.observaciones)
+        setSavedDrawing(drawing)
+        setMapVersion(version)
         setForm((prev) => ({
           ...prev,
           ...fromStoredValues({ ...medical.values, ...symptoms.values, ...treatment.values }),
@@ -668,7 +663,7 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
     return () => {
       cancelled = true
     }
-  }, [isOpen, isLoading, savedDrawing])
+  }, [isOpen, isLoading, savedDrawing, mapVersion])
 
   const getCanvasPoint = (event) => {
     const canvas = canvasRef.current
@@ -687,8 +682,12 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
     isDrawingRef.current = true
     hasInkRef.current = true
     drawEditsRef.current += 1
+    // The canvas is drawn at its internal size; when shown smaller (phone),
+    // the stroke is widened so it still looks about the same on screen.
+    const { lineWidth, minStrokePx } = PODOGRAM_MAPS[mapVersion]
+    const scale = canvas.width / canvas.getBoundingClientRect().width
     ctx.strokeStyle = '#dc2626'
-    ctx.lineWidth = 2
+    ctx.lineWidth = Math.max(lineWidth, minStrokePx * scale)
     ctx.lineCap = 'round'
     ctx.lineJoin = 'round'
     ctx.beginPath()
@@ -716,6 +715,8 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
     canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height)
     hasInkRef.current = false
     setSavedDrawing('')
+    // Nothing left that depends on the old map.
+    setMapVersion('v2')
   }
 
   const handleChange = (event) => {
@@ -781,16 +782,14 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
     setSuccessMessage('')
 
     const drawing =
-      hasInkRef.current && canvasRef.current
-        ? `${DRAWING_MARK}${canvasRef.current.toDataURL('image/png')}`
-        : ''
+      hasInkRef.current && canvasRef.current ? canvasRef.current.toDataURL('image/png') : ''
 
     const stored = toStoredValues(form)
     const payload = {
       antecedentes_medicos: buildLines(stored, MEDICAL_KEYS, rest.medical),
       sintomas: buildLines(stored, SYMPTOM_KEYS, rest.symptoms),
       tratamiento_realizado: buildLines(stored, TREATMENT_KEYS, rest.treatment),
-      observaciones: `${form.observaciones}${drawing}`,
+      observaciones: buildObservations(form.observaciones, drawing, mapVersion),
     }
     const isUpdate = recordId != null
 
@@ -1229,20 +1228,24 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
                     <Section icon={PenTool} title="Mapa anatómico">
                       <div className="clinical-podogram">
                         <p className="clinical-podogram__hint">
-                          Dibuja sobre el pie para marcar zonas de interés.
+                          {mapVersion === 'v2'
+                            ? 'Dibuja sobre las vistas plantar y dorsal para marcar zonas de interés.'
+                            : 'Dibuja sobre el pie para marcar zonas de interés.'}
                         </p>
-                        <div className="clinical-podogram__stage">
+                        <div
+                          className={`clinical-podogram__stage clinical-podogram__stage--${mapVersion}`}
+                        >
                           <img
                             className="clinical-podogram__image"
-                            src="/modelo_pie.avif"
-                            alt="Modelo anatómico del pie"
+                            src={PODOGRAM_MAPS[mapVersion].src}
+                            alt={PODOGRAM_MAPS[mapVersion].alt}
                             draggable={false}
                           />
                           <canvas
                             ref={canvasRef}
                             className="clinical-podogram__canvas"
-                            width={CANVAS_WIDTH}
-                            height={CANVAS_HEIGHT}
+                            width={PODOGRAM_MAPS[mapVersion].width}
+                            height={PODOGRAM_MAPS[mapVersion].height}
                             onPointerDown={handleDrawStart}
                             onPointerMove={handleDrawMove}
                             onPointerUp={handleDrawEnd}

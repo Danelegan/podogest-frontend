@@ -540,6 +540,19 @@
   touch-action: none;
 }
 
+/* v2 map: both views side by side, scaled to the available width (the strokes
+   are one image, so the views can't be stacked without moving them). */
+.clinical-podogram__stage--v2 {
+  max-width: 800px;
+  aspect-ratio: 800 / 560;
+  background: var(--color-surface);
+}
+
+/* Fill, not contain: the map and the canvas share exactly the same box. */
+.clinical-podogram__stage--v2 .clinical-podogram__image {
+  object-fit: fill;
+}
+
 /* ---------- Billing ---------- */
 
 /* Anesthesia above the price row. */
