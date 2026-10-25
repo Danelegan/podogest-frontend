@@ -1,19 +1,18 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronDown, Home, LogOut, Trash2, UserPlus } from 'lucide-react'
+import { ChevronDown, Home, LogOut, Trash2, UserPlus, X } from 'lucide-react'
 import ClinicalRecordModal from './ClinicalRecordModal'
 import DailyAgenda, { StatusBadge } from './DailyAgenda'
 import ManualAttentionModal from './ManualAttentionModal'
 import API_BASE_URL from '../config/api'
 import { authFetch, getAccessToken, logout, SESSION_EXPIRED_MESSAGE } from '../utils/auth'
+import { clinicNow, formatDateString } from '../utils/clinicDate'
 import './Dashboard.css'
 
 const APPOINTMENTS_URL = `${API_BASE_URL}/api/appointments/`
 const BACKUP_URL = `${API_BASE_URL}/api/appointments/exportar-respaldo/`
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 
-// "2026-09-25" en horario local (evita el corrimiento de un día que da
-// new Date().toISOString() cerca de medianoche por usar UTC).
 // Reads the name from Content-Disposition (exposed via CORS by the backend);
 // falls back to the backend's own naming pattern.
 function getBackupFileName(response) {
@@ -22,12 +21,10 @@ function getBackupFileName(response) {
   return match?.[1] ?? `respaldo_pasos_saludables_${getTodayDateString().replaceAll('-', '')}.xlsx`
 }
 
+// Today as "2026-09-25" in Chile, as the manual attention modal sees it,
+// whatever the device's time zone.
 function getTodayDateString() {
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = String(now.getMonth() + 1).padStart(2, '0')
-  const day = String(now.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
+  return clinicNow().date
 }
 
 // "2026-09-25" -> local Date (no UTC day shift); null if it isn't a date.
@@ -44,7 +41,7 @@ function formatDisplayDate(dateString) {
   const date = parseLocalDate(dateString)
   if (!date) return dateString
   const options = { weekday: 'short', day: 'numeric', month: 'short' }
-  if (date.getFullYear() !== new Date().getFullYear()) options.year = 'numeric'
+  if (dateString.slice(0, 4) !== getTodayDateString().slice(0, 4)) options.year = 'numeric'
   return date.toLocaleDateString('es-CL', options)
 }
 
@@ -147,6 +144,7 @@ function Dashboard() {
   const [appointments, setAppointments] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
+  const [createdNotice, setCreatedNotice] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedAppointment, setSelectedAppointment] = useState(null)
@@ -203,6 +201,16 @@ function Dashboard() {
   // already created), so we add it to the top of the table instead of
   // refetching; "Ver Ficha" works on it right away.
   const handleManualCreated = (appointment) => {
+    // Another day's attention doesn't show in today's agenda: say where it went.
+    const date = appointment.appointment_date ?? ''
+    const today = getTodayDateString()
+    setCreatedNotice(
+      date && date !== today
+        ? `Atención registrada el ${formatDateString(date)}. La encontrarás en Todas las Citas, pestaña ${
+            date < today ? 'Pasadas' : 'Próximas'
+          }.`
+        : '',
+    )
     setAppointments((prev) => [appointment, ...prev])
     setSearchTerm('')
     setSearchOpen({})
@@ -430,6 +438,24 @@ function Dashboard() {
         </button>
       </header>
 
+      {/* Always mounted, so the notice is announced when it appears. */}
+      <div className="dashboard__notice-region" role="status">
+        {createdNotice && (
+          <div className="dashboard__notice">
+            <p className="dashboard__notice-text">{createdNotice}</p>
+            <button
+              type="button"
+              className="dashboard__notice-close"
+              onClick={() => setCreatedNotice('')}
+              aria-label="Cerrar aviso"
+              title="Cerrar aviso"
+            >
+              <X size={18} strokeWidth={2} aria-hidden="true" />
+            </button>
+          </div>
+        )}
+      </div>
+
       <div className="dashboard__tabs" role="tablist" aria-label="Secciones del panel">
         <button
           type="button"
@@ -492,7 +518,10 @@ function Dashboard() {
               <button
                 type="button"
                 className="dashboard__new-attention"
-                onClick={() => setIsManualModalOpen(true)}
+                onClick={() => {
+                  setCreatedNotice('')
+                  setIsManualModalOpen(true)
+                }}
               >
                 <UserPlus size={18} aria-hidden="true" />
                 Nueva atención manual

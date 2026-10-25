@@ -1,4 +1,5 @@
 import { CalendarX, Clock, User } from 'lucide-react'
+import { clinicNow } from '../utils/clinicDate'
 import './DailyAgenda.css'
 
 const STATUS_META = {
@@ -11,8 +12,11 @@ function capitalize(text) {
   return text.charAt(0).toUpperCase() + text.slice(1)
 }
 
+// Today in Chile, like the agenda's filter; built as a local date so
+// toLocaleDateString doesn't move it to another day.
 function getTodayLabel() {
-  const label = new Date().toLocaleDateString('es-CL', {
+  const [year, month, day] = clinicNow().date.split('-').map(Number)
+  const label = new Date(year, month - 1, day).toLocaleDateString('es-CL', {
     weekday: 'long',
     day: 'numeric',
     month: 'long',

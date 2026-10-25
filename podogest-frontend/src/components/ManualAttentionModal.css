@@ -141,7 +141,8 @@
   background: var(--color-surface);
   color: var(--color-text);
   font-family: inherit;
-  font-size: var(--text-sm);
+  /* 16px at every width: iOS (iPad included) zooms into smaller fields. */
+  font-size: 16px;
   font-weight: 400;
   letter-spacing: normal;
   transition: border-color var(--duration) var(--ease);
@@ -151,12 +152,34 @@
   color: var(--color-placeholder);
 }
 
+/* iOS Safari centres the value of date/time inputs; keep it like the rest. */
+.manual-modal__field input::-webkit-date-and-time-value {
+  text-align: left;
+}
+
 .manual-modal__field input:hover {
   border-color: var(--color-text-muted);
 }
 
 .manual-modal__field input:focus {
   border-color: var(--color-primary);
+}
+
+/* Date and time side by side; the hint below only takes space when shown. */
+.manual-modal__row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.manual-modal__hint {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.manual-modal__hint:empty {
+  margin: 0;
 }
 
 /* ---------- Footer ---------- */
@@ -260,9 +283,8 @@
     flex: 1;
   }
 
-  /* 16px keeps iOS Safari from zooming into the field on focus. */
-  .manual-modal__field input {
-    font-size: 16px;
+  .manual-modal__row {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

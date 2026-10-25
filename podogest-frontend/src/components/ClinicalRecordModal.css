@@ -94,6 +94,13 @@
   color: var(--color-text-muted);
 }
 
+.clinical-header__registered {
+  margin: 0;
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
+}
+
 .clinical-close {
   flex-shrink: 0;
   display: inline-flex;

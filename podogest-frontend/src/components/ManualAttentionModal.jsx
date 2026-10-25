@@ -4,15 +4,23 @@ import { Save, X } from 'lucide-react'
 import { formatRUT, validarRut } from '../utils/rutValidation'
 import API_BASE_URL from '../config/api'
 import { authFetch, SESSION_EXPIRED_UNSAVED_MESSAGE } from '../utils/auth'
+import { clinicNow, formatDateString, shiftYears } from '../utils/clinicDate'
 import './ManualAttentionModal.css'
 
 const API_URL = `${API_BASE_URL}/api/appointments/atencion-espontanea/`
 
-const EMPTY_FORM = { nombre: '', rut: '', email: '', telefono: '' }
+const EMPTY_FORM = { nombre: '', rut: '', email: '', telefono: '', fecha: '', hora: '' }
+// Date and time start as "now"; they only count as unsaved once edited.
+const PATIENT_FIELDS = ['nombre', 'rut', 'email', 'telefono']
+const DATE_FIELDS = ['fecha', 'hora']
+
+// Range accepted by the backend: up to 2 years back and 1 year ahead.
+const YEARS_BACK = 2
+const YEARS_AHEAD = 1
 
 const SAVE_TIMEOUT_MS = 20000
 const SAVE_TIMEOUT_MESSAGE =
-  'No se pudo confirmar la atención. Revisa la agenda de hoy antes de volver a intentarlo.'
+  'No se pudo confirmar la atención. Revisa la agenda de ese día antes de volver a intentarlo.'
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), ' +
@@ -29,10 +37,14 @@ function describeErrors(data) {
   return Object.values(data).flat().join(' ')
 }
 
-// Walk-in patient: the backend creates today's appointment (at the current
-// time) plus its empty clinical record in one request.
+// Walk-in patient: the backend creates the appointment (by default today, at
+// the current time) plus its empty clinical record in one request.
 function ManualAttentionModal({ isOpen, onClose, onCreated, onSessionExpired }) {
   const [formData, setFormData] = useState(EMPTY_FORM)
+  // Whether the date or time were changed since the modal opened (each opening
+  // resets them to the current Chile date and time).
+  const [isDateTouched, setIsDateTouched] = useState(false)
+  const [wasOpen, setWasOpen] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   // Blocks a second submit that arrives before the re-render disables Guardar.
@@ -98,8 +110,18 @@ function ManualAttentionModal({ isOpen, onClose, onCreated, onSessionExpired }) 
     }
   }, [isOpen])
 
+  if (isOpen !== wasOpen) {
+    setWasOpen(isOpen)
+    if (isOpen) {
+      const now = clinicNow()
+      setFormData((prev) => ({ ...prev, fecha: now.date, hora: now.time }))
+      setIsDateTouched(false)
+    }
+  }
+
   const hasUnsavedChanges = () =>
-    Object.keys(EMPTY_FORM).some((field) => formData[field] !== EMPTY_FORM[field])
+    isDateTouched ||
+    PATIENT_FIELDS.some((field) => formData[field] !== EMPTY_FORM[field])
 
   // Closing is blocked while the request is in flight.
   const requestClose = () => {
@@ -144,6 +166,7 @@ function ManualAttentionModal({ isOpen, onClose, onCreated, onSessionExpired }) 
   const handleChange = (event) => {
     const { name, value } = event.target
     const nextValue = FIELD_FORMATTERS[name]?.(value) ?? value
+    if (DATE_FIELDS.includes(name)) setIsDateTouched(true)
     setFormData((prev) => ({ ...prev, [name]: nextValue }))
   }
 
@@ -172,6 +195,8 @@ function ManualAttentionModal({ isOpen, onClose, onCreated, onSessionExpired }) 
           rut: formData.rut,
           email: formData.email.trim(),
           phone: formData.telefono.trim(),
+          appointment_date: formData.fecha,
+          appointment_time: formData.hora,
         }),
         signal: timeout.signal,
       })
@@ -186,13 +211,18 @@ function ManualAttentionModal({ isOpen, onClose, onCreated, onSessionExpired }) 
       const data = await response.json().catch(() => null)
 
       if (response.status !== 201) {
+        // A 400 explains itself (time clash, date out of range): shown as is.
+        const detail = describeErrors(data)
         setErrorMessage(
-          `No se pudo registrar la atención (error ${response.status}). ${describeErrors(data)}`.trim(),
+          response.status === 400 && detail
+            ? detail
+            : `No se pudo registrar la atención (error ${response.status}). ${detail}`.trim(),
         )
         return
       }
 
       setFormData(EMPTY_FORM)
+      setIsDateTouched(false)
       onCreated(data.appointment)
     } catch {
       setErrorMessage(
@@ -204,6 +234,9 @@ function ManualAttentionModal({ isOpen, onClose, onCreated, onSessionExpired }) 
       setIsSaving(false)
     }
   }
+
+  const today = clinicNow().date
+  const isOtherDay = formData.fecha !== '' && formData.fecha !== today
 
   return (
     <MotionConfig reducedMotion="user">
@@ -242,7 +275,7 @@ function ManualAttentionModal({ isOpen, onClose, onCreated, onSessionExpired }) 
                     Nueva atención manual
                   </h2>
                   <p id="manual-modal-meta" className="manual-modal__meta">
-                    Se registra en la agenda de hoy, a la hora actual.
+                    Por defecto se registra hoy, a la hora actual.
                   </p>
                 </div>
                 <button
@@ -311,6 +344,42 @@ function ManualAttentionModal({ isOpen, onClose, onCreated, onSessionExpired }) 
                     required
                   />
                 </label>
+
+                <div className="manual-modal__when">
+                  <div className="manual-modal__row">
+                    <div className="manual-modal__field">
+                      <label htmlFor="manual-fecha">Fecha de la atención</label>
+                      <input
+                        id="manual-fecha"
+                        type="date"
+                        name="fecha"
+                        value={formData.fecha}
+                        onChange={handleChange}
+                        min={shiftYears(today, -YEARS_BACK)}
+                        max={shiftYears(today, YEARS_AHEAD)}
+                        autoComplete="off"
+                        aria-describedby={isOtherDay ? 'manual-fecha-hint' : undefined}
+                        required
+                      />
+                    </div>
+
+                    <div className="manual-modal__field">
+                      <label htmlFor="manual-hora">Hora</label>
+                      <input
+                        id="manual-hora"
+                        type="time"
+                        name="hora"
+                        value={formData.hora}
+                        onChange={handleChange}
+                        autoComplete="off"
+                        required
+                      />
+                    </div>
+                  </div>
+                  <p id="manual-fecha-hint" className="manual-modal__hint" aria-live="polite">
+                    {isOtherDay && `Se registrará como atención del ${formatDateString(formData.fecha)}.`}
+                  </p>
+                </div>
               </div>
 
               <footer className="manual-modal__footer">

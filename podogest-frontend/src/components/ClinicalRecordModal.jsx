@@ -16,6 +16,7 @@ import {
 import API_BASE_URL from '../config/api'
 import { authFetch, SESSION_EXPIRED_UNSAVED_MESSAGE } from '../utils/auth'
 import { buildObservations, parseObservations, PODOGRAM_MAPS } from '../utils/podogram'
+import { clinicDateOf, formatDateString } from '../utils/clinicDate'
 import './ClinicalRecordModal.css'
 
 const API_URL = `${API_BASE_URL}/api/clinical-records/`
@@ -353,6 +354,8 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
   // saving stays blocked until the modal is reopened.
   const [hasForeignRecord, setHasForeignRecord] = useState(false)
   const [savedDrawing, setSavedDrawing] = useState('')
+  // When the loaded record was created ("2026-10-25T14:03:00Z"); '' for a new one.
+  const [recordCreatedAt, setRecordCreatedAt] = useState('')
   // Old drawings keep the map they were drawn on; everything else uses v2.
   const [mapVersion, setMapVersion] = useState('v2')
   // Measurements whose errors are visible: shown once the user leaves the
@@ -408,6 +411,7 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
       setRest({ medical: [], symptoms: [], treatment: [] })
       setSavedDrawing('')
       setMapVersion('v2')
+      setRecordCreatedAt('')
       setCheckedMeasures({})
       setIsSaveBlocked(false)
       setForm({
@@ -448,6 +452,7 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
         const treatment = parseLines(record.tratamiento_realizado, TREATMENT_KEYS)
 
         setRecordId(record.id)
+        setRecordCreatedAt(record.created_at ?? '')
         setRest({
           medical: medical.rest,
           symptoms: symptoms.rest,
@@ -859,6 +864,7 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
       if (response.ok) {
         const saved = await response.json()
         setRecordId(saved.id ?? targetId)
+        if (saved.created_at) setRecordCreatedAt(saved.created_at)
         setSuccessMessage('Ficha guardada correctamente.')
       } else {
         setErrorMessage(saveErrorMessage(response.status, errorBody))
@@ -873,7 +879,13 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
     }
   }
 
-  const today = new Date().toLocaleDateString('en-GB')
+  // The appointment's own day (a date without time, kept as text), not today.
+  const appointmentDate = appointment?.appointment_date ?? ''
+  const createdDate = clinicDateOf(recordCreatedAt)
+  const registeredLabel =
+    createdDate && createdDate !== appointmentDate
+      ? `Registrada el ${formatDateString(createdDate)}`
+      : ''
   const recordLabel =
     recordId != null ? `Ficha n.º ${String(recordId).padStart(4, '0')}` : 'Ficha nueva'
   const price = formatClp(form.precio)
@@ -906,7 +918,9 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
               role="dialog"
               aria-modal="true"
               aria-labelledby="clinical-modal-title"
-              aria-describedby="clinical-modal-meta"
+              aria-describedby={
+                registeredLabel ? 'clinical-modal-meta clinical-modal-registered' : 'clinical-modal-meta'
+              }
               tabIndex={-1}
               onKeyDown={handleDialogKeyDown}
               onSubmit={handleSubmit}
@@ -926,8 +940,14 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
                     Ficha clínica podológica
                   </h1>
                   <p id="clinical-modal-meta" className="clinical-header__meta">
-                    {recordLabel} · {today}
+                    {recordLabel}
+                    {appointmentDate && ` · ${formatDateString(appointmentDate)}`}
                   </p>
+                  {registeredLabel && (
+                    <p id="clinical-modal-registered" className="clinical-header__registered">
+                      {registeredLabel}
+                    </p>
+                  )}
                 </div>
                 <button
                   type="button"
