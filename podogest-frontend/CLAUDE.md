@@ -1,5 +1,8 @@
 # Podogest — Frontend (React, desplegado en Vercel)
 
+> **Nunca hagas commit ni push. Daniel hace los commits. Termina dejando los
+> cambios sin commitear y sugiere un mensaje de commit.**
+
 ## Diseño
 Quiero un rediseño premium del panel: propón una dirección estética nueva
   (paleta, tipografía, espaciado, sombras, microinteracciones) acorde a una

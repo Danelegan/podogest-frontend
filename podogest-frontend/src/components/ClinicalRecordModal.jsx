@@ -9,6 +9,7 @@ import {
   RotateCcw,
   Save,
   Stethoscope,
+  Trash2,
   Undo2,
   User,
   Users,
@@ -281,6 +282,8 @@ const readJson = async (response) => {
 const PEN_COLOR = '#dc2626'
 // The eraser is this many times wider than the pen.
 const ERASER_FACTOR = 4
+// ...but never narrower than this on screen (CSS px), on any map.
+const ERASER_MIN_PX = 24
 // Undo steps kept; each one is a full copy of the canvas pixels.
 const UNDO_LIMIT = 20
 
@@ -711,9 +714,12 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
   const getStrokeWidth = (tool) => {
     const canvas = canvasRef.current
     const { lineWidth, minStrokePx } = PODOGRAM_MAPS[mapVersion]
-    const scale = canvas.width / canvas.getBoundingClientRect().width
+    // A canvas without layout yet (width 0) is treated as shown at full size.
+    const scale = canvas.width / canvas.getBoundingClientRect().width || 1
     const penWidth = Math.max(lineWidth, minStrokePx * scale)
-    return { width: tool === 'eraser' ? penWidth * ERASER_FACTOR : penWidth, scale }
+    const width =
+      tool === 'eraser' ? Math.max(penWidth * ERASER_FACTOR, ERASER_MIN_PX * scale) : penWidth
+    return { width, scale }
   }
 
   // Sized from the current on-screen scale, so it matches what gets erased.
@@ -1416,7 +1422,7 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
                           />
                         </div>
                         <button type="button" className="clinical-btn" onClick={handleClearDrawing}>
-                          <Eraser className="clinical-btn__icon" strokeWidth={2} />
+                          <Trash2 className="clinical-btn__icon" strokeWidth={2} />
                           Limpiar dibujo
                         </button>
                       </div>
