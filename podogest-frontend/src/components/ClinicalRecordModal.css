@@ -242,10 +242,55 @@
   word-break: break-word;
 }
 
-/* Backend errors can carry long JSON; keep the save bar from taking over the screen. */
+/* Several backend messages can add up; keep the save bar from taking over the screen. */
 .clinical-footer .clinical-message {
   max-height: 7.5em;
   overflow-y: auto;
+}
+
+/* List of the fields to fix, at the top of the form. */
+.clinical-summary {
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-danger-border);
+  border-left: 4px solid var(--color-danger);
+  border-radius: var(--radius-md);
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+.clinical-summary__title {
+  margin: 0 0 var(--space-2);
+  font-weight: 600;
+}
+
+.clinical-summary__list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.clinical-summary__link {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: var(--control-height);
+  padding: var(--space-1) 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.clinical-summary__link:hover {
+  text-decoration-thickness: 2px;
 }
 
 .clinical-message--error {
@@ -401,6 +446,24 @@
 
 /* After hover/focus so an invalid value stays marked while it is edited. */
 .clinical-field input[aria-invalid='true'] {
+  border-color: var(--color-danger);
+}
+
+/* Computed value (age from the birth date): visibly not editable. */
+.clinical-field input[readonly] {
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+}
+
+.clinical-field__hint {
+  margin: 0;
+  font-weight: 400;
+  letter-spacing: normal;
+  line-height: 1.4;
+  color: var(--color-text-muted);
+}
+
+.clinical-field select[aria-invalid='true'] {
   border-color: var(--color-danger);
 }
 
@@ -620,13 +683,102 @@
 }
 
 .clinical-billing__total {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-1);
   margin: 0;
+  margin-left: auto;
   font-family: var(--font-display);
   font-size: var(--text-2xl);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   line-height: 1;
   color: var(--color-text);
+}
+
+.clinical-billing__label {
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+/* ---------- Prescription and payments ---------- */
+
+/* A titled block inside a card, separated from what comes before it. */
+.clinical-subsection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.clinical-subsection:focus {
+  outline: none;
+}
+
+/* A legend is not a flex item, so its gap is a margin (as in .clinical-fieldset__legend). */
+.clinical-subsection__title {
+  margin-bottom: var(--space-3);
+  padding: 0;
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.clinical-legacy-price {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px dashed var(--color-border-input);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.clinical-payments {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Medio, monto and the remove button on one line. */
+.clinical-payment {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) var(--control-height);
+  align-items: start;
+  gap: var(--space-3);
+}
+
+/* Without a remove button the two fields share the whole row. */
+.clinical-payment--single {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* Next to the inputs; a field's error would only push it if it were "end". */
+.clinical-payment__remove {
+  grid-column: 3;
+  align-self: start;
+  margin-top: calc(1lh + var(--space-2));
+}
+
+.clinical-btn--icon {
+  width: var(--control-height);
+  padding: 0;
+}
+
+.clinical-btn--icon:hover:not(:disabled) {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+.clinical-payments__add {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
 }
 
 /* ---------- Mobile: full screen ---------- */
@@ -693,6 +845,37 @@
 
   .clinical-billing__total {
     font-size: var(--text-xl-compact);
+  }
+
+  /* Each payment stacks: medio on its own line, then monto and remove. */
+  .clinical-payment {
+    grid-template-columns: minmax(0, 1fr) var(--control-height);
+    padding-bottom: var(--space-3);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .clinical-payment--single {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .clinical-payment__medio {
+    grid-column: 1 / -1;
+  }
+
+  .clinical-payment__remove {
+    grid-column: 2;
+  }
+
+  .clinical-billing {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .clinical-billing__total {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-left: 0;
   }
 }
 

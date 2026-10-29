@@ -6,6 +6,7 @@ import {
   HeartPulse,
   Pencil,
   PenTool,
+  Plus,
   RotateCcw,
   Save,
   Stethoscope,
@@ -18,12 +19,22 @@ import {
 } from 'lucide-react'
 import API_BASE_URL from '../config/api'
 import { authFetch, SESSION_EXPIRED_UNSAVED_MESSAGE } from '../utils/auth'
-import { buildObservations, parseObservations, PODOGRAM_MAPS } from '../utils/podogram'
-import { clinicDateOf, formatDateString } from '../utils/clinicDate'
+import { parseObservations, PODOGRAM_MAPS } from '../utils/podogram'
+import { clinicDateOf, clinicNow, formatDateString } from '../utils/clinicDate'
 import './ClinicalRecordModal.css'
 
 const API_URL = `${API_BASE_URL}/api/clinical-records/`
-const JSON_HEADERS = { 'Content-Type': 'application/json' }
+const OPTIONS_URL = `${API_URL}opciones/`
+// Every request to the clinical records API asks for the Ficha 2.0 format:
+// contact, birth date, prescription, payments and drawing in their own fields.
+const JSON_HEADERS = { 'Content-Type': 'application/json', 'X-Ficha-Version': '2' }
+
+// Prescription code that requires the medication to be typed in receta_otro
+// (fixed by the backend; the rest of the list comes from opciones/).
+const RECETA_OTRO = 'otro'
+
+// Lists and limits from opciones/, fetched once per page load.
+let cachedOptions = null
 
 const GENDERS = ['Femenino', 'Masculino', 'Otro', 'Prefiero no decir']
 const CIVIL_STATUSES = [
@@ -83,20 +94,36 @@ const EMPTY_FORM = {
   frecuenciaCardiaca: '',
   pulso: '',
   anestesia: '',
-  precio: '',
+  edad: '',
+  receta: [],
+  recetaOtro: '',
+  indicaciones: '',
+  // Rows of { id, medio, monto }; the form always shows at least one.
+  pagos: [],
+}
+
+let nextPaymentId = 0
+const newPaymentRow = (medio = '', monto = '') => {
+  nextPaymentId += 1
+  return { id: nextPaymentId, medio, monto }
+}
+// A row with neither medio nor monto is not sent and is not a change.
+const filledPayments = (rows) => rows.filter((row) => row.medio || row.monto)
+
+// Contact fields: own backend fields in Ficha 2.0 (form field -> API field).
+const CONTACT_FIELDS = {
+  nombre: 'contacto_nombre',
+  telefono: 'contacto_telefono',
+  email: 'contacto_email',
+  direccion: 'direccion',
 }
 
 // Label used in the "Clave: valor" lines of each backend text field.
 const MEDICAL_KEYS = {
-  nombre: 'Nombre',
-  nacimiento: 'Nacimiento',
   genero: 'Género',
   estadoCivil: 'Estado civil',
   escolaridad: 'Escolaridad',
   ocupacion: 'Ocupación',
-  direccion: 'Dirección',
-  telefono: 'Teléfono',
-  email: 'E-mail',
   tallaCalzado: 'Talla de calzado',
   enfermedad: 'Enfermedad diagnosticada',
   medicamento: 'Medicamento',
@@ -109,8 +136,51 @@ const MEDICAL_KEYS = {
   frecuenciaCardiaca: 'Frecuencia cardíaca',
   pulso: 'Pulso pedio',
 }
+// Before Ficha 2.0 the contact and the birth date were lines of
+// antecedentes_medicos too. Only used to read records the backend could not
+// convert (migracion_pendiente).
+const LEGACY_MEDICAL_KEYS = {
+  nombre: 'Nombre',
+  nacimiento: 'Nacimiento',
+  ...MEDICAL_KEYS,
+  direccion: 'Dirección',
+  telefono: 'Teléfono',
+  email: 'E-mail',
+}
+
 const SYMPTOM_KEYS = { problemas: 'Problemas', otros: 'Otros' }
-const TREATMENT_KEYS = { anestesia: 'Anestesia', precio: 'Precio' }
+// "Precio: 15000" lines of older records are kept untouched among the lines we
+// don't own, and only shown (payments replace them).
+const TREATMENT_KEYS = { anestesia: 'Anestesia' }
+const LEGACY_PRICE_PREFIX = 'Precio: '
+
+// migracion_pendiente reasons the old reader handles without losing anything:
+// lines out of order, or a contact value that is empty or too long (the backend
+// then answers with that field's error). Any other reason blocks saving.
+const SAFE_MIGRATION_REASONS = ['antecedentes_orden', 'antecedentes_valor_invalido']
+const MIGRATION_REASON_TEXT = {
+  antecedentes_clave_repetida: 'un dato de contacto o la fecha de nacimiento aparece repetido',
+  nacimiento_invalido: 'la fecha de nacimiento guardada no es una fecha válida',
+  podograma_marca_repetida: 'el dibujo del mapa anatómico está guardado dos veces',
+  podograma_formato: 'el dibujo del mapa anatómico tiene un formato que no se reconoce',
+  conflicto_campo_propio: 'tiene datos en el formato antiguo y en el nuevo a la vez',
+}
+
+// Text of the notice for a record that can't be converted safely, '' if it can.
+function migrationBlockMessage(pending) {
+  if (!pending) return ''
+  const reasons = pending.split(',').map((reason) => reason.trim()).filter(Boolean)
+  const unsafe = reasons.filter((reason) => !SAFE_MIGRATION_REASONS.includes(reason))
+  if (!unsafe.length) return ''
+  const details = [
+    ...new Set(unsafe.map((reason) => MIGRATION_REASON_TEXT[reason] ?? 'tiene un formato que no se reconoce')),
+  ]
+  return (
+    `Esta ficha está guardada en el formato antiguo y no se puede pasar al nuevo sin riesgo ` +
+    `de perder datos: ${details.join('; ')}. Puedes consultarla, pero no guardarla. ` +
+    'Avisa a soporte para que la revisen.'
+  )
+}
 
 // Measurements are stored with their unit so the Excel backup reads
 // "Presión arterial: 117/65 mmHg"; the form holds only the numbers.
@@ -146,12 +216,44 @@ function fromStoredValues({ presion, ...values }) {
   return values
 }
 
+// Whole years on `day` ("YYYY-MM-DD" strings), as the backend computes it:
+// negative when born after that day; null if either isn't a date.
+function ageOn(birth, day) {
+  const parse = (text) => /^(\d{4})-(\d{2})-(\d{2})$/.exec(text ?? '')?.slice(1).map(Number)
+  const born = parse(birth)
+  const on = parse(day)
+  if (!born || !on) return null
+  const [year, month, date] = born
+  const [onYear, onMonth, onDate] = on
+  return onYear - year - (onMonth < month || (onMonth === month && onDate < date) ? 1 : 0)
+}
+
+// Error keys of one payment row; also the base of its input ids.
+const paymentKey = (row, field) => `pago-${row.id}-${field}`
+
 // Wide limits: they catch typos (1170 instead of 117), never a rare but real
 // reading. Keys follow the on-screen order, so the first one gets the focus.
-function validateMeasures(form) {
+// `limits` come from opciones/ and `day` is the appointment's date.
+function validateForm(form, { day, limits }) {
   const errors = {}
   const inRange = (value, min, max) =>
     /^\d+$/.test(value) && Number(value) >= min && Number(value) <= max
+
+  const maxAge = limits?.edad_maxima ?? 120
+  if (form.nacimiento) {
+    const age = ageOn(form.nacimiento, day)
+    if (age == null) {
+      errors.nacimiento = 'La fecha de nacimiento no es válida.'
+    } else if (age < 0) {
+      errors.nacimiento = 'La fecha de nacimiento no puede ser posterior a la fecha de la atención.'
+    } else if (age > maxAge) {
+      errors.nacimiento =
+        `Con esa fecha de nacimiento la edad sería ${age} años (máximo ${maxAge}). ` +
+        'Revisa que esté bien escrita.'
+    }
+  } else if (form.edad && !inRange(form.edad, 0, maxAge)) {
+    errors.edad = `La edad debe ser un número entero de 0 a ${maxAge} años.`
+  }
 
   const { presionSistolica: systolic, presionDiastolica: diastolic } = form
   if (systolic || diastolic) {
@@ -181,18 +283,138 @@ function validateMeasures(form) {
       errors.anestesia = 'La anestesia debe ser mayor que 0 y de hasta 20 ml.'
     }
   }
+
+  if (form.receta.includes(RECETA_OTRO) && !form.recetaOtro.trim()) {
+    errors.recetaOtro = 'Escribe el otro medicamento recetado.'
+  }
+
+  const maxAmount = limits?.pago_monto_maximo
+  filledPayments(form.pagos).forEach((row) => {
+    if (!row.medio) errors[paymentKey(row, 'medio')] = 'Indica el medio de pago.'
+    if (!row.monto) {
+      errors[paymentKey(row, 'monto')] = 'Indica el monto del pago.'
+    } else if (Number(row.monto) <= 0) {
+      errors[paymentKey(row, 'monto')] = 'El monto del pago debe ser mayor que 0.'
+    } else if (maxAmount && Number(row.monto) > maxAmount) {
+      errors[paymentKey(row, 'monto')] = `El monto de un pago no puede superar ${formatClp(String(maxAmount))}.`
+    }
+  })
   return errors
 }
 
-const MEASURE_INPUT_IDS = {
+// Input (or group) that receives the focus for each error key; payment rows
+// use `clinical-<paymentKey>`.
+const FIELD_INPUT_IDS = {
+  nombre: 'clinical-nombre',
+  nacimiento: 'clinical-nacimiento',
+  edad: 'clinical-edad',
+  direccion: 'clinical-direccion',
+  telefono: 'clinical-telefono',
+  email: 'clinical-email',
+  observaciones: 'clinical-observaciones',
   presion: 'clinical-presion-sistolica',
   frecuenciaCardiaca: 'clinical-frecuencia-cardiaca',
   pulso: 'clinical-pulso',
+  podograma: 'clinical-podogram-canvas',
   anestesia: 'clinical-anestesia',
+  receta: 'clinical-receta',
+  recetaOtro: 'clinical-receta-otro',
+  indicaciones: 'clinical-indicaciones',
+  pagos: 'clinical-pagos',
+}
+const fieldInputId = (key) => FIELD_INPUT_IDS[key] ?? `clinical-${key}`
+
+// Error keys in on-screen order; each payment row's keys go after "Pagos".
+function orderErrorKeys(keys, rows) {
+  const order = Object.keys(FIELD_INPUT_IDS).flatMap((key) =>
+    key === 'pagos'
+      ? [key, ...rows.flatMap((row) => [paymentKey(row, 'medio'), paymentKey(row, 'monto')])]
+      : [key],
+  )
+  return [...order.filter((key) => keys.includes(key)), ...keys.filter((key) => !order.includes(key))]
 }
 
-const MEASURES_ERROR_MESSAGE =
-  'Revisa los valores marcados en Signos vitales o Anestesia antes de guardar.'
+// Names used in the error summary, in on-screen order.
+const FIELD_LABELS = {
+  nombre: 'Nombre completo',
+  nacimiento: 'Fecha de nacimiento',
+  edad: 'Edad',
+  direccion: 'Dirección',
+  telefono: 'Teléfono',
+  email: 'Correo electrónico',
+  observaciones: 'Observaciones',
+  presion: 'Presión arterial',
+  frecuenciaCardiaca: 'Frecuencia cardíaca',
+  pulso: 'Pulso pedio',
+  podograma: 'Mapa anatómico',
+  anestesia: 'Anestesia',
+  receta: 'Receta',
+  recetaOtro: 'Otro medicamento',
+  indicaciones: 'Indicaciones',
+  pagos: 'Pagos',
+}
+
+// Backend field -> form error key. Text fields that hold several form fields
+// have no single place on screen: their errors go to the general message.
+const API_ERROR_KEYS = {
+  ...Object.fromEntries(Object.entries(CONTACT_FIELDS).map(([field, api]) => [api, field])),
+  fecha_nacimiento: 'nacimiento',
+  edad: 'edad',
+  observaciones: 'observaciones',
+  podograma: 'podograma',
+  podograma_version: 'podograma',
+  receta_medicamentos: 'receta',
+  receta_otro: 'recetaOtro',
+  receta_indicaciones: 'indicaciones',
+}
+const API_FIELD_NAMES = {
+  antecedentes_medicos: 'Antecedentes',
+  sintomas: 'Problemas actuales',
+  tratamiento_realizado: 'Tratamiento',
+}
+
+// DRF errors come as strings, lists of strings or nested objects.
+const flattenMessages = (value) => {
+  if (value == null) return []
+  if (typeof value === 'string') return [value]
+  if (Array.isArray(value)) return value.flatMap(flattenMessages)
+  if (typeof value === 'object') return Object.values(value).flatMap(flattenMessages)
+  return [String(value)]
+}
+
+// 400 body -> { fields: { errorKey: message }, general: [messages] }.
+// `sentRows` are the payment rows in the order they were sent.
+function parseSaveErrors(body, sentRows) {
+  const fields = {}
+  const general = []
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    general.push(...flattenMessages(body))
+    return { fields, general }
+  }
+  Object.entries(body).forEach(([name, value]) => {
+    if (name === 'pagos' && Array.isArray(value) && value.some((item) => item && typeof item === 'object')) {
+      // One entry per sent row ({} for rows without errors).
+      value.forEach((rowErrors, index) => {
+        const row = sentRows[index]
+        if (!row || !rowErrors || typeof rowErrors !== 'object') return
+        Object.entries(rowErrors).forEach(([field, messages]) => {
+          const key = field === 'medio' || field === 'monto' ? paymentKey(row, field) : 'pagos'
+          fields[key] = flattenMessages(messages).join(' ')
+        })
+      })
+      return
+    }
+    const messages = flattenMessages(value).join(' ')
+    if (!messages) return
+    const key = name === 'pagos' ? 'pagos' : API_ERROR_KEYS[name]
+    if (key) fields[key] = messages
+    else if (API_FIELD_NAMES[name]) general.push(`${API_FIELD_NAMES[name]}: ${messages}`)
+    else general.push(messages)
+  })
+  return { fields, general }
+}
+
+const FIELDS_ERROR_MESSAGE = 'Revisa los campos marcados antes de guardar.'
 
 const LIST_FIELDS = { problemas: PROBLEMS, consume: CONSUMES, familiares: FAMILY_HISTORY }
 
@@ -248,8 +470,16 @@ function buildLines(form, keys, rest) {
 }
 
 // Checkbox lists compare as sets: unchecking and rechecking is not a change.
+// Payments compare as a set of "medio:monto" too, ignoring empty rows.
+const paymentsKey = (rows) =>
+  filledPayments(rows)
+    .map((row) => `${row.medio}:${row.monto}`)
+    .sort()
+    .join('|')
+
 function isSameForm(a, b) {
   return Object.keys(EMPTY_FORM).every((field) => {
+    if (field === 'pagos') return paymentsKey(a.pagos) === paymentsKey(b.pagos)
     if (!Array.isArray(a[field])) return a[field] === b[field]
     return a[field].length === b[field].length && a[field].every((item) => b[field].includes(item))
   })
@@ -268,8 +498,11 @@ const SAVE_TIMEOUT_MS = 20000
 const SAVE_TIMEOUT_MESSAGE =
   'No se pudo confirmar el guardado. Revisa tu conexión antes de reintentar.'
 
-const saveErrorMessage = (status, body) =>
-  `No pudimos guardar la ficha (error ${status}). ${body ? JSON.stringify(body) : ''}`.trim()
+// Messages without a field of their own; never the raw JSON.
+const saveErrorMessage = (status, messages = []) =>
+  messages.length
+    ? `No pudimos guardar la ficha: ${messages.join(' ')}`
+    : `No pudimos guardar la ficha (error ${status}). Inténtalo de nuevo.`
 
 const readJson = async (response) => {
   try {
@@ -311,19 +544,46 @@ function Field({ label, span = 1, children }) {
   )
 }
 
-// Numeric field with its error outside the <label>, so screen readers hear it
-// as a description (aria-describedby) instead of as part of the field's name.
-function MeasureField({ id, label, error, ...inputProps }) {
+// Field with its hint and error outside the <label>, so screen readers hear
+// them as a description (aria-describedby) instead of as part of its name.
+function InputField({ id, label, error, hint, span = 1, ...inputProps }) {
+  const hintId = `${id}-hint`
   const errorId = `${id}-error`
+  const describedBy = [hint && hintId, error && errorId].filter(Boolean).join(' ')
   return (
-    <div className="clinical-field">
+    <div className={`clinical-field clinical-span-${span}`}>
       <label htmlFor={id}>{label}</label>
       <input
         id={id}
         type="text"
         aria-invalid={error ? true : undefined}
-        aria-describedby={error ? errorId : undefined}
+        aria-describedby={describedBy || undefined}
         {...inputProps}
+      />
+      {hint && (
+        <p id={hintId} className="clinical-field__hint">
+          {hint}
+        </p>
+      )}
+      {error && (
+        <p id={errorId} className="clinical-field__error">
+          {error}
+        </p>
+      )}
+    </div>
+  )
+}
+
+function TextAreaField({ id, label, error, span = 1, ...textareaProps }) {
+  const errorId = `${id}-error`
+  return (
+    <div className={`clinical-field clinical-span-${span}`}>
+      <label htmlFor={id}>{label}</label>
+      <textarea
+        id={id}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? errorId : undefined}
+        {...textareaProps}
       />
       {error && (
         <p id={errorId} className="clinical-field__error">
@@ -380,12 +640,27 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
   const [recordCreatedAt, setRecordCreatedAt] = useState('')
   // Old drawings keep the map they were drawn on; everything else uses v2.
   const [mapVersion, setMapVersion] = useState('v2')
-  // Measurements whose errors are visible: shown once the user leaves the
-  // field or tries to save, not while still typing.
-  const [checkedMeasures, setCheckedMeasures] = useState({})
-  // Save was stopped by invalid measurements; the footer notice lasts only
-  // while some of them are still invalid.
+  // Fields whose errors are visible: shown once the user leaves the field or
+  // tries to save, not while still typing.
+  const [checkedFields, setCheckedFields] = useState({})
+  // Save was stopped by invalid fields; the footer notice lasts only while
+  // some of them are still invalid.
   const [isSaveBlocked, setIsSaveBlocked] = useState(false)
+  // Errors the backend gave for each field on the last save ({ errorKey: message });
+  // each one goes away as soon as its field is edited.
+  const [serverErrors, setServerErrors] = useState({})
+  // Show the list of errors at the top (set by a stopped or rejected save).
+  const [showErrorSummary, setShowErrorSummary] = useState(false)
+  // Lists and limits from opciones/; null until loaded. Without them saving is
+  // blocked, since prescription and payments can't be shown.
+  const [options, setOptions] = useState(cachedOptions)
+  const [optionsError, setOptionsError] = useState('')
+  // Codes saved in this record that opciones/ no longer lists: still shown.
+  const [extraCodes, setExtraCodes] = useState({ receta: [], medios: [] })
+  // Old-format record the backend could not convert (migracion_pendiente).
+  const [migrationPending, setMigrationPending] = useState('')
+  // "$15.000" from an older record's "Precio: 15000" line ('' if none).
+  const [legacyPrice, setLegacyPrice] = useState('')
   const [drawTool, setDrawTool] = useState('pen')
   const [undoCount, setUndoCount] = useState(0)
   const canvasRef = useRef(null)
@@ -407,12 +682,31 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
   const baselineRef = useRef({ form: EMPTY_FORM, drawEdits: 0 })
   const submittedRef = useRef(null)
   const drawEditsRef = useRef(0)
+  // The drawing as loaded and the edit count at that moment: an untouched
+  // drawing is sent as it came (or not at all), never re-exported.
+  const loadedDrawingRef = useRef({ drawing: '', version: 'v2', drawEdits: 0 })
+  // Payment rows in the order of the last save, to place the backend's errors.
+  const sentPaymentsRef = useRef([])
+  // Element to focus after the next render (a new row, "Otro", an error).
+  const pendingFocusRef = useRef('')
 
   const emptyForm = () => ({
     ...EMPTY_FORM,
     nombre: appointment?.patient_name ?? '',
     email: appointment?.email ?? '',
     telefono: appointment?.phone ?? '',
+    pagos: [newPaymentRow()],
+  })
+
+  // Age is counted on the appointment's day, as the backend does.
+  const appointmentDay = appointment?.appointment_date || clinicNow().date
+  const validationContext = { day: appointmentDay, limits: options }
+  const migrationBlock = migrationBlockMessage(migrationPending)
+
+  useEffect(() => {
+    if (!pendingFocusRef.current) return
+    document.getElementById(pendingFocusRef.current)?.focus()
+    pendingFocusRef.current = ''
   })
 
   // Expired session while saving: unsaved changes keep the modal open so they
@@ -438,26 +732,48 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
       setSavedDrawing('')
       setMapVersion('v2')
       setRecordCreatedAt('')
-      setCheckedMeasures({})
+      setCheckedFields({})
       setIsSaveBlocked(false)
+      setServerErrors({})
+      setShowErrorSummary(false)
+      setOptionsError('')
+      setExtraCodes({ receta: [], medios: [] })
+      setMigrationPending('')
+      setLegacyPrice('')
       setDrawTool('pen')
-      setForm({
-        ...EMPTY_FORM,
-        nombre: appointment?.patient_name ?? '',
-        email: appointment?.email ?? '',
-        telefono: appointment?.phone ?? '',
-      })
+      loadedDrawingRef.current = { drawing: '', version: 'v2', drawEdits: drawEditsRef.current }
+      setForm(emptyForm())
 
       try {
-        const response = await authFetch(`${API_URL}?appointment=${appointmentId}`, {
-          headers: JSON_HEADERS,
-          signal: controller.signal,
-        })
+        const loadOptions = async () => {
+          if (cachedOptions) return null
+          return authFetch(OPTIONS_URL, { headers: JSON_HEADERS, signal: controller.signal })
+        }
+        const [optionsResponse, response] = await Promise.all([
+          loadOptions(),
+          authFetch(`${API_URL}?appointment=${appointmentId}`, {
+            headers: JSON_HEADERS,
+            signal: controller.signal,
+          }),
+        ])
 
         // Nothing typed yet while loading, so there is nothing to keep.
-        if (response.status === 401) {
+        if (response.status === 401 || optionsResponse?.status === 401) {
           onSessionExpired()
           return
+        }
+        if (optionsResponse) {
+          const loaded = optionsResponse.ok ? await readJson(optionsResponse) : null
+          if (Array.isArray(loaded?.receta_medicamentos) && Array.isArray(loaded?.medios_pago)) {
+            cachedOptions = loaded
+            setOptions(loaded)
+          } else {
+            setOptionsError(
+              'No pudimos cargar las listas de receta y medios de pago' +
+                (optionsResponse.ok ? '' : ` (error ${optionsResponse.status})`) +
+                '. Cierra y vuelve a abrir la ficha para poder guardarla.',
+            )
+          }
         }
         if (!response.ok) {
           setErrorMessage(`No pudimos cargar la ficha (error ${response.status}).`)
@@ -474,25 +790,85 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
           return
         }
 
-        const medical = parseLines(record.antecedentes_medicos, MEDICAL_KEYS)
+        // A record the backend could not convert still has the contact, the
+        // birth date and the drawing inside its texts: read it the old way.
+        const pending = record.migracion_pendiente ?? ''
+        const medical = parseLines(
+          record.antecedentes_medicos,
+          pending ? LEGACY_MEDICAL_KEYS : MEDICAL_KEYS,
+        )
         const symptoms = parseLines(record.sintomas, SYMPTOM_KEYS)
         const treatment = parseLines(record.tratamiento_realizado, TREATMENT_KEYS)
+        const { observations, drawing, version } = pending
+          ? parseObservations(record.observaciones)
+          : {
+            observations: record.observaciones ?? '',
+            drawing: record.podograma ?? '',
+            version: record.podograma ? (record.podograma_version === 'legacy' ? 'legacy' : 'v2') : 'v2',
+          }
+        const own = pending
+          ? {
+            nombre: medical.values.nombre ?? '',
+            telefono: medical.values.telefono ?? '',
+            email: medical.values.email ?? '',
+            direccion: medical.values.direccion ?? '',
+            nacimiento: medical.values.nacimiento ?? '',
+          }
+          : {
+            ...Object.fromEntries(
+              Object.entries(CONTACT_FIELDS).map(([field, api]) => [field, record[api] ?? '']),
+            ),
+            nacimiento: record.fecha_nacimiento ?? '',
+          }
+        const receta = Array.isArray(record.receta_medicamentos) ? record.receta_medicamentos : []
+        const pagos = (Array.isArray(record.pagos) ? record.pagos : []).map((pago) =>
+          newPaymentRow(pago.medio ?? '', pago.monto != null ? String(pago.monto) : ''),
+        )
+        const priceLine = treatment.rest.find((line) => line.startsWith(LEGACY_PRICE_PREFIX))
+        const priceText = priceLine?.slice(LEGACY_PRICE_PREFIX.length).trim() ?? ''
+
+        const knownOptions = cachedOptions
+        if (knownOptions) {
+          const knownRecetas = knownOptions.receta_medicamentos.map((option) => option.codigo)
+          const knownMedios = knownOptions.medios_pago.map((option) => option.codigo)
+          setExtraCodes({
+            receta: receta.filter((code) => !knownRecetas.includes(code)),
+            medios: [...new Set(pagos.map((row) => row.medio))].filter(
+              (code) => code && !knownMedios.includes(code),
+            ),
+          })
+        }
 
         setRecordId(record.id)
         setRecordCreatedAt(record.created_at ?? '')
+        setMigrationPending(pending)
+        setLegacyPrice(/^\d+$/.test(priceText) ? formatClp(priceText) : priceText)
         setRest({
           medical: medical.rest,
           symptoms: symptoms.rest,
           treatment: treatment.rest,
         })
-        const { observations, drawing, version } = parseObservations(record.observaciones)
+        loadedDrawingRef.current = { drawing, version, drawEdits: drawEditsRef.current }
         setSavedDrawing(drawing)
         setMapVersion(version)
-        setForm((prev) => ({
-          ...prev,
-          ...fromStoredValues({ ...medical.values, ...symptoms.values, ...treatment.values }),
-          observaciones: observations,
-        }))
+        setForm((prev) => {
+          const values = fromStoredValues({ ...medical.values, ...symptoms.values, ...treatment.values })
+          // Empty contact fields keep the appointment's data, as on a new record.
+          const contact = Object.fromEntries(
+            Object.entries(own).map(([field, value]) => [field, value || prev[field]]),
+          )
+          return {
+            ...prev,
+            ...values,
+            ...contact,
+            observaciones: observations,
+            edad: record.edad != null ? String(record.edad) : '',
+            receta,
+            recetaOtro: record.receta_otro ?? '',
+            indicaciones: record.receta_indicaciones ?? '',
+            pagos: pagos.length ? pagos : prev.pagos,
+          }
+        })
       } catch (error) {
         if (error.name === 'AbortError') return
         setErrorMessage('No se pudo conectar con el servidor.')
@@ -653,19 +1029,23 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
   }
 
   const handleSubmit = (event) => {
-    if (hasForeignRecord) {
+    if (hasForeignRecord || migrationBlock || !options) {
       event.preventDefault()
       return
     }
-    // Impossible readings block the save with the reason next to each field.
-    const invalid = Object.keys(validateMeasures(form))
+    // Impossible values block the save with the reason next to each field.
+    const invalid = Object.keys(validateForm(form, validationContext))
     if (invalid.length) {
       event.preventDefault()
-      setCheckedMeasures(Object.fromEntries(invalid.map((field) => [field, true])))
+      setCheckedFields((prev) => ({
+        ...prev,
+        ...Object.fromEntries(invalid.map((field) => [field, true])),
+      }))
       setSuccessMessage('')
       setErrorMessage('')
       setIsSaveBlocked(true)
-      document.getElementById(MEASURE_INPUT_IDS[invalid[0]])?.focus()
+      setShowErrorSummary(true)
+      document.getElementById(fieldInputId(invalid[0]))?.focus()
       return
     }
     submittedRef.current = { form, drawEdits: drawEditsRef.current }
@@ -754,6 +1134,7 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
     })
     if (stack.length > UNDO_LIMIT) stack.shift()
     setUndoCount(stack.length)
+    clearServerErrors('podograma')
     isDrawingRef.current = true
     drawEditsRef.current += 1
     const isEraser = drawTool === 'eraser'
@@ -817,7 +1198,9 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
 
   const handleClearDrawing = () => {
     const canvas = canvasRef.current
-    if (hasInkRef.current) drawEditsRef.current += 1
+    // A saved drawing still loading counts too: it must not come back on save.
+    if (hasInkRef.current || savedDrawing) drawEditsRef.current += 1
+    clearServerErrors('podograma')
     canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height)
     hasInkRef.current = false
     // The map may change to v2 (another canvas size): old steps can't apply.
@@ -828,20 +1211,39 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
     setMapVersion('v2')
   }
 
+  // A backend error goes away once its field is edited.
+  const clearServerErrors = (...keys) => {
+    setServerErrors((prev) => {
+      if (!keys.some((key) => key in prev)) return prev
+      const next = { ...prev }
+      keys.forEach((key) => delete next[key])
+      return next
+    })
+  }
+
   const handleChange = (event) => {
     const { name, value } = event.target
+    clearServerErrors(name)
     setForm((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handlePriceChange = (event) => {
-    const digits = event.target.value.replace(/\D/g, '')
-    setForm((prev) => ({ ...prev, precio: digits }))
+  // Clearing the birth date keeps the age it gave, now editable.
+  const handleBirthDateChange = (event) => {
+    const { value } = event.target
+    clearServerErrors('nacimiento', 'edad')
+    setForm((prev) => {
+      const age = !value && prev.nacimiento ? ageOn(prev.nacimiento, appointmentDay) : null
+      const maxAge = options?.edad_maxima ?? 120
+      const keptAge = age != null && age >= 0 && age <= maxAge ? String(age) : prev.edad
+      return { ...prev, nacimiento: value, edad: keptAge }
+    })
   }
 
   // Nothing is cut short: an extra digit ("1170") must reach the range check
   // and show its error instead of silently becoming a valid value.
   const handleWholeNumberChange = (event) => {
     const { name, value } = event.target
+    clearServerErrors(name)
     setForm((prev) => ({ ...prev, [name]: value.replace(/\D/g, '') }))
   }
 
@@ -851,13 +1253,13 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
     setForm((prev) => ({ ...prev, anestesia: value }))
   }
 
-  const checkMeasure = (field) => () => {
-    setCheckedMeasures((prev) => ({ ...prev, [field]: true }))
+  const checkField = (field) => () => {
+    setCheckedFields((prev) => ({ ...prev, [field]: true }))
   }
 
   // Both pressure inputs count as one field: checked once focus leaves the pair.
   const handlePressureBlur = (event) => {
-    if (!event.currentTarget.contains(event.relatedTarget)) checkMeasure('presion')()
+    if (!event.currentTarget.contains(event.relatedTarget)) checkField('presion')()
   }
 
   const toggleOption = (name) => (option) => {
@@ -869,6 +1271,40 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
     }))
   }
 
+  // Marking "Otro" shows its text field and moves the focus there.
+  const toggleReceta = (code) => {
+    clearServerErrors('receta', 'recetaOtro')
+    if (code === RECETA_OTRO && !form.receta.includes(code)) {
+      pendingFocusRef.current = FIELD_INPUT_IDS.recetaOtro
+    }
+    toggleOption('receta')(code)
+  }
+
+  const updatePayment = (row, field, value) => {
+    clearServerErrors(paymentKey(row, field), 'pagos')
+    setForm((prev) => ({
+      ...prev,
+      pagos: prev.pagos.map((item) => (item.id === row.id ? { ...item, [field]: value } : item)),
+    }))
+  }
+
+  const addPayment = () => {
+    if (!canAddPayment) return
+    const row = newPaymentRow()
+    pendingFocusRef.current = `clinical-${paymentKey(row, 'medio')}`
+    clearServerErrors('pagos')
+    setForm((prev) => ({ ...prev, pagos: [...prev.pagos, row] }))
+  }
+
+  // Focus goes to the row before (or the one that takes its place).
+  const removePayment = (index) => {
+    const rows = form.pagos
+    const neighbor = rows[index - 1] ?? rows[index + 1]
+    pendingFocusRef.current = neighbor ? `clinical-${paymentKey(neighbor, 'medio')}` : ''
+    clearServerErrors(paymentKey(rows[index], 'medio'), paymentKey(rows[index], 'monto'), 'pagos')
+    setForm((prev) => ({ ...prev, pagos: prev.pagos.filter((_, i) => i !== index) }))
+  }
+
   const handleClear = () => {
     const confirmed = window.confirm(
       '¿Vaciar la ficha? Se borrarán todos los campos del formulario. ' +
@@ -876,11 +1312,27 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
     )
     if (!confirmed) return
     setForm(emptyForm())
-    setCheckedMeasures({})
+    setCheckedFields({})
     setIsSaveBlocked(false)
+    setServerErrors({})
+    setShowErrorSummary(false)
     handleClearDrawing()
     setErrorMessage('')
     setSuccessMessage('')
+  }
+
+  // Shows the backend's errors next to their fields and focuses the first one.
+  const showSaveErrors = (status, body) => {
+    const { fields, general } = parseSaveErrors(body, sentPaymentsRef.current)
+    const keys = orderErrorKeys(Object.keys(fields), form.pagos)
+    setServerErrors(fields)
+    if (keys.length) {
+      setShowErrorSummary(true)
+      pendingFocusRef.current = fieldInputId(keys[0])
+      setErrorMessage(general.length ? saveErrorMessage(status, general) : FIELDS_ERROR_MESSAGE)
+    } else {
+      setErrorMessage(saveErrorMessage(status, general))
+    }
   }
 
   const handleSave = async (event) => {
@@ -889,16 +1341,45 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
     setIsSaving(true)
     setErrorMessage('')
     setSuccessMessage('')
-
-    const drawing =
-      hasInkRef.current && canvasRef.current ? canvasRef.current.toDataURL('image/png') : ''
+    setServerErrors({})
 
     const stored = toStoredValues(form)
+    const sentRows = filledPayments(form.pagos)
+    sentPaymentsRef.current = sentRows
+    const age = form.nacimiento
+      ? ageOn(form.nacimiento, appointmentDay)
+      : form.edad === ''
+        ? null
+        : Number(form.edad)
     const payload = {
       antecedentes_medicos: buildLines(stored, MEDICAL_KEYS, rest.medical),
       sintomas: buildLines(stored, SYMPTOM_KEYS, rest.symptoms),
       tratamiento_realizado: buildLines(stored, TREATMENT_KEYS, rest.treatment),
-      observaciones: buildObservations(form.observaciones, drawing, mapVersion),
+      // Plain text: the drawing goes in `podograma`, never here.
+      observaciones: form.observaciones,
+      ...Object.fromEntries(
+        Object.entries(CONTACT_FIELDS).map(([field, api]) => [api, form[field].trim()]),
+      ),
+      fecha_nacimiento: form.nacimiento || null,
+      edad: age,
+      receta_medicamentos: form.receta,
+      receta_otro: form.receta.includes(RECETA_OTRO) ? form.recetaOtro.trim() : '',
+      receta_indicaciones: form.indicaciones.trim(),
+      // The whole list: it replaces what was saved ([] removes every payment).
+      pagos: sentRows.map((row) => ({ medio: row.medio, monto: Number(row.monto) })),
+    }
+    // A drawing edited since loading is exported from the canvas; an untouched
+    // one is left as is, except in an old-format record, where it still lives
+    // inside observaciones and has to move to its own field.
+    const loaded = loadedDrawingRef.current
+    if (drawEditsRef.current !== loaded.drawEdits) {
+      const drawing =
+        hasInkRef.current && canvasRef.current ? canvasRef.current.toDataURL('image/png') : ''
+      payload.podograma = drawing
+      payload.podograma_version = drawing ? mapVersion : ''
+    } else if (migrationPending) {
+      payload.podograma = loaded.drawing
+      payload.podograma_version = loaded.drawing ? loaded.version : ''
     }
     const isUpdate = recordId != null
 
@@ -951,7 +1432,7 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
               ? 'Esta cita ya tiene una ficha, pero no pudimos recuperarla para actualizarla. ' +
                   'Recarga la página antes de reintentar.'
               // The lookup itself failed: the POST's error is the useful one.
-              : saveErrorMessage(response.status, errorBody),
+              : saveErrorMessage(response.status, flattenMessages(errorBody)),
           )
           return
         }
@@ -969,9 +1450,12 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
         const saved = await response.json()
         setRecordId(saved.id ?? targetId)
         if (saved.created_at) setRecordCreatedAt(saved.created_at)
+        // Converted to the new format by this save (or still pending).
+        setMigrationPending(saved.migracion_pendiente ?? '')
+        setShowErrorSummary(false)
         setSuccessMessage('Ficha guardada correctamente.')
       } else {
-        setErrorMessage(saveErrorMessage(response.status, errorBody))
+        showSaveErrors(response.status, errorBody)
       }
     } catch {
       setErrorMessage(
@@ -992,13 +1476,66 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
       : ''
   const recordLabel =
     recordId != null ? `Ficha n.º ${String(recordId).padStart(4, '0')}` : 'Ficha nueva'
-  const price = formatClp(form.precio)
-  const measureErrors = validateMeasures(form)
+  const formErrors = validateForm(form, validationContext)
   // Once everything is fixed the block is over: a later typo only shows its
   // own field error until the next save attempt.
-  if (isSaveBlocked && Object.keys(measureErrors).length === 0) setIsSaveBlocked(false)
-  const measureError = (field) => (checkedMeasures[field] ? measureErrors[field] : undefined)
-  const pressureError = measureError('presion')
+  if (isSaveBlocked && Object.keys(formErrors).length === 0) setIsSaveBlocked(false)
+  const fieldError = (field) =>
+    (checkedFields[field] ? formErrors[field] : undefined) ?? serverErrors[field]
+  const pressureError = fieldError('presion')
+  const visibleErrorKeys = orderErrorKeys(
+    [
+      ...new Set([
+        ...Object.keys(formErrors).filter((key) => checkedFields[key]),
+        ...Object.keys(serverErrors),
+      ]),
+    ],
+    form.pagos,
+  )
+  if (showErrorSummary && visibleErrorKeys.length === 0) setShowErrorSummary(false)
+  const errorLabel = (key) => {
+    if (FIELD_LABELS[key]) return FIELD_LABELS[key]
+    const index = form.pagos.findIndex((row) => key.startsWith(`pago-${row.id}-`))
+    if (index === -1) return 'Ficha'
+    return `Pago ${index + 1}, ${key.endsWith('-medio') ? 'medio de pago' : 'monto'}`
+  }
+
+  const maxAge = options?.edad_maxima ?? 120
+  const computedAge = form.nacimiento ? ageOn(form.nacimiento, appointmentDay) : null
+  const ageValue = form.nacimiento
+    ? computedAge != null && computedAge >= 0 && computedAge <= maxAge
+      ? String(computedAge)
+      : ''
+    : form.edad
+
+  // "Otro" stays last, after any saved code that opciones/ no longer lists.
+  const recetaOptions = options
+    ? [
+      ...options.receta_medicamentos.filter((option) => option.codigo !== RECETA_OTRO),
+      ...extraCodes.receta.map((code) => ({ codigo: code, etiqueta: code })),
+      ...options.receta_medicamentos.filter((option) => option.codigo === RECETA_OTRO),
+    ]
+    : []
+  const medioOptions = options
+    ? [
+      ...options.medios_pago,
+      ...extraCodes.medios.map((code) => ({ codigo: code, etiqueta: code })),
+    ]
+    : []
+  const maxPayments = options?.pagos_maximo ?? 4
+  const usedMedios = form.pagos.map((row) => row.medio).filter(Boolean)
+  const hasFreeMedio = medioOptions.some((option) => !usedMedios.includes(option.codigo))
+  const canAddPayment = form.pagos.length < maxPayments && hasFreeMedio
+  const addPaymentHint = canAddPayment
+    ? ''
+    : form.pagos.length >= maxPayments
+      ? `Se pueden registrar hasta ${maxPayments} medios de pago por atención.`
+      : 'Ya se usaron todos los medios de pago.'
+  const totalPaid = filledPayments(form.pagos).reduce(
+    (sum, row) => sum + (Number(row.monto) || 0),
+    0,
+  )
+  const isSaveDisabled = isSaving || isLoading || hasForeignRecord || Boolean(migrationBlock) || !options
 
   return (
     <MotionConfig reducedMotion="user">
@@ -1079,25 +1616,67 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
                   </p>
                 ) : (
                   <>
+                    {migrationBlock && (
+                      <p className="clinical-message clinical-message--error" role="alert">
+                        {migrationBlock}
+                      </p>
+                    )}
+                    {showErrorSummary && visibleErrorKeys.length > 1 && (
+                      <div className="clinical-summary" role="alert">
+                        <p className="clinical-summary__title">
+                          Hay {visibleErrorKeys.length} campos por revisar:
+                        </p>
+                        <ul className="clinical-summary__list">
+                          {visibleErrorKeys.map((key) => (
+                            <li key={key}>
+                              <button
+                                type="button"
+                                className="clinical-summary__link"
+                                onClick={() => document.getElementById(fieldInputId(key))?.focus()}
+                              >
+                                {errorLabel(key)}: {fieldError(key)}
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                     <Section icon={User} title="Datos del paciente">
                       <div className="clinical-grid clinical-grid--3">
-                        <Field label="Nombre completo" span={3}>
-                          <input
-                            type="text"
-                            name="nombre"
-                            value={form.nombre}
-                            onChange={handleChange}
-                            placeholder="Ej.: María González Pérez"
-                          />
-                        </Field>
-                        <Field label="Fecha de nacimiento">
-                          <input
-                            type="date"
-                            name="nacimiento"
-                            value={form.nacimiento}
-                            onChange={handleChange}
-                          />
-                        </Field>
+                        <InputField
+                          id={FIELD_INPUT_IDS.nombre}
+                          label="Nombre completo"
+                          span={3}
+                          error={fieldError('nombre')}
+                          name="nombre"
+                          value={form.nombre}
+                          onChange={handleChange}
+                          placeholder="Ej.: María González Pérez"
+                        />
+                        <InputField
+                          id={FIELD_INPUT_IDS.nacimiento}
+                          label="Fecha de nacimiento (opcional)"
+                          error={fieldError('nacimiento')}
+                          type="date"
+                          name="nacimiento"
+                          value={form.nacimiento}
+                          max={appointmentDay}
+                          onChange={handleBirthDateChange}
+                          onBlur={checkField('nacimiento')}
+                        />
+                        <InputField
+                          id={FIELD_INPUT_IDS.edad}
+                          label="Edad (años)"
+                          error={fieldError('edad')}
+                          hint={form.nacimiento ? 'Calculada desde la fecha de nacimiento.' : ''}
+                          inputMode="numeric"
+                          name="edad"
+                          value={ageValue}
+                          readOnly={Boolean(form.nacimiento)}
+                          onChange={handleWholeNumberChange}
+                          onBlur={checkField('edad')}
+                          placeholder="Ej.: 47"
+                        />
                         <Field label="Género">
                           <select name="genero" value={form.genero} onChange={handleChange}>
                             <option value="">Seleccionar…</option>
@@ -1131,7 +1710,7 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
                             placeholder="Ej.: Media completa"
                           />
                         </Field>
-                        <Field label="Ocupación" span={2}>
+                        <Field label="Ocupación">
                           <input
                             type="text"
                             name="ocupacion"
@@ -1140,33 +1719,37 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
                             placeholder="Ej.: Profesora"
                           />
                         </Field>
-                        <Field label="Dirección" span={2}>
-                          <input
-                            type="text"
-                            name="direccion"
-                            value={form.direccion}
-                            onChange={handleChange}
-                            placeholder="Ej.: Av. Providencia 1234, Santiago"
-                          />
-                        </Field>
-                        <Field label="Teléfono">
-                          <input
-                            type="tel"
-                            name="telefono"
-                            value={form.telefono}
-                            onChange={handleChange}
-                            placeholder="Ej.: +56 9 1234 5678"
-                          />
-                        </Field>
-                        <Field label="Correo electrónico" span={2}>
-                          <input
-                            type="email"
-                            name="email"
-                            value={form.email}
-                            onChange={handleChange}
-                            placeholder="Ej.: nombre@correo.cl"
-                          />
-                        </Field>
+                        <InputField
+                          id={FIELD_INPUT_IDS.direccion}
+                          label="Dirección"
+                          span={2}
+                          error={fieldError('direccion')}
+                          name="direccion"
+                          value={form.direccion}
+                          onChange={handleChange}
+                          placeholder="Ej.: Av. Providencia 1234, Santiago"
+                        />
+                        <InputField
+                          id={FIELD_INPUT_IDS.telefono}
+                          label="Teléfono"
+                          error={fieldError('telefono')}
+                          type="tel"
+                          name="telefono"
+                          value={form.telefono}
+                          onChange={handleChange}
+                          placeholder="Ej.: +56 9 1234 5678"
+                        />
+                        <InputField
+                          id={FIELD_INPUT_IDS.email}
+                          label="Correo electrónico"
+                          span={2}
+                          error={fieldError('email')}
+                          type="email"
+                          name="email"
+                          value={form.email}
+                          onChange={handleChange}
+                          placeholder="Ej.: nombre@correo.cl"
+                        />
                         <Field label="Talla de calzado">
                           <input
                             type="text"
@@ -1201,15 +1784,17 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
                             placeholder="Ej.: Fisura en talón derecho"
                           />
                         </Field>
-                        <Field label="Observaciones" span={4}>
-                          <textarea
-                            name="observaciones"
-                            value={form.observaciones}
-                            onChange={handleChange}
-                            rows={3}
-                            placeholder="Ej.: Paciente refiere dolor al caminar hace 2 semanas"
-                          />
-                        </Field>
+                        <TextAreaField
+                          id={FIELD_INPUT_IDS.observaciones}
+                          label="Observaciones"
+                          span={4}
+                          error={fieldError('observaciones')}
+                          name="observaciones"
+                          value={form.observaciones}
+                          onChange={handleChange}
+                          rows={3}
+                          placeholder="Ej.: Paciente refiere dolor al caminar hace 2 semanas"
+                        />
                       </div>
                     </Section>
 
@@ -1283,7 +1868,7 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
                           </legend>
                           <div className="clinical-pressure">
                             <input
-                              id={MEASURE_INPUT_IDS.presion}
+                              id={FIELD_INPUT_IDS.presion}
                               type="text"
                               inputMode="numeric"
                               name="presionSistolica"
@@ -1315,26 +1900,26 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
                             </p>
                           )}
                         </fieldset>
-                        <MeasureField
-                          id={MEASURE_INPUT_IDS.frecuenciaCardiaca}
+                        <InputField
+                          id={FIELD_INPUT_IDS.frecuenciaCardiaca}
                           label="Frecuencia cardíaca (lpm)"
-                          error={measureError('frecuenciaCardiaca')}
+                          error={fieldError('frecuenciaCardiaca')}
                           inputMode="numeric"
                           name="frecuenciaCardiaca"
                           value={form.frecuenciaCardiaca}
                           onChange={handleWholeNumberChange}
-                          onBlur={checkMeasure('frecuenciaCardiaca')}
+                          onBlur={checkField('frecuenciaCardiaca')}
                           placeholder="Ej.: 72"
                         />
-                        <MeasureField
-                          id={MEASURE_INPUT_IDS.pulso}
+                        <InputField
+                          id={FIELD_INPUT_IDS.pulso}
                           label="Pulso pedio (lpm)"
-                          error={measureError('pulso')}
+                          error={fieldError('pulso')}
                           inputMode="numeric"
                           name="pulso"
                           value={form.pulso}
                           onChange={handleWholeNumberChange}
-                          onBlur={checkMeasure('pulso')}
+                          onBlur={checkField('pulso')}
                           placeholder="Ej.: 70"
                         />
                       </div>
@@ -1404,6 +1989,10 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
                           />
                           <canvas
                             ref={canvasRef}
+                            id={FIELD_INPUT_IDS.podograma}
+                            aria-describedby={
+                              fieldError('podograma') ? `${FIELD_INPUT_IDS.podograma}-error` : undefined
+                            }
                             className="clinical-podogram__canvas"
                             width={PODOGRAM_MAPS[mapVersion].width}
                             height={PODOGRAM_MAPS[mapVersion].height}
@@ -1421,6 +2010,14 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
                             onPointerCancel={handleDrawEnd}
                           />
                         </div>
+                        {fieldError('podograma') && (
+                          <p
+                            id={`${FIELD_INPUT_IDS.podograma}-error`}
+                            className="clinical-field__error"
+                          >
+                            {fieldError('podograma')}
+                          </p>
+                        )}
                         <button type="button" className="clinical-btn" onClick={handleClearDrawing}>
                           <Trash2 className="clinical-btn__icon" strokeWidth={2} />
                           Limpiar dibujo
@@ -1431,31 +2028,213 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
                     <Section icon={Wallet} title="Tratamiento y cobro">
                       <div className="clinical-stack">
                         <div className="clinical-grid clinical-grid--3">
-                          <MeasureField
-                            id={MEASURE_INPUT_IDS.anestesia}
+                          <InputField
+                            id={FIELD_INPUT_IDS.anestesia}
                             label="Anestesia (ml)"
-                            error={measureError('anestesia')}
+                            error={fieldError('anestesia')}
                             inputMode="decimal"
                             name="anestesia"
                             value={form.anestesia}
                             onChange={handleAnesthesiaChange}
-                            onBlur={checkMeasure('anestesia')}
+                            onBlur={checkField('anestesia')}
                             placeholder="Ej.: 1,50"
                           />
                         </div>
-                        <div className="clinical-billing">
-                          <Field label="Precio a cobrar">
-                            <input
-                              type="text"
-                              inputMode="numeric"
-                              name="precio"
-                              value={price}
-                              onChange={handlePriceChange}
-                              placeholder="$15.000"
-                            />
-                          </Field>
-                          <p className="clinical-billing__total">{price || '$0'}</p>
-                        </div>
+
+                        {optionsError && (
+                          <p className="clinical-message clinical-message--error" role="alert">
+                            {optionsError}
+                          </p>
+                        )}
+
+                        {options && (
+                          <fieldset
+                            id={FIELD_INPUT_IDS.receta}
+                            className="clinical-fieldset clinical-subsection"
+                            tabIndex={-1}
+                            aria-describedby={
+                              fieldError('receta') ? `${FIELD_INPUT_IDS.receta}-error` : undefined
+                            }
+                          >
+                            <legend className="clinical-subsection__title">Indicaciones / Receta</legend>
+                            <div className="clinical-checks-row">
+                              {recetaOptions.map((option) => (
+                                <label key={option.codigo} className="clinical-check">
+                                  <input
+                                    type="checkbox"
+                                    checked={form.receta.includes(option.codigo)}
+                                    onChange={() => toggleReceta(option.codigo)}
+                                  />
+                                  {option.etiqueta}
+                                </label>
+                              ))}
+                            </div>
+                            {fieldError('receta') && (
+                              <p
+                                id={`${FIELD_INPUT_IDS.receta}-error`}
+                                className="clinical-field__error"
+                              >
+                                {fieldError('receta')}
+                              </p>
+                            )}
+                            <div className="clinical-grid clinical-grid--3">
+                              {form.receta.includes(RECETA_OTRO) && (
+                                <InputField
+                                  id={FIELD_INPUT_IDS.recetaOtro}
+                                  label="Otro medicamento (obligatorio)"
+                                  span={3}
+                                  error={fieldError('recetaOtro')}
+                                  name="recetaOtro"
+                                  value={form.recetaOtro}
+                                  onChange={handleChange}
+                                  onBlur={checkField('recetaOtro')}
+                                  aria-required="true"
+                                  placeholder="Ej.: Urea 40 %"
+                                />
+                              )}
+                              <TextAreaField
+                                id={FIELD_INPUT_IDS.indicaciones}
+                                label="Indicaciones"
+                                span={3}
+                                error={fieldError('indicaciones')}
+                                name="indicaciones"
+                                value={form.indicaciones}
+                                onChange={handleChange}
+                                rows={3}
+                                placeholder="Ej.: Aplicar por 5 días todas las noches con los pies secos"
+                              />
+                            </div>
+                          </fieldset>
+                        )}
+
+                        {options && (
+                          <fieldset
+                            id={FIELD_INPUT_IDS.pagos}
+                            className="clinical-fieldset clinical-subsection"
+                            tabIndex={-1}
+                            aria-describedby={[
+                              fieldError('pagos') && `${FIELD_INPUT_IDS.pagos}-error`,
+                              addPaymentHint && `${FIELD_INPUT_IDS.pagos}-hint`,
+                            ]
+                              .filter(Boolean)
+                              .join(' ') || undefined}
+                          >
+                            <legend className="clinical-subsection__title">Pagos</legend>
+                            {legacyPrice && (
+                              <p className="clinical-legacy-price">
+                                Precio registrado (formato antiguo): {legacyPrice}
+                              </p>
+                            )}
+                            <div className="clinical-payments">
+                              {form.pagos.map((row, index) => {
+                                const medioId = `clinical-${paymentKey(row, 'medio')}`
+                                const montoId = `clinical-${paymentKey(row, 'monto')}`
+                                const medioError = fieldError(paymentKey(row, 'medio'))
+                                const montoError = fieldError(paymentKey(row, 'monto'))
+                                // Each select offers only the medios no other row uses.
+                                const available = medioOptions.filter(
+                                  (option) =>
+                                    option.codigo === row.medio || !usedMedios.includes(option.codigo),
+                                )
+                                return (
+                                  <div
+                                    key={row.id}
+                                    className={`clinical-payment${form.pagos.length > 1 ? '' : ' clinical-payment--single'}`}
+                                    role="group"
+                                    aria-label={`Pago ${index + 1}`}
+                                  >
+                                    <div className="clinical-field clinical-payment__medio">
+                                      <label htmlFor={medioId}>Medio de pago</label>
+                                      <select
+                                        id={medioId}
+                                        value={row.medio}
+                                        onChange={(event) => updatePayment(row, 'medio', event.target.value)}
+                                        onBlur={checkField(paymentKey(row, 'medio'))}
+                                        aria-invalid={medioError ? true : undefined}
+                                        aria-describedby={medioError ? `${medioId}-error` : undefined}
+                                      >
+                                        <option value="">Seleccionar…</option>
+                                        {available.map((option) => (
+                                          <option key={option.codigo} value={option.codigo}>
+                                            {option.etiqueta}
+                                          </option>
+                                        ))}
+                                      </select>
+                                      {medioError && (
+                                        <p id={`${medioId}-error`} className="clinical-field__error">
+                                          {medioError}
+                                        </p>
+                                      )}
+                                    </div>
+                                    <div className="clinical-field clinical-payment__monto">
+                                      <label htmlFor={montoId}>Monto</label>
+                                      <input
+                                        id={montoId}
+                                        type="text"
+                                        inputMode="numeric"
+                                        value={formatClp(row.monto)}
+                                        onChange={(event) =>
+                                          updatePayment(row, 'monto', event.target.value.replace(/\D/g, ''))
+                                        }
+                                        onBlur={checkField(paymentKey(row, 'monto'))}
+                                        placeholder="$15.000"
+                                        aria-invalid={montoError ? true : undefined}
+                                        aria-describedby={montoError ? `${montoId}-error` : undefined}
+                                      />
+                                      {montoError && (
+                                        <p id={`${montoId}-error`} className="clinical-field__error">
+                                          {montoError}
+                                        </p>
+                                      )}
+                                    </div>
+                                    {form.pagos.length > 1 && (
+                                      <button
+                                        type="button"
+                                        className="clinical-btn clinical-btn--icon clinical-payment__remove"
+                                        onClick={() => removePayment(index)}
+                                        aria-label={`Quitar pago ${index + 1}`}
+                                        title="Quitar este pago"
+                                      >
+                                        <Trash2 className="clinical-btn__icon" strokeWidth={2} />
+                                      </button>
+                                    )}
+                                  </div>
+                                )
+                              })}
+                            </div>
+                            {fieldError('pagos') && (
+                              <p id={`${FIELD_INPUT_IDS.pagos}-error`} className="clinical-field__error">
+                                {fieldError('pagos')}
+                              </p>
+                            )}
+                            <div className="clinical-billing">
+                              <div className="clinical-payments__add">
+                                <button
+                                  type="button"
+                                  className="clinical-btn"
+                                  onClick={addPayment}
+                                  // aria-disabled instead of disabled so the button keeps focus.
+                                  aria-disabled={!canAddPayment || undefined}
+                                  aria-describedby={
+                                    addPaymentHint ? `${FIELD_INPUT_IDS.pagos}-hint` : undefined
+                                  }
+                                >
+                                  <Plus className="clinical-btn__icon" strokeWidth={2} />
+                                  Agregar otro medio de pago
+                                </button>
+                                {addPaymentHint && (
+                                  <p id={`${FIELD_INPUT_IDS.pagos}-hint`} className="clinical-field__hint">
+                                    {addPaymentHint}
+                                  </p>
+                                )}
+                              </div>
+                              <p className="clinical-billing__total">
+                                <span className="clinical-billing__label">Total pagado</span>
+                                <output aria-live="polite">{formatClp(String(totalPaid)) || '$0'}</output>
+                              </p>
+                            </div>
+                          </fieldset>
+                        )}
                       </div>
                     </Section>
                   </>
@@ -1469,13 +2248,33 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
                     {MISMATCH_MESSAGE}
                   </p>
                 )}
-                {isSaveBlocked && Object.keys(measureErrors).length > 0 && (
-                  <p className="clinical-message clinical-message--error" role="alert">
-                    {MEASURES_ERROR_MESSAGE}
+                {/* Why Guardar is disabled, next to it. Announced at the top already. */}
+                {(migrationBlock || optionsError) && (
+                  <p id="clinical-save-blocked" className="clinical-message clinical-message--error">
+                    {migrationBlock
+                      ? 'Esta ficha no se puede guardar: está en el formato antiguo (ver aviso arriba).'
+                      : 'No se puede guardar sin las listas de receta y medios de pago (ver aviso en Tratamiento y cobro).'}
+                  </p>
+                )}
+                {/* The summary at the top is the alert when it is shown. */}
+                {isSaveBlocked && Object.keys(formErrors).length > 0 && (
+                  <p
+                    className="clinical-message clinical-message--error"
+                    role={showErrorSummary && visibleErrorKeys.length > 1 ? undefined : 'alert'}
+                  >
+                    {FIELDS_ERROR_MESSAGE}
                   </p>
                 )}
                 {errorMessage && (
-                  <p className="clinical-message clinical-message--error" role="alert">
+                  <p
+                    className="clinical-message clinical-message--error"
+                    // Just "review the fields": the summary at the top already says it.
+                    role={
+                      errorMessage === FIELDS_ERROR_MESSAGE && showErrorSummary && visibleErrorKeys.length > 1
+                        ? undefined
+                        : 'alert'
+                    }
+                  >
                     {errorMessage}
                   </p>
                 )}
@@ -1493,7 +2292,8 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
                     ref={saveButtonRef}
                     type="submit"
                     className="clinical-btn clinical-btn--primary"
-                    disabled={isSaving || isLoading || hasForeignRecord}
+                    disabled={isSaveDisabled}
+                    aria-describedby={migrationBlock || optionsError ? 'clinical-save-blocked' : undefined}
                   >
                     <Save className="clinical-btn__icon" strokeWidth={2} />
                     {isSaving ? 'Guardando…' : 'Guardar'}
