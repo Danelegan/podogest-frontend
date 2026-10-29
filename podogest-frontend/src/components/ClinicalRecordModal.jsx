@@ -94,6 +94,9 @@ const EMPTY_FORM = {
   frecuenciaCardiaca: '',
   pulso: '',
   anestesia: '',
+  diagnostico: '',
+  // Free text of tratamiento_realizado (see parseTreatment).
+  tratamiento: '',
   edad: '',
   receta: [],
   recetaOtro: '',
@@ -151,8 +154,58 @@ const LEGACY_MEDICAL_KEYS = {
 const SYMPTOM_KEYS = { problemas: 'Problemas', otros: 'Otros' }
 // "Precio: 15000" lines of older records are kept untouched among the lines we
 // don't own, and only shown (payments replace them).
-const TREATMENT_KEYS = { anestesia: 'Anestesia' }
+const ANESTHESIA_PREFIX = 'Anestesia: '
 const LEGACY_PRICE_PREFIX = 'Precio: '
+
+// tratamiento_realizado holds the "Anestesia: …" line, any old "Precio: …"
+// line and, after them, the free text of "Tratamiento realizado". Read line by
+// line (not with parseLines) so the free text keeps its blank lines.
+const EMPTY_TREATMENT = { anesthesiaLine: '', anesthesia: '', keptLines: [], original: '', freeText: '' }
+
+// Blank lines at the start or end are not part of the text.
+const trimBlankLines = (lines) => {
+  let start = 0
+  let end = lines.length
+  while (start < end && !lines[start].trim()) start += 1
+  while (end > start && !lines[end - 1].trim()) end -= 1
+  return lines.slice(start, end)
+}
+
+function parseTreatment(text) {
+  const treatment = { ...EMPTY_TREATMENT, keptLines: [] }
+  const free = []
+  ;(text ?? '').split('\n').forEach((line) => {
+    if (line.startsWith(ANESTHESIA_PREFIX) && !treatment.anesthesiaLine) {
+      treatment.anesthesiaLine = line
+      // As the form holds it: without the unit ("1,50 ml" -> "1,50").
+      treatment.anesthesia = fromStoredValues({ anestesia: line.slice(ANESTHESIA_PREFIX.length) }).anestesia
+    } else if (line.startsWith(ANESTHESIA_PREFIX) || line.startsWith(LEGACY_PRICE_PREFIX)) {
+      // Old prices (and a repeated anesthesia line) are kept exactly as they are.
+      treatment.keptLines.push(line)
+    } else {
+      free.push(line)
+    }
+  })
+  treatment.original = text ?? ''
+  treatment.freeText = trimBlankLines(free).join('\n')
+  return { treatment, freeText: treatment.freeText }
+}
+
+// Untouched, the text goes back exactly as it came (same order and blank
+// lines); otherwise an unchanged anesthesia still keeps its original line.
+function buildTreatment(form, stored, treatment) {
+  if (form.anestesia === treatment.anesthesia && form.tratamiento === treatment.freeText) {
+    return treatment.original
+  }
+  const anesthesia =
+    treatment.anesthesiaLine && form.anestesia === treatment.anesthesia
+      ? treatment.anesthesiaLine
+      : stored.anestesia
+        ? `${ANESTHESIA_PREFIX}${stored.anestesia}`
+        : ''
+  const free = trimBlankLines(form.tratamiento.split('\n'))
+  return [...(anesthesia ? [anesthesia] : []), ...treatment.keptLines, ...free].join('\n')
+}
 
 // migracion_pendiente reasons the old reader handles without losing anything:
 // lines out of order, or a contact value that is empty or too long (the backend
@@ -284,6 +337,16 @@ function validateForm(form, { day, limits }) {
     }
   }
 
+  // Such a line would be read back as the anesthesia or as an old price.
+  const reserved = form.tratamiento
+    .split('\n')
+    .find((line) => line.startsWith(ANESTHESIA_PREFIX) || line.startsWith(LEGACY_PRICE_PREFIX))
+  if (reserved) {
+    errors.tratamiento =
+      `Ninguna línea puede empezar con "${reserved.slice(0, reserved.indexOf(':') + 1)}" ` +
+      '(la anestesia va en su propio campo). Cambia los dos puntos por un guion, por ejemplo.'
+  }
+
   if (form.receta.includes(RECETA_OTRO) && !form.recetaOtro.trim()) {
     errors.recetaOtro = 'Escribe el otro medicamento recetado.'
   }
@@ -311,12 +374,14 @@ const FIELD_INPUT_IDS = {
   direccion: 'clinical-direccion',
   telefono: 'clinical-telefono',
   email: 'clinical-email',
+  diagnostico: 'clinical-diagnostico',
   observaciones: 'clinical-observaciones',
   presion: 'clinical-presion-sistolica',
   frecuenciaCardiaca: 'clinical-frecuencia-cardiaca',
   pulso: 'clinical-pulso',
   podograma: 'clinical-podogram-canvas',
   anestesia: 'clinical-anestesia',
+  tratamiento: 'clinical-tratamiento',
   receta: 'clinical-receta',
   recetaOtro: 'clinical-receta-otro',
   indicaciones: 'clinical-indicaciones',
@@ -342,12 +407,14 @@ const FIELD_LABELS = {
   direccion: 'Dirección',
   telefono: 'Teléfono',
   email: 'Correo electrónico',
+  diagnostico: 'Diagnóstico',
   observaciones: 'Observaciones',
   presion: 'Presión arterial',
   frecuenciaCardiaca: 'Frecuencia cardíaca',
   pulso: 'Pulso pedio',
   podograma: 'Mapa anatómico',
   anestesia: 'Anestesia',
+  tratamiento: 'Tratamiento realizado',
   receta: 'Receta',
   recetaOtro: 'Otro medicamento',
   indicaciones: 'Indicaciones',
@@ -366,11 +433,12 @@ const API_ERROR_KEYS = {
   receta_medicamentos: 'receta',
   receta_otro: 'recetaOtro',
   receta_indicaciones: 'indicaciones',
+  diagnostico: 'diagnostico',
+  tratamiento_realizado: 'tratamiento',
 }
 const API_FIELD_NAMES = {
   antecedentes_medicos: 'Antecedentes',
   sintomas: 'Problemas actuales',
-  tratamiento_realizado: 'Tratamiento',
 }
 
 // DRF errors come as strings, lists of strings or nested objects.
@@ -627,7 +695,7 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
   const [form, setForm] = useState(EMPTY_FORM)
   const [recordId, setRecordId] = useState(null)
   // Lines in each backend field that this form doesn't manage; kept on save.
-  const [rest, setRest] = useState({ medical: [], symptoms: [], treatment: [] })
+  const [rest, setRest] = useState({ medical: [], symptoms: [], treatment: EMPTY_TREATMENT })
   const [isLoading, setIsLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
@@ -728,7 +796,7 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
       setSuccessMessage('')
       setHasForeignRecord(false)
       setRecordId(null)
-      setRest({ medical: [], symptoms: [], treatment: [] })
+      setRest({ medical: [], symptoms: [], treatment: EMPTY_TREATMENT })
       setSavedDrawing('')
       setMapVersion('v2')
       setRecordCreatedAt('')
@@ -798,7 +866,7 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
           pending ? LEGACY_MEDICAL_KEYS : MEDICAL_KEYS,
         )
         const symptoms = parseLines(record.sintomas, SYMPTOM_KEYS)
-        const treatment = parseLines(record.tratamiento_realizado, TREATMENT_KEYS)
+        const { treatment, freeText } = parseTreatment(record.tratamiento_realizado)
         const { observations, drawing, version } = pending
           ? parseObservations(record.observaciones)
           : {
@@ -824,7 +892,7 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
         const pagos = (Array.isArray(record.pagos) ? record.pagos : []).map((pago) =>
           newPaymentRow(pago.medio ?? '', pago.monto != null ? String(pago.monto) : ''),
         )
-        const priceLine = treatment.rest.find((line) => line.startsWith(LEGACY_PRICE_PREFIX))
+        const priceLine = treatment.keptLines.find((line) => line.startsWith(LEGACY_PRICE_PREFIX))
         const priceText = priceLine?.slice(LEGACY_PRICE_PREFIX.length).trim() ?? ''
 
         const knownOptions = cachedOptions
@@ -846,13 +914,13 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
         setRest({
           medical: medical.rest,
           symptoms: symptoms.rest,
-          treatment: treatment.rest,
+          treatment,
         })
         loadedDrawingRef.current = { drawing, version, drawEdits: drawEditsRef.current }
         setSavedDrawing(drawing)
         setMapVersion(version)
         setForm((prev) => {
-          const values = fromStoredValues({ ...medical.values, ...symptoms.values, ...treatment.values })
+          const values = fromStoredValues({ ...medical.values, ...symptoms.values })
           // Empty contact fields keep the appointment's data, as on a new record.
           const contact = Object.fromEntries(
             Object.entries(own).map(([field, value]) => [field, value || prev[field]]),
@@ -862,6 +930,9 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
             ...values,
             ...contact,
             observaciones: observations,
+            anestesia: treatment.anesthesia,
+            diagnostico: record.diagnostico ?? '',
+            tratamiento: freeText,
             edad: record.edad != null ? String(record.edad) : '',
             receta,
             recetaOtro: record.receta_otro ?? '',
@@ -1354,7 +1425,8 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
     const payload = {
       antecedentes_medicos: buildLines(stored, MEDICAL_KEYS, rest.medical),
       sintomas: buildLines(stored, SYMPTOM_KEYS, rest.symptoms),
-      tratamiento_realizado: buildLines(stored, TREATMENT_KEYS, rest.treatment),
+      diagnostico: form.diagnostico.trim(),
+      tratamiento_realizado: buildTreatment(form, stored, rest.treatment),
       // Plain text: the drawing goes in `podograma`, never here.
       observaciones: form.observaciones,
       ...Object.fromEntries(
@@ -1785,6 +1857,17 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
                           />
                         </Field>
                         <TextAreaField
+                          id={FIELD_INPUT_IDS.diagnostico}
+                          label="Diagnóstico"
+                          span={4}
+                          error={fieldError('diagnostico')}
+                          name="diagnostico"
+                          value={form.diagnostico}
+                          onChange={handleChange}
+                          rows={3}
+                          placeholder="Ej.: Onicocriptosis leve en hallux derecho"
+                        />
+                        <TextAreaField
                           id={FIELD_INPUT_IDS.observaciones}
                           label="Observaciones"
                           span={4}
@@ -2038,6 +2121,18 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
                             onChange={handleAnesthesiaChange}
                             onBlur={checkField('anestesia')}
                             placeholder="Ej.: 1,50"
+                          />
+                          <TextAreaField
+                            id={FIELD_INPUT_IDS.tratamiento}
+                            label="Tratamiento realizado"
+                            span={2}
+                            error={fieldError('tratamiento')}
+                            name="tratamiento"
+                            value={form.tratamiento}
+                            onChange={handleChange}
+                            onBlur={checkField('tratamiento')}
+                            rows={3}
+                            placeholder="Ej.: Onicotomía y fresado de hiperqueratosis"
                           />
                         </div>
 
