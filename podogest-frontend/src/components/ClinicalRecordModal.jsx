@@ -4,10 +4,12 @@ import {
   Eraser,
   Footprints,
   HeartPulse,
+  Pencil,
   PenTool,
   RotateCcw,
   Save,
   Stethoscope,
+  Undo2,
   User,
   Users,
   Wallet,
@@ -276,6 +278,23 @@ const readJson = async (response) => {
   }
 }
 
+const PEN_COLOR = '#dc2626'
+// The eraser is this many times wider than the pen.
+const ERASER_FACTOR = 4
+// Undo steps kept; each one is a full copy of the canvas pixels.
+const UNDO_LIMIT = 20
+
+// Circle the size of the eraser, centered on the pointer (desktop cursor).
+const eraserCursor = (diameter) => {
+  const size = Math.min(Math.max(Math.round(diameter), 4), 126) + 2
+  const r = size / 2
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}">` +
+    `<circle cx="${r}" cy="${r}" r="${r - 1}" fill="rgba(255,255,255,0.35)" ` +
+    'stroke="#1f2937" stroke-width="1"/></svg>'
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}") ${r} ${r}, crosshair`
+}
+
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), ' +
   'textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
@@ -364,9 +383,13 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
   // Save was stopped by invalid measurements; the footer notice lasts only
   // while some of them are still invalid.
   const [isSaveBlocked, setIsSaveBlocked] = useState(false)
+  const [drawTool, setDrawTool] = useState('pen')
+  const [undoCount, setUndoCount] = useState(0)
   const canvasRef = useRef(null)
   const isDrawingRef = useRef(false)
   const hasInkRef = useRef(false)
+  // Canvas pixels before each stroke, oldest first (at most UNDO_LIMIT).
+  const undoStackRef = useRef([])
   const dialogRef = useRef(null)
   const titleRef = useRef(null)
   const saveButtonRef = useRef(null)
@@ -414,6 +437,7 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
       setRecordCreatedAt('')
       setCheckedMeasures({})
       setIsSaveBlocked(false)
+      setDrawTool('pen')
       setForm({
         ...EMPTY_FORM,
         nombre: appointment?.patient_name ?? '',
@@ -655,6 +679,9 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
     const ctx = canvas.getContext('2d')
     ctx.clearRect(0, 0, canvas.width, canvas.height)
     hasInkRef.current = false
+    // Earlier steps belong to another drawing (or another canvas size).
+    undoStackRef.current = []
+    setUndoCount(0)
     if (!savedDrawing) return undefined
 
     let cancelled = false
@@ -679,20 +706,56 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
     }
   }
 
+  // The canvas is drawn at its internal size; when shown smaller (phone), the
+  // stroke is widened so it still looks about the same on screen.
+  const getStrokeWidth = (tool) => {
+    const canvas = canvasRef.current
+    const { lineWidth, minStrokePx } = PODOGRAM_MAPS[mapVersion]
+    const scale = canvas.width / canvas.getBoundingClientRect().width
+    const penWidth = Math.max(lineWidth, minStrokePx * scale)
+    return { width: tool === 'eraser' ? penWidth * ERASER_FACTOR : penWidth, scale }
+  }
+
+  // Sized from the current on-screen scale, so it matches what gets erased.
+  const updateCursor = () => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    if (drawTool !== 'eraser') {
+      canvas.style.cursor = ''
+      return
+    }
+    const { width, scale } = getStrokeWidth('eraser')
+    const cursor = eraserCursor(width / scale)
+    if (canvas.style.cursor !== cursor) canvas.style.cursor = cursor
+  }
+
+  // Resizes between renders are picked up again on pointerenter.
+  useEffect(() => {
+    if (!isOpen || isLoading) return
+    updateCursor()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, isLoading, drawTool, mapVersion])
+
   const handleDrawStart = (event) => {
     const canvas = canvasRef.current
     const ctx = canvas.getContext('2d')
     const { x, y } = getCanvasPoint(event)
     canvas.setPointerCapture(event.pointerId)
+    const stack = undoStackRef.current
+    stack.push({
+      pixels: ctx.getImageData(0, 0, canvas.width, canvas.height),
+      hasInk: hasInkRef.current,
+    })
+    if (stack.length > UNDO_LIMIT) stack.shift()
+    setUndoCount(stack.length)
     isDrawingRef.current = true
-    hasInkRef.current = true
     drawEditsRef.current += 1
-    // The canvas is drawn at its internal size; when shown smaller (phone),
-    // the stroke is widened so it still looks about the same on screen.
-    const { lineWidth, minStrokePx } = PODOGRAM_MAPS[mapVersion]
-    const scale = canvas.width / canvas.getBoundingClientRect().width
-    ctx.strokeStyle = '#dc2626'
-    ctx.lineWidth = Math.max(lineWidth, minStrokePx * scale)
+    const isEraser = drawTool === 'eraser'
+    // The eraser only removes strokes: the map is an <img> under the canvas.
+    if (!isEraser) hasInkRef.current = true
+    ctx.globalCompositeOperation = isEraser ? 'destination-out' : 'source-over'
+    ctx.strokeStyle = PEN_COLOR
+    ctx.lineWidth = getStrokeWidth(drawTool).width
     ctx.lineCap = 'round'
     ctx.lineJoin = 'round'
     ctx.beginPath()
@@ -710,8 +773,40 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
     ctx.stroke()
   }
 
+  // An eraser stroke may have removed the last ink: then nothing is saved, as
+  // after "Limpiar dibujo", instead of an empty PNG.
   const handleDrawEnd = () => {
+    if (!isDrawingRef.current) return
     isDrawingRef.current = false
+    if (drawTool !== 'eraser' || !hasInkRef.current) return
+    const canvas = canvasRef.current
+    const { data } = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height)
+    let hasInk = false
+    for (let i = 3; i < data.length; i += 4) {
+      if (data[i] > 0) {
+        hasInk = true
+        break
+      }
+    }
+    hasInkRef.current = hasInk
+  }
+
+  const handleUndo = () => {
+    if (isDrawingRef.current) return
+    const step = undoStackRef.current.pop()
+    if (!step) return
+    canvasRef.current.getContext('2d').putImageData(step.pixels, 0, 0)
+    hasInkRef.current = step.hasInk
+    drawEditsRef.current += 1
+    setUndoCount(undoStackRef.current.length)
+  }
+
+  // Ctrl+Z (Cmd+Z on Mac) while focus is on the map or its tools.
+  const handlePodogramKeyDown = (event) => {
+    if (!(event.ctrlKey || event.metaKey) || event.shiftKey || event.altKey) return
+    if (event.key.toLowerCase() !== 'z') return
+    event.preventDefault()
+    handleUndo()
   }
 
   const handleClearDrawing = () => {
@@ -719,6 +814,9 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
     if (hasInkRef.current) drawEditsRef.current += 1
     canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height)
     hasInkRef.current = false
+    // The map may change to v2 (another canvas size): old steps can't apply.
+    undoStackRef.current = []
+    setUndoCount(0)
     setSavedDrawing('')
     // Nothing left that depends on the old map.
     setMapVersion('v2')
@@ -1246,12 +1344,49 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
                     </Section>
 
                     <Section icon={PenTool} title="Mapa anatómico">
-                      <div className="clinical-podogram">
+                      <div className="clinical-podogram" onKeyDown={handlePodogramKeyDown}>
                         <p className="clinical-podogram__hint">
                           {mapVersion === 'v2'
                             ? 'Dibuja sobre las vistas plantar y dorsal para marcar zonas de interés.'
                             : 'Dibuja sobre el pie para marcar zonas de interés.'}
                         </p>
+                        <div className="clinical-podogram__toolbar">
+                          <div
+                            className="clinical-podogram__tools"
+                            role="group"
+                            aria-label="Herramienta de dibujo"
+                          >
+                            <button
+                              type="button"
+                              className="clinical-btn clinical-btn--toggle"
+                              aria-pressed={drawTool === 'pen'}
+                              onClick={() => setDrawTool('pen')}
+                            >
+                              <Pencil className="clinical-btn__icon" strokeWidth={2} />
+                              Lápiz
+                            </button>
+                            <button
+                              type="button"
+                              className="clinical-btn clinical-btn--toggle"
+                              aria-pressed={drawTool === 'eraser'}
+                              onClick={() => setDrawTool('eraser')}
+                            >
+                              <Eraser className="clinical-btn__icon" strokeWidth={2} />
+                              Borrador
+                            </button>
+                          </div>
+                          <button
+                            type="button"
+                            className="clinical-btn"
+                            onClick={handleUndo}
+                            // aria-disabled instead of disabled so the button keeps focus.
+                            aria-disabled={undoCount === 0 || undefined}
+                            aria-keyshortcuts="Control+Z"
+                          >
+                            <Undo2 className="clinical-btn__icon" strokeWidth={2} />
+                            Deshacer
+                          </button>
+                        </div>
                         <div
                           className={`clinical-podogram__stage clinical-podogram__stage--${mapVersion}`}
                         >
@@ -1266,6 +1401,14 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
                             className="clinical-podogram__canvas"
                             width={PODOGRAM_MAPS[mapVersion].width}
                             height={PODOGRAM_MAPS[mapVersion].height}
+                            tabIndex={0}
+                            role="application"
+                            aria-roledescription="área de dibujo"
+                            aria-label={`Mapa anatómico, herramienta ${
+                              drawTool === 'eraser' ? 'borrador' : 'lápiz'
+                            }`}
+                            aria-keyshortcuts="Control+Z"
+                            onPointerEnter={updateCursor}
                             onPointerDown={handleDrawStart}
                             onPointerMove={handleDrawMove}
                             onPointerUp={handleDrawEnd}

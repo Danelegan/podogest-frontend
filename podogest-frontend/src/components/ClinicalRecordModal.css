@@ -515,6 +515,40 @@
   color: var(--color-text-muted);
 }
 
+.clinical-podogram__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-3);
+}
+
+.clinical-podogram__tools {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.clinical-btn--toggle[aria-pressed='true'] {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+  color: var(--color-primary-strong);
+  box-shadow: inset 0 0 0 1px var(--color-primary);
+}
+
+.clinical-btn--toggle[aria-pressed='true']:hover {
+  border-color: var(--color-primary-strong);
+  background: var(--color-primary-soft);
+}
+
+.clinical-btn[aria-disabled='true'] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.clinical-btn[aria-disabled='true']:hover {
+  border-color: var(--color-border-input);
+  background: var(--color-surface);
+}
+
 .clinical-podogram__stage {
   position: relative;
   width: 100%;
@@ -545,6 +579,12 @@
   height: 100%;
   cursor: crosshair;
   touch-action: none;
+}
+
+/* Inset: the stage clips anything drawn outside it. */
+.clinical-podogram__canvas:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: -3px;
 }
 
 /* v2 map: both views side by side, scaled to the available width (the strokes
