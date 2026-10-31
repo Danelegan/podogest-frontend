@@ -706,6 +706,9 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
   const [savedDrawing, setSavedDrawing] = useState('')
   // When the loaded record was created ("2026-10-25T14:03:00Z"); '' for a new one.
   const [recordCreatedAt, setRecordCreatedAt] = useState('')
+  // "RUT 12.345.678-5" / "Pasaporte AB1234567", read-only (comes from the
+  // appointment). Until the record exists, the appointment's own value is used.
+  const [recordDocument, setRecordDocument] = useState('')
   // Old drawings keep the map they were drawn on; everything else uses v2.
   const [mapVersion, setMapVersion] = useState('v2')
   // Fields whose errors are visible: shown once the user leaves the field or
@@ -766,6 +769,8 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
     pagos: [newPaymentRow()],
   })
 
+  const documentDisplay = recordDocument || appointment?.document_display || ''
+
   // Age is counted on the appointment's day, as the backend does.
   const appointmentDay = appointment?.appointment_date || clinicNow().date
   const validationContext = { day: appointmentDay, limits: options }
@@ -800,6 +805,7 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
       setSavedDrawing('')
       setMapVersion('v2')
       setRecordCreatedAt('')
+      setRecordDocument('')
       setCheckedFields({})
       setIsSaveBlocked(false)
       setServerErrors({})
@@ -909,6 +915,7 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
 
         setRecordId(record.id)
         setRecordCreatedAt(record.created_at ?? '')
+        setRecordDocument(record.document_display ?? '')
         setMigrationPending(pending)
         setLegacyPrice(/^\d+$/.test(priceText) ? formatClp(priceText) : priceText)
         setRest({
@@ -1522,6 +1529,7 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
         const saved = await response.json()
         setRecordId(saved.id ?? targetId)
         if (saved.created_at) setRecordCreatedAt(saved.created_at)
+        if (saved.document_display) setRecordDocument(saved.document_display)
         // Converted to the new format by this save (or still pending).
         setMigrationPending(saved.migracion_pendiente ?? '')
         setShowErrorSummary(false)
@@ -1718,13 +1726,22 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
                         <InputField
                           id={FIELD_INPUT_IDS.nombre}
                           label="Nombre completo"
-                          span={3}
+                          span={documentDisplay ? 2 : 3}
                           error={fieldError('nombre')}
                           name="nombre"
                           value={form.nombre}
                           onChange={handleChange}
                           placeholder="Ej.: María González Pérez"
                         />
+                        {documentDisplay && (
+                          <InputField
+                            id="clinical-documento"
+                            label="Documento"
+                            hint="Viene de la cita; no se edita en la ficha."
+                            value={documentDisplay}
+                            readOnly
+                          />
+                        )}
                         <InputField
                           id={FIELD_INPUT_IDS.nacimiento}
                           label="Fecha de nacimiento (opcional)"

@@ -470,6 +470,21 @@ button.booking-modal__step:disabled {
   border-color: var(--color-primary);
 }
 
+/* Después de hover/focus: el campo con error sigue marcado mientras se edita. */
+.booking-modal__field input[aria-invalid='true'],
+.booking-modal__field select[aria-invalid='true'] {
+  border-color: var(--color-danger);
+}
+
+.booking-modal__field-error {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  letter-spacing: normal;
+  line-height: 1.4;
+  color: var(--color-danger);
+}
+
 .booking-modal__error {
   margin: 0;
   padding: var(--space-3) var(--space-4);
@@ -482,6 +497,17 @@ button.booking-modal__step:disabled {
   font-weight: 500;
   line-height: 1.5;
   word-break: break-word;
+}
+
+/* Salida a WhatsApp en errores inesperados: área táctil de 44px. */
+.booking-modal__error-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
+  color: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .booking-modal__submit {

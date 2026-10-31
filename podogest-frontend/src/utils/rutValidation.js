@@ -1,10 +1,14 @@
+// Same rule as the backend: body of 7 to 9 digits once leading zeros are
+// dropped, plus the verifier digit (0-9 or K).
+const RUT_RE = /^0*([1-9]\d{6,8})([\dK])$/
+
 // Chilean RUT check (Módulo 11). Accepts "12.345.678-5", "12345678-5" or "123456785".
 export function validarRut(rut) {
   const clean = String(rut ?? '').replace(/[.\-\s]/g, '').toUpperCase()
-  if (!/^\d{7,8}[\dK]$/.test(clean)) return false
+  const match = clean.match(RUT_RE)
+  if (!match) return false
 
-  const body = clean.slice(0, -1)
-  const verifier = clean.slice(-1)
+  const [, body, verifier] = match
 
   // Multiply digits right-to-left by 2,3,4,5,6,7,2,3...
   let sum = 0
@@ -19,9 +23,10 @@ export function validarRut(rut) {
   return verifier === expected
 }
 
-// "252370927" -> "25.237.092-7". Keeps only digits and K, max 9 characters.
+// "1234567895" -> "123.456.789-5". Keeps only digits and K, drops leading
+// zeros and allows up to 10 characters (9-digit body plus verifier).
 export function formatRUT(value) {
-  const clean = value.replace(/[^0-9kK]/g, '').toUpperCase().slice(0, 9)
+  const clean = value.replace(/[^0-9kK]/g, '').toUpperCase().replace(/^0+/, '').slice(0, 10)
   if (clean.length <= 1) return clean
 
   const body = clean.slice(0, -1).replace(/\D/g, '')

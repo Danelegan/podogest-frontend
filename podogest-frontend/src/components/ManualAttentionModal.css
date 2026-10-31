@@ -38,7 +38,8 @@
 }
 
 .manual-modal button:focus-visible,
-.manual-modal input:focus-visible {
+.manual-modal input:focus-visible,
+.manual-modal select:focus-visible {
   outline: var(--focus-ring);
   outline-offset: 2px;
 }

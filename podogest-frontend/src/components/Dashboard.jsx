@@ -7,6 +7,7 @@ import ManualAttentionModal from './ManualAttentionModal'
 import API_BASE_URL from '../config/api'
 import { authFetch, getAccessToken, logout, SESSION_EXPIRED_MESSAGE } from '../utils/auth'
 import { clinicNow, formatDateString } from '../utils/clinicDate'
+import { normalizeDocumentSearch } from '../utils/documentValidation'
 import './Dashboard.css'
 
 const APPOINTMENTS_URL = `${API_BASE_URL}/api/appointments/`
@@ -327,6 +328,8 @@ function Dashboard() {
   }, [navigate])
 
   const normalizedSearch = searchTerm.trim().toLowerCase()
+  // Documents are compared without dots, hyphens or spaces, in uppercase.
+  const documentSearch = normalizeDocumentSearch(searchTerm)
   const isSearching = normalizedSearch !== ''
 
   // "Próximas": today onwards, soonest first. "Pasadas": before today, latest first.
@@ -345,10 +348,13 @@ function Dashboard() {
     const matches = appointments.filter(
       (appointment) =>
         appointment.patient_name?.toLowerCase().includes(normalizedSearch) ||
-        appointment.rut?.toLowerCase().includes(normalizedSearch),
+        (documentSearch !== '' &&
+          [appointment.document_number, appointment.rut].some((value) =>
+            normalizeDocumentSearch(value).includes(documentSearch),
+          )),
     )
     return groupByMonth(matches.sort(byDateDescending))
-  }, [appointments, isSearching, normalizedSearch])
+  }, [appointments, isSearching, normalizedSearch, documentSearch])
 
   const visibleMonths = isSearching
     ? searchMonths
@@ -548,8 +554,8 @@ function Dashboard() {
                     setSearchTerm(event.target.value)
                     setSearchOpen({})
                   }}
-                  placeholder="Buscar por nombre o RUT..."
-                  aria-label="Buscar por nombre o RUT"
+                  placeholder="Buscar por nombre o documento..."
+                  aria-label="Buscar por nombre o documento"
                 />
                 {/* Always mounted, so the change is announced. */}
                 <p className="dashboard__search-note" role="status">
@@ -614,8 +620,19 @@ function Dashboard() {
                                     <span className="dashboard__lines">
                                       <span className="dashboard__name">{appointment.patient_name}</span>
                                       <span className="dashboard__secondary dashboard__cell-mono">
-                                        {appointment.rut}
+                                        {appointment.document_display || appointment.rut}
                                       </span>
+                                      {appointment.document_review === 'rut_invalido' && (
+                                        <span
+                                          className="dashboard__review"
+                                          title="El RUT guardado en esta cita no es válido. Confírmalo con el paciente."
+                                        >
+                                          RUT por revisar
+                                          <span className="dashboard__sr-only">
+                                            : el RUT guardado no es válido, confírmalo con el paciente
+                                          </span>
+                                        </span>
+                                      )}
                                     </span>
                                   </th>
                                   <td data-label="Cita">

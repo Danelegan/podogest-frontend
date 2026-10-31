@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { Check, ChevronLeft, CircleCheck, Clock, MapPin, X } from 'lucide-react'
-import { formatRUT, validarRut } from '../utils/rutValidation'
+import { DEFAULT_DOCUMENT_TYPE, validateDocument } from '../utils/documentValidation'
 import { servicesData, specialtiesData } from '../data/services'
 import API_BASE_URL from '../config/api'
+import DocumentField from './DocumentField'
 import './BookingModal.css'
 
 const WEEKDAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
@@ -65,7 +66,8 @@ const formatDate = (year, monthIndex, day) =>
 
 const INITIAL_FORM = {
   nombre: '',
-  rut: '',
+  documentType: DEFAULT_DOCUMENT_TYPE,
+  documentNumber: '',
   telefono: '',
   email: '',
   motivo: '',
@@ -80,8 +82,77 @@ const CLINIC_MAPS_URL = `https://www.google.com/maps/search/?api=1&query=${encod
 // Name: letters (accents and ñ included), spaces, apostrophes and hyphens.
 const formatName = (value) => value.replace(/[^\p{L}\s'’-]/gu, '')
 
-// Per-field input filters. Fields not listed here are left as typed.
-const FIELD_FORMATTERS = { nombre: formatName, rut: formatRUT }
+// Per-field input filters. Fields not listed here are left as typed (the
+// document number is formatted by DocumentField).
+const FIELD_FORMATTERS = { nombre: formatName }
+
+// Input id of each form field, in form order (the first one with an error
+// gets the focus).
+const FIELD_IDS = {
+  nombre: 'booking-nombre',
+  documento: 'booking-documento',
+  telefono: 'booking-telefono',
+  email: 'booking-email',
+  motivo: 'booking-motivo',
+}
+
+// Backend field -> form field that shows its error. Everything else
+// (non_field_errors, date, time, detail) goes to the general message.
+const SERVER_FIELDS = {
+  patient_name: 'nombre',
+  document_type: 'documento',
+  document_number: 'documento',
+  rut: 'documento',
+  phone: 'telefono',
+  email: 'email',
+  service_type: 'motivo',
+}
+
+const WHATSAPP_URL = 'https://wa.me/56972836396'
+
+const UNEXPECTED_ERROR =
+  'No pudimos agendar tu hora. Inténtalo nuevamente en unos minutos o escríbenos por WhatsApp.'
+
+// DRF sends { field: ["msg"] }, { field: "msg" } or a list; keep only the texts.
+function collectMessages(value) {
+  if (typeof value === 'string') return value.trim() ? [value.trim()] : []
+  if (Array.isArray(value)) return value.flatMap(collectMessages)
+  if (value && typeof value === 'object') return Object.values(value).flatMap(collectMessages)
+  return []
+}
+
+// Splits a 400 body into per-field messages and general ones.
+function splitServerErrors(data) {
+  const fields = {}
+  const general = []
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    return { fields, general: collectMessages(data) }
+  }
+  for (const [key, value] of Object.entries(data)) {
+    const messages = collectMessages(value)
+    const field = SERVER_FIELDS[key]
+    if (!messages.length) continue
+    if (field) fields[field] = [fields[field], ...messages].filter(Boolean).join(' ')
+    else general.push(...messages)
+  }
+  return { fields, general }
+}
+
+// Label above the control; the error goes outside the <label> so screen
+// readers hear it as a description (aria-describedby), not as the name.
+function BookingField({ id, label, error, children }) {
+  return (
+    <div className="booking-modal__field">
+      <label htmlFor={id}>{label}</label>
+      {children}
+      {error && (
+        <p id={`${id}-error`} className="booking-modal__field-error">
+          {error}
+        </p>
+      )}
+    </div>
+  )
+}
 
 // Accessible name for a calendar day: "martes 14 de octubre de 2026", plus
 // ", no disponible" when isUnavailable (past or closed days). The visible text
@@ -131,6 +202,9 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
   const [isConfirmed, setIsConfirmed] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+  // Unexpected failures add a "write us on WhatsApp" link to the message.
+  const [showWhatsApp, setShowWhatsApp] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState({})
   const [busySlots, setBusySlots] = useState([])
 
   useEffect(() => {
@@ -163,6 +237,7 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
 
   const dialogRef = useRef(null)
   const panelRef = useRef(null)
+  const documentInputRef = useRef(null)
   const returnFocusRef = useRef(null)
   // Latest onClose for the document-level Escape listener, which is
   // registered once per opening.
@@ -282,18 +357,47 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
     setStep(3)
   }
 
+  // Editing a field clears its error.
+  const clearFieldError = (field) => {
+    setFieldErrors((prev) => {
+      if (!prev[field]) return prev
+      const next = { ...prev }
+      delete next[field]
+      return next
+    })
+  }
+
   const handleFormChange = (event) => {
     const { name, value } = event.target
     const nextValue = FIELD_FORMATTERS[name]?.(value) ?? value
     setFormData((prev) => ({ ...prev, [name]: nextValue }))
+    clearFieldError(name)
+  }
+
+  const handleDocumentChange = (nextDocument) => {
+    setFormData((prev) => ({ ...prev, ...nextDocument }))
+    clearFieldError('documento')
+  }
+
+  // aria attributes of a control whose error is shown below it.
+  const errorProps = (field) =>
+    fieldErrors[field]
+      ? { 'aria-invalid': true, 'aria-describedby': `${FIELD_IDS[field]}-error` }
+      : {}
+
+  const showGeneralError = (message, withWhatsApp = false) => {
+    setErrorMessage(message)
+    setShowWhatsApp(withWhatsApp)
   }
 
   const handleSubmit = async (event) => {
     event.preventDefault()
-    setErrorMessage('')
+    showGeneralError('')
 
-    if (!validarRut(formData.rut)) {
-      setErrorMessage('El RUT ingresado no es válido')
+    const documentError = validateDocument(formData.documentType, formData.documentNumber)
+    if (documentError) {
+      setFieldErrors((prev) => ({ ...prev, documento: documentError }))
+      documentInputRef.current?.focus()
       return
     }
 
@@ -303,7 +407,8 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
 
     const payload = {
       patient_name: formData.nombre,
-      rut: formData.rut,
+      document_type: formData.documentType,
+      document_number: formData.documentNumber,
       phone: formData.telefono,
       email: formData.email,
       service_type: formData.motivo,
@@ -319,26 +424,31 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
       })
 
       if (response.status === 201) {
+        setFieldErrors({})
         setIsConfirmed(true)
       } else if (response.status === 429) {
         // Backend rate limit: max 5 reservas por minuto.
-        setErrorMessage(
+        showGeneralError(
           'Has realizado demasiados intentos. Por favor, espera un momento antes de volver a intentarlo.',
         )
       } else {
-        let detail = ''
-        try {
-          detail = JSON.stringify(await response.json())
-        } catch {
-          // response body was not JSON
+        // A 400 explains itself, already in Spanish: each message goes next to
+        // its field, the rest (e.g. the 2-appointment limit) above the button.
+        const data = response.status === 400 ? await response.json().catch(() => null) : null
+        const { fields, general } = splitServerErrors(data)
+        if (!Object.keys(fields).length && !general.length) {
+          showGeneralError(UNEXPECTED_ERROR, true)
+          return
         }
-        setErrorMessage(
-          `No pudimos agendar tu hora (error ${response.status}). ${detail}`.trim(),
-        )
+        setFieldErrors(fields)
+        showGeneralError(general.join(' '))
+        const firstField = Object.keys(FIELD_IDS).find((field) => fields[field])
+        if (firstField) document.getElementById(FIELD_IDS[firstField])?.focus()
       }
     } catch {
-      setErrorMessage(
-        'No se pudo conectar con el servidor. Verifica tu conexión e inténtalo nuevamente.',
+      showGeneralError(
+        'No se pudo conectar con el servidor. Verifica tu conexión e inténtalo nuevamente, o escríbenos por WhatsApp.',
+        true,
       )
     } finally {
       setIsLoading(false)
@@ -350,6 +460,8 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
     setSelectedDay(null)
     setSelectedTime(null)
     setFormData(INITIAL_FORM)
+    setFieldErrors({})
+    showGeneralError('')
     setIsConfirmed(false)
   }
 
@@ -615,61 +727,64 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
                   {selectedDay} de {monthLabel} · {selectedTime}
                 </p>
 
-                <label className="booking-modal__field">
-                  Nombre completo
+                <BookingField id={FIELD_IDS.nombre} label="Nombre completo" error={fieldErrors.nombre}>
                   <input
+                    id={FIELD_IDS.nombre}
                     type="text"
                     name="nombre"
                     value={formData.nombre}
                     onChange={handleFormChange}
                     placeholder="Ej: María Pérez"
                     required
+                    {...errorProps('nombre')}
                   />
-                </label>
+                </BookingField>
 
-                <label className="booking-modal__field">
-                  RUT
-                  <input
-                    type="text"
-                    name="rut"
-                    value={formData.rut}
-                    onChange={handleFormChange}
-                    placeholder="Ej: 12.345.678-9"
-                    required
-                  />
-                </label>
+                <DocumentField
+                  ref={documentInputRef}
+                  id={FIELD_IDS.documento}
+                  className="booking-modal__field"
+                  documentType={formData.documentType}
+                  documentNumber={formData.documentNumber}
+                  onChange={handleDocumentChange}
+                  error={fieldErrors.documento}
+                  required
+                />
 
-                <label className="booking-modal__field">
-                  Teléfono
+                <BookingField id={FIELD_IDS.telefono} label="Teléfono" error={fieldErrors.telefono}>
                   <input
+                    id={FIELD_IDS.telefono}
                     type="tel"
                     name="telefono"
                     value={formData.telefono}
                     onChange={handleFormChange}
                     placeholder="Ej: +56 9 1234 5678"
                     required
+                    {...errorProps('telefono')}
                   />
-                </label>
+                </BookingField>
 
-                <label className="booking-modal__field">
-                  Correo electrónico
+                <BookingField id={FIELD_IDS.email} label="Correo electrónico" error={fieldErrors.email}>
                   <input
+                    id={FIELD_IDS.email}
                     type="email"
                     name="email"
                     value={formData.email}
                     onChange={handleFormChange}
                     placeholder="Ej: maria@correo.com"
                     required
+                    {...errorProps('email')}
                   />
-                </label>
+                </BookingField>
 
-                <label className="booking-modal__field">
-                  Motivo de consulta
+                <BookingField id={FIELD_IDS.motivo} label="Motivo de consulta" error={fieldErrors.motivo}>
                   <select
+                    id={FIELD_IDS.motivo}
                     name="motivo"
                     value={formData.motivo}
                     onChange={handleFormChange}
                     required
+                    {...errorProps('motivo')}
                   >
                     <option value="" disabled>
                       Selecciona un servicio…
@@ -680,11 +795,24 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
                       </option>
                     ))}
                   </select>
-                </label>
+                </BookingField>
 
                 {errorMessage && (
                   <p className="booking-modal__error" role="alert">
                     {errorMessage}
+                    {showWhatsApp && (
+                      <>
+                        {' '}
+                        <a
+                          className="booking-modal__error-link"
+                          href={WHATSAPP_URL}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          Escribir por WhatsApp
+                        </a>
+                      </>
+                    )}
                   </p>
                 )}
 

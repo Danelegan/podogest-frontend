@@ -1,0 +1,73 @@
+/* Campo "Documento": [RUT ▾] + número. La etiqueta y el input del número
+   toman el estilo del campo del formulario que lo usa (className); aquí solo
+   va la fila, el selector de tipo, la ayuda y el error. Tokens de :root. */
+
+.document-field__row {
+  display: flex;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+/* Doble clase: gana a ".booking-modal__field select" sin depender del orden. */
+.document-field .document-field__type {
+  flex: 0 0 auto;
+  width: auto;
+  min-height: var(--control-height);
+  padding: 0 2rem 0 var(--space-3);
+  border: 1px solid var(--color-border-input);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface);
+  /* Chevrón en --color-text-muted (#5a6577): var() no funciona dentro de un data-URI. */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='none' stroke='%235a6577' stroke-width='1.5' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--space-3) center;
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: 16px; /* iOS no hace zoom al enfocar */
+  font-weight: 400;
+  letter-spacing: normal;
+  appearance: none;
+  cursor: pointer;
+  transition: border-color var(--duration) var(--ease);
+}
+
+.document-field .document-field__type:hover {
+  border-color: var(--color-text-muted);
+}
+
+.document-field .document-field__type:focus {
+  border-color: var(--color-primary);
+}
+
+.document-field .document-field__type:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.document-field .document-field__number {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Después de hover/focus: el número inválido sigue marcado mientras se edita. */
+.document-field .document-field__number[aria-invalid='true'] {
+  border-color: var(--color-danger);
+}
+
+.document-field__hint,
+.document-field__error {
+  margin: 0;
+  font-size: var(--text-sm);
+  letter-spacing: normal;
+  line-height: 1.4;
+}
+
+.document-field__hint {
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.document-field__error {
+  font-weight: 500;
+  color: var(--color-danger);
+}

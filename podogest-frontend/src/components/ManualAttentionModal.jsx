@@ -1,17 +1,29 @@
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, MotionConfig, motion } from 'framer-motion'
 import { Save, X } from 'lucide-react'
-import { formatRUT, validarRut } from '../utils/rutValidation'
+import { DEFAULT_DOCUMENT_TYPE, validateDocument } from '../utils/documentValidation'
 import API_BASE_URL from '../config/api'
 import { authFetch, SESSION_EXPIRED_UNSAVED_MESSAGE } from '../utils/auth'
 import { clinicNow, formatDateString, shiftYears } from '../utils/clinicDate'
+import DocumentField from './DocumentField'
 import './ManualAttentionModal.css'
 
 const API_URL = `${API_BASE_URL}/api/appointments/atencion-espontanea/`
 
-const EMPTY_FORM = { nombre: '', rut: '', email: '', telefono: '', fecha: '', hora: '' }
-// Date and time start as "now"; they only count as unsaved once edited.
-const PATIENT_FIELDS = ['nombre', 'rut', 'email', 'telefono']
+const EMPTY_FORM = {
+  nombre: '',
+  documentType: DEFAULT_DOCUMENT_TYPE,
+  documentNumber: '',
+  email: '',
+  telefono: '',
+  fecha: '',
+  hora: '',
+}
+// Date and time start as "now"; they only count as unsaved once edited. The
+// document type alone (without a number) is not data yet.
+const PATIENT_FIELDS = ['nombre', 'documentNumber', 'email', 'telefono']
+// Backend errors shown on the document field instead of the footer.
+const DOCUMENT_ERROR_KEYS = ['document_type', 'document_number', 'rut']
 const DATE_FIELDS = ['fecha', 'hora']
 
 // Range accepted by the backend: up to 2 years back and 1 year ahead.
@@ -29,12 +41,23 @@ const FOCUSABLE =
 // Name: letters (accents and ñ included), spaces, apostrophes and hyphens.
 const formatName = (value) => value.replace(/[^\p{L}\s'’-]/gu, '')
 
-const FIELD_FORMATTERS = { nombre: formatName, rut: formatRUT }
+const FIELD_FORMATTERS = { nombre: formatName }
 
 // DRF returns { field: ["msg"] } or { non_field_errors: ["msg"] }; flatten it.
 function describeErrors(data) {
   if (!data || typeof data !== 'object') return ''
   return Object.values(data).flat().join(' ')
+}
+
+// { document_number: [...], phone: [...] } -> { document: {...}, rest: {...} }.
+function splitDocumentErrors(data) {
+  const documentPart = {}
+  const rest = {}
+  for (const [key, value] of Object.entries(data)) {
+    if (DOCUMENT_ERROR_KEYS.includes(key)) documentPart[key] = value
+    else rest[key] = value
+  }
+  return { document: documentPart, rest }
 }
 
 // Walk-in patient: the backend creates the appointment (by default today, at
@@ -46,11 +69,13 @@ function ManualAttentionModal({ isOpen, onClose, onCreated, onSessionExpired }) 
   const [isDateTouched, setIsDateTouched] = useState(false)
   const [wasOpen, setWasOpen] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+  const [documentError, setDocumentError] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   // Blocks a second submit that arrives before the re-render disables Guardar.
   const isSubmittingRef = useRef(false)
   const dialogRef = useRef(null)
   const nameInputRef = useRef(null)
+  const documentInputRef = useRef(null)
   const returnFocusRef = useRef(null)
   // Latest handlers for the document-level listeners (Escape fallback,
   // beforeunload), which are registered once per opening.
@@ -116,6 +141,7 @@ function ManualAttentionModal({ isOpen, onClose, onCreated, onSessionExpired }) 
       const now = clinicNow()
       setFormData((prev) => ({ ...prev, fecha: now.date, hora: now.time }))
       setIsDateTouched(false)
+      setDocumentError('')
     }
   }
 
@@ -170,15 +196,23 @@ function ManualAttentionModal({ isOpen, onClose, onCreated, onSessionExpired }) 
     setFormData((prev) => ({ ...prev, [name]: nextValue }))
   }
 
+  const handleDocumentChange = (nextDocument) => {
+    setFormData((prev) => ({ ...prev, ...nextDocument }))
+    setDocumentError('')
+  }
+
   const handleSubmit = async (event) => {
     event.preventDefault()
     if (isSubmittingRef.current) return
     setErrorMessage('')
 
-    if (!validarRut(formData.rut)) {
-      setErrorMessage('El RUT ingresado no es válido.')
+    const localDocumentError = validateDocument(formData.documentType, formData.documentNumber)
+    if (localDocumentError) {
+      setDocumentError(localDocumentError)
+      documentInputRef.current?.focus()
       return
     }
+    setDocumentError('')
 
     isSubmittingRef.current = true
     setIsSaving(true)
@@ -192,7 +226,8 @@ function ManualAttentionModal({ isOpen, onClose, onCreated, onSessionExpired }) 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           patient_name: formData.nombre.trim(),
-          rut: formData.rut,
+          document_type: formData.documentType,
+          document_number: formData.documentNumber,
           email: formData.email.trim(),
           phone: formData.telefono.trim(),
           appointment_date: formData.fecha,
@@ -212,6 +247,17 @@ function ManualAttentionModal({ isOpen, onClose, onCreated, onSessionExpired }) 
 
       if (response.status !== 201) {
         // A 400 explains itself (time clash, date out of range): shown as is.
+        // Document errors go next to the document field.
+        if (response.status === 400 && data && typeof data === 'object' && !Array.isArray(data)) {
+          const { document: documentErrors, rest } = splitDocumentErrors(data)
+          const documentDetail = describeErrors(documentErrors)
+          if (documentDetail) {
+            setDocumentError(documentDetail)
+            documentInputRef.current?.focus()
+            setErrorMessage(describeErrors(rest))
+            return
+          }
+        }
         const detail = describeErrors(data)
         setErrorMessage(
           response.status === 400 && detail
@@ -222,6 +268,7 @@ function ManualAttentionModal({ isOpen, onClose, onCreated, onSessionExpired }) 
       }
 
       setFormData(EMPTY_FORM)
+      setDocumentError('')
       setIsDateTouched(false)
       onCreated(data.appointment)
     } catch {
@@ -305,17 +352,16 @@ function ManualAttentionModal({ isOpen, onClose, onCreated, onSessionExpired }) 
                   />
                 </label>
 
-                <label className="manual-modal__field">
-                  RUT
-                  <input
-                    name="rut"
-                    value={formData.rut}
-                    onChange={handleChange}
-                    placeholder="12.345.678-9"
-                    autoComplete="off"
-                    required
-                  />
-                </label>
+                <DocumentField
+                  ref={documentInputRef}
+                  id="manual-documento"
+                  className="manual-modal__field"
+                  documentType={formData.documentType}
+                  documentNumber={formData.documentNumber}
+                  onChange={handleDocumentChange}
+                  error={documentError}
+                  required
+                />
 
                 <label className="manual-modal__field">
                   <span>
