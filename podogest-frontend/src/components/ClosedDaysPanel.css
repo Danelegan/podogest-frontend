@@ -1,0 +1,385 @@
+/* Pestaña "Días cerrados" del panel. Tokens de :root (index.css); misma
+   tarjeta que "Ganancias" (EarningsCard.css). */
+
+.closed-days {
+  max-width: var(--panel-width);
+  margin: 0 auto;
+  padding: var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-md);
+}
+
+.closed-days__title {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: normal;
+  color: var(--color-text);
+}
+
+.closed-days__intro,
+.closed-days__hint {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+.closed-days__quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+
+/* ---------- Botones ---------- */
+
+.closed-days__btn {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--control-height);
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-border-input);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color var(--duration) var(--ease), background-color var(--duration) var(--ease);
+}
+
+.closed-days__btn:hover:not(:disabled) {
+  border-color: var(--color-text-muted);
+  background: var(--color-surface-hover);
+}
+
+.closed-days__btn--primary {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+.closed-days__btn--primary:hover:not(:disabled) {
+  border-color: var(--color-primary-strong);
+  background: var(--color-primary-strong);
+}
+
+/* Ya cerrado o esperando respuesta: legible (el texto dice por qué). */
+.closed-days__btn:disabled {
+  border-color: var(--color-border-input);
+  background: var(--color-bg);
+  color: var(--color-text-muted); /* ≈ 5.4:1 */
+  cursor: not-allowed;
+}
+
+.closed-days__btn--whatsapp {
+  border-color: var(--color-success);
+  background: var(--color-success);
+  color: var(--color-on-primary); /* 5.02:1 */
+}
+
+.closed-days__btn--whatsapp:hover {
+  border-color: var(--color-success-strong);
+  background: var(--color-success-strong);
+}
+
+.closed-days a:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* ---------- Cerrar otro día ---------- */
+
+.closed-days__form {
+  margin-bottom: var(--space-5);
+}
+
+.closed-days__fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+}
+
+.closed-days__legend {
+  padding: 0 var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.closed-days__fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+
+.closed-days__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.closed-days__field--grow {
+  flex: 1 1 14rem;
+}
+
+.closed-days__optional {
+  font-weight: 400;
+}
+
+.closed-days__field input {
+  width: 100%;
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border-input);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: 16px; /* iOS no hace zoom al enfocar */
+  font-weight: 400;
+}
+
+.closed-days__field input::placeholder {
+  color: var(--color-placeholder);
+}
+
+.closed-days__field input:focus {
+  border-color: var(--color-primary);
+}
+
+.closed-days__field input[aria-invalid='true'] {
+  border-color: var(--color-danger);
+}
+
+.closed-days__field-error {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--color-danger);
+}
+
+/* ---------- Resultado y pacientes por avisar ---------- */
+
+.closed-days__result {
+  margin-bottom: var(--space-5);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid transparent;
+  border-left-width: 4px;
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+}
+
+.closed-days__result:focus {
+  outline: none;
+}
+
+.closed-days__result:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.closed-days__result--ok {
+  border-color: var(--color-success-border);
+  border-left-color: var(--color-success-brand);
+  background: var(--color-success-soft);
+  color: var(--color-text);
+}
+
+.closed-days__result--error {
+  border-color: var(--color-danger-border);
+  border-left-color: var(--color-danger);
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+.closed-days__result-text {
+  margin: 0;
+  font-weight: 600;
+}
+
+.closed-days__notify-title {
+  margin: var(--space-3) 0 var(--space-2);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.closed-days__notify {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.closed-days__notify-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.closed-days__notify-who {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-2);
+  min-width: 0;
+  font-size: var(--text-base);
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+.closed-days__notify-phone,
+.closed-days__notify-nolink {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+/* ---------- Lista de días ---------- */
+
+.closed-days__subtitle {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.closed-days__list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--color-border);
+}
+
+.closed-days__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.closed-days__item-text {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
+.closed-days__item-date {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.closed-days__item-reason {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.closed-days__tag {
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
+.closed-days__tag--holiday {
+  background: var(--color-primary-soft);
+  color: var(--color-primary-strong); /* 5.92:1 */
+}
+
+/* Feriado reabierto: se atiende ese día. */
+.closed-days__item.is-open .closed-days__tag {
+  background: var(--color-success-soft);
+  color: var(--color-success-strong); /* ≈ 6:1 */
+}
+
+.closed-days__tag--manual {
+  background: var(--color-warning-soft);
+  color: var(--color-warning); /* 6.5:1 */
+}
+
+.closed-days__message {
+  margin: var(--space-3) 0 0;
+  color: var(--color-text-muted);
+}
+
+.closed-days__load-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-danger-border);
+  border-left: 4px solid var(--color-danger);
+  border-radius: var(--radius-md);
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+  font-size: var(--text-sm);
+}
+
+.closed-days__load-error p {
+  flex: 1 1 14rem;
+  margin: 0;
+}
+
+/* ---------- Móvil ---------- */
+
+@media (max-width: 720px) {
+  .closed-days {
+    padding: var(--space-4);
+  }
+
+  .closed-days__quick .closed-days__btn,
+  .closed-days__fields .closed-days__btn,
+  .closed-days__field {
+    flex: 1 1 100%;
+  }
+
+  .closed-days__item .closed-days__btn,
+  .closed-days__notify-item .closed-days__btn {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .closed-days * {
+    transition-duration: 0.01ms !important;
+  }
+}

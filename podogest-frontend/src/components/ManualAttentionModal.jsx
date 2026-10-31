@@ -6,6 +6,8 @@ import API_BASE_URL from '../config/api'
 import { authFetch, SESSION_EXPIRED_UNSAVED_MESSAGE } from '../utils/auth'
 import { clinicNow, formatDateString, shiftYears } from '../utils/clinicDate'
 import DocumentField from './DocumentField'
+import { useClosedDays } from '../utils/closedDays'
+import { isClosedDay, monthOf, parseDate } from '../utils/schedule'
 import './ManualAttentionModal.css'
 
 const API_URL = `${API_BASE_URL}/api/appointments/atencion-espontanea/`
@@ -285,6 +287,22 @@ function ManualAttentionModal({ isOpen, onClose, onCreated, onSessionExpired }) 
   const today = clinicNow().date
   const isOtherDay = formData.fecha !== '' && formData.fecha !== today
 
+  // A walk-in can be registered on a closed day (the backend allows it); the
+  // notice only makes sure it is on purpose.
+  const hasValidDate = /^\d{4}-\d{2}-\d{2}$/.test(formData.fecha)
+  const closedDays = useClosedDays(isOpen && hasValidDate ? monthOf(formData.fecha) : null)
+  const closedNotice = (() => {
+    if (!hasValidDate) return ''
+    const { year, monthIndex, day } = parseDate(formData.fecha)
+    if (isClosedDay(year, monthIndex, day)) return 'Ese día es domingo: la clínica está cerrada.'
+    if (!(formData.fecha in closedDays)) return ''
+    const reason = closedDays[formData.fecha]
+    return `Ese día está marcado como cerrado${reason ? ` (${reason})` : ''}.`
+  })()
+  const fechaHints = [isOtherDay && 'manual-fecha-hint', closedNotice && 'manual-fecha-closed']
+    .filter(Boolean)
+    .join(' ')
+
   return (
     <MotionConfig reducedMotion="user">
       <AnimatePresence>
@@ -404,7 +422,7 @@ function ManualAttentionModal({ isOpen, onClose, onCreated, onSessionExpired }) 
                         min={shiftYears(today, -YEARS_BACK)}
                         max={shiftYears(today, YEARS_AHEAD)}
                         autoComplete="off"
-                        aria-describedby={isOtherDay ? 'manual-fecha-hint' : undefined}
+                        aria-describedby={fechaHints || undefined}
                         required
                       />
                     </div>
@@ -424,6 +442,9 @@ function ManualAttentionModal({ isOpen, onClose, onCreated, onSessionExpired }) 
                   </div>
                   <p id="manual-fecha-hint" className="manual-modal__hint" aria-live="polite">
                     {isOtherDay && `Se registrará como atención del ${formatDateString(formData.fecha)}.`}
+                  </p>
+                  <p id="manual-fecha-closed" className="manual-modal__closed" aria-live="polite">
+                    {closedNotice && `${closedNotice} Puedes registrar la atención igual.`}
                   </p>
                 </div>
               </div>

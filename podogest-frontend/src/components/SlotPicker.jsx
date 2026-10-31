@@ -6,16 +6,19 @@ import {
   dayAccessibleLabel,
   formatDate,
   formatMonthLabel,
+  formatWeekdayDate,
   isClosedDay,
   monthKey,
   monthOf,
   addMonths,
   slotsForDate,
 } from '../utils/schedule'
+import { spokenClosedReason, useClosedDays } from '../utils/closedDays'
 import './SlotPicker.css'
 
 // Month grid with previous/next month buttons. Days before `today`, after
-// `maxDate` and Sundays are disabled. `month` is controlled by the parent.
+// `maxDate`, Sundays and closed days (holidays, closed from the panel; read
+// here per visible month) are disabled. `month` is controlled by the parent.
 export function MonthCalendar({
   month,
   onMonthChange,
@@ -32,6 +35,11 @@ export function MonthCalendar({
   const canGoBack = !minMonth || key > monthKey(minMonth)
   const canGoForward = !maxMonth || key < monthKey(maxMonth)
   const monthLabel = formatMonthLabel(year, monthIndex)
+  const closedDays = useClosedDays(month)
+  // Closed days still ahead in this month, listed under the grid with their reason.
+  const upcomingClosed = Object.entries(closedDays)
+    .filter(([date]) => date >= today && (maxDate === '' || date <= maxDate))
+    .sort(([a], [b]) => a.localeCompare(b))
 
   return (
     <div className="slot-picker__calendar">
@@ -71,8 +79,13 @@ export function MonthCalendar({
             return <span key={`empty-${index}`} className="slot-picker__day is-empty" aria-hidden="true" />
           }
           const date = formatDate(year, monthIndex, day)
+          const closedReason = date >= today && date in closedDays ? closedDays[date] : undefined
+          const isClosed = closedReason !== undefined
           const isUnavailable =
-            date < today || (maxDate !== '' && date > maxDate) || isClosedDay(year, monthIndex, day)
+            isClosed ||
+            date < today ||
+            (maxDate !== '' && date > maxDate) ||
+            isClosedDay(year, monthIndex, day)
           const isToday = date === today
           const isSelected = date === selectedDate
 
@@ -80,10 +93,17 @@ export function MonthCalendar({
             <button
               type="button"
               key={date}
-              className={`slot-picker__day ${isUnavailable ? 'is-disabled' : ''} ${isToday ? 'is-today' : ''
-                } ${isSelected ? 'is-selected' : ''}`}
+              className={`slot-picker__day ${isUnavailable ? 'is-disabled' : ''} ${isClosed ? 'is-closed' : ''
+                } ${isToday ? 'is-today' : ''} ${isSelected ? 'is-selected' : ''}`}
               disabled={isUnavailable}
-              aria-label={dayAccessibleLabel(year, monthIndex, day, isUnavailable)}
+              aria-label={dayAccessibleLabel(
+                year,
+                monthIndex,
+                day,
+                isUnavailable,
+                isClosed ? spokenClosedReason(closedReason) : undefined,
+              )}
+              title={isClosed ? closedReason || 'Cerrado' : undefined}
               aria-current={isToday ? 'date' : undefined}
               aria-pressed={isSelected}
               onClick={() => onSelectDate(date)}
@@ -93,6 +113,17 @@ export function MonthCalendar({
           )
         })}
       </div>
+      {/* Already in each day's name; shown here for sighted users. */}
+      {upcomingClosed.length > 0 && (
+        <ul className="slot-picker__closed" aria-hidden="true">
+          {upcomingClosed.map(([date, reason]) => (
+            <li key={date}>
+              <span className="slot-picker__closed-date">{formatWeekdayDate(date)}:</span>{' '}
+              {reason || 'Cerrado'}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   )
 }

@@ -123,6 +123,30 @@
   cursor: not-allowed;
 }
 
+/* Feriado o cerrado desde el panel: además tachado (el motivo va debajo). */
+.slot-picker__day.is-closed {
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+.slot-picker__closed {
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+.slot-picker__closed-date {
+  display: inline-block; /* ::first-letter solo actúa en bloques */
+  font-weight: 600;
+}
+
+.slot-picker__closed-date::first-letter {
+  text-transform: uppercase;
+}
+
 /* Celdas antes del día 1. */
 .slot-picker__day.is-empty {
   visibility: hidden;

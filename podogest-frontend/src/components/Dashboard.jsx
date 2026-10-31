@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ChevronDown, Home, LogOut, Trash2, UserPlus, X } from 'lucide-react'
 import ClinicalRecordModal from './ClinicalRecordModal'
 import DailyAgenda, { StatusBadge } from './DailyAgenda'
+import ClosedDaysPanel from './ClosedDaysPanel'
 import EarningsCard from './EarningsCard'
 import ManualAttentionModal from './ManualAttentionModal'
 import API_BASE_URL from '../config/api'
@@ -502,7 +503,18 @@ function Dashboard() {
         >
           Todas las Citas
         </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'cerrados'}
+          className={`dashboard__tab ${activeTab === 'cerrados' ? 'dashboard__tab--active' : ''}`}
+          onClick={() => setActiveTab('cerrados')}
+        >
+          Días cerrados
+        </button>
       </div>
+
+      {activeTab === 'cerrados' && <ClosedDaysPanel onSessionExpired={handleSessionExpired} />}
 
       {activeTab === 'agenda' &&
         (isLoading ? (

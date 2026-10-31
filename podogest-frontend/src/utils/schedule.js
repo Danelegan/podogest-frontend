@@ -40,6 +40,13 @@ export const parseDate = (dateString) => {
   return { year, monthIndex: month - 1, day }
 }
 
+// "2026-10-31" + 1 -> "2026-11-01" (calendar days, no time zone involved).
+export const addDays = (dateString, count) => {
+  const { year, monthIndex, day } = parseDate(dateString)
+  const date = new Date(year, monthIndex, day + count)
+  return formatDate(date.getFullYear(), date.getMonth(), date.getDate())
+}
+
 // Local Date built from the parts, only for weekday and month names (the
 // string is a Chile date; no time zone conversion happens).
 const toLocalDate = (dateString) => {
@@ -95,10 +102,11 @@ export function buildMonthGrid(year, monthIndex) {
 }
 
 // Accessible name for a calendar day: "martes 14 de octubre de 2026", plus
-// ", no disponible" when isUnavailable (past or closed days). The visible text
-// stays the number. es-CL writes "martes, 14 de…"; only the comma right after
-// the weekday is dropped.
-export function dayAccessibleLabel(year, monthIndex, day, isUnavailable) {
+// ", no disponible" when isUnavailable (past days, Sundays) or ", cerrado: …"
+// when closedReason is a string (holiday or closed from the panel; '' without
+// a reason). The visible text stays the number. es-CL writes "martes, 14 de…";
+// only the comma right after the weekday is dropped.
+export function dayAccessibleLabel(year, monthIndex, day, isUnavailable, closedReason) {
   const label = new Date(year, monthIndex, day)
     .toLocaleDateString('es-CL', {
       weekday: 'long',
@@ -107,6 +115,9 @@ export function dayAccessibleLabel(year, monthIndex, day, isUnavailable) {
       year: 'numeric',
     })
     .replace(/^(\p{L}+),/u, '$1')
+  if (typeof closedReason === 'string') {
+    return closedReason ? `${label}, cerrado: ${closedReason}` : `${label}, cerrado`
+  }
   return isUnavailable ? `${label}, no disponible` : label
 }
 
