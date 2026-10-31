@@ -700,6 +700,7 @@ function ClinicalRecordModal({
   onClose,
   onSessionExpired,
   onControlChanged,
+  onSaved,
   appointmentId,
   appointment,
 }) {
@@ -1566,6 +1567,7 @@ function ClinicalRecordModal({
         setMigrationPending(saved.migracion_pendiente ?? '')
         setShowErrorSummary(false)
         setSuccessMessage('Ficha guardada correctamente.')
+        onSaved?.()
       } else {
         showSaveErrors(response.status, errorBody)
       }

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ChevronDown, Home, LogOut, Trash2, UserPlus, X } from 'lucide-react'
 import ClinicalRecordModal from './ClinicalRecordModal'
 import DailyAgenda, { StatusBadge } from './DailyAgenda'
+import EarningsCard from './EarningsCard'
 import ManualAttentionModal from './ManualAttentionModal'
 import API_BASE_URL from '../config/api'
 import { authFetch, getAccessToken, logout, SESSION_EXPIRED_MESSAGE } from '../utils/auth'
@@ -177,6 +178,11 @@ function Dashboard() {
     navigate('/login')
   }
 
+  // Bumped whenever payments or appointments may have changed: the
+  // "Ganancias" card reloads its summary.
+  const [earningsKey, setEarningsKey] = useState(0)
+  const refreshEarnings = () => setEarningsKey((key) => key + 1)
+
   const handleSessionExpired = () => {
     navigate('/login', { replace: true, state: { notice: SESSION_EXPIRED_MESSAGE } })
   }
@@ -213,6 +219,7 @@ function Dashboard() {
         : '',
     )
     setAppointments((prev) => [appointment, ...prev])
+    refreshEarnings()
     setSearchTerm('')
     setSearchOpen({})
     setIsManualModalOpen(false)
@@ -226,6 +233,7 @@ function Dashboard() {
         ? prev.map((item) => (item.id === changed.id ? changed : item))
         : [changed, ...prev],
     )
+    refreshEarnings()
   }
 
   // Fetches the CSV with the JWT (a plain <a href> can't send it) and triggers
@@ -298,6 +306,7 @@ function Dashboard() {
       }
 
       setAppointments((prev) => prev.filter((item) => item.id !== appointment.id))
+      refreshEarnings()
     } catch {
       window.alert('No se pudo conectar con el servidor.')
     } finally {
@@ -471,6 +480,8 @@ function Dashboard() {
           </div>
         )}
       </div>
+
+      <EarningsCard refreshKey={earningsKey} />
 
       <div className="dashboard__tabs" role="tablist" aria-label="Secciones del panel">
         <button
@@ -729,6 +740,7 @@ function Dashboard() {
         onClose={closeRecord}
         onSessionExpired={handleSessionExpired}
         onControlChanged={handleControlChanged}
+        onSaved={refreshEarnings}
         appointmentId={selectedAppointment?.id}
         appointment={selectedAppointment}
       />
