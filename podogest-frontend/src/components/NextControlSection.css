@@ -1,0 +1,64 @@
+/* Próximo control (ficha). Botones y mensajes: .clinical-btn y .clinical-message
+   de ClinicalRecordModal.css; calendario y horas: SlotPicker.css. */
+
+.next-control {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.next-control__actions,
+.next-control__booked {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.next-control__summary,
+.next-control__booked-text {
+  flex: 1 1 16rem;
+  margin: 0;
+  font-size: var(--text-base);
+  line-height: 1.5;
+  color: var(--color-text);
+}
+
+.next-control__booked-text {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.next-control__booked-text strong {
+  font-weight: 600;
+}
+
+/* Disabled while idle (no saved record or no hour yet): its text says why,
+   so it stays readable (≈ 5.4:1) instead of the faded progress state. */
+.next-control__schedule.is-idle:disabled {
+  border-color: var(--color-border-input);
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  box-shadow: none;
+  opacity: 1;
+  cursor: not-allowed;
+}
+
+.next-control__message:focus {
+  outline: none;
+}
+
+.next-control__message:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+@media (max-width: 440px) {
+  .next-control__actions .clinical-btn,
+  .next-control__booked .clinical-btn {
+    width: 100%;
+  }
+}

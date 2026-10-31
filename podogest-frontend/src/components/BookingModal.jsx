@@ -4,47 +4,21 @@ import { DEFAULT_DOCUMENT_TYPE, validateDocument } from '../utils/documentValida
 import { servicesData, specialtiesData } from '../data/services'
 import API_BASE_URL from '../config/api'
 import DocumentField from './DocumentField'
+import { MonthCalendar, TimeSlotGrid } from './SlotPicker'
+import { clinicNow } from '../utils/clinicDate'
+import {
+  addMonths,
+  formatDayMonth,
+  isExactSlotBusy,
+  isSlotPast,
+  monthOf,
+  parseBusySlots,
+  slotsForDate,
+} from '../utils/schedule'
 import './BookingModal.css'
 
-const WEEKDAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
-
-// Opening hours by weekday (Date#getDay: 0 = Sunday), in minutes from midnight.
-// Sunday is closed. Every appointment lasts SLOT_MINUTES and must finish by the
-// closing time.
-const SLOT_MINUTES = 90
-
-const BUSINESS_HOURS = {
-  weekday: { open: 10 * 60, close: 19 * 60 }, // Mon-Fri 10:00-19:00
-  saturday: { open: 9 * 60, close: 14 * 60 }, // Sat 09:00-14:00
-}
-
-const getHoursForDay = (dayOfWeek) => {
-  if (dayOfWeek === 0) return null
-  return dayOfWeek === 6 ? BUSINESS_HOURS.saturday : BUSINESS_HOURS.weekday
-}
-
-const formatMinutes = (totalMinutes) =>
-  `${String(Math.floor(totalMinutes / 60)).padStart(2, '0')}:${String(
-    totalMinutes % 60,
-  ).padStart(2, '0')}`
-
-const isClosedDay = (year, month, day) =>
-  getHoursForDay(new Date(year, month, day).getDay()) === null
-
-function generateTimeSlots(year, month, day) {
-  const hours = getHoursForDay(new Date(year, month, day).getDay())
-  if (!hours) return []
-
-  const slots = []
-  for (
-    let start = hours.open;
-    start + SLOT_MINUTES <= hours.close;
-    start += SLOT_MINUTES
-  ) {
-    slots.push(formatMinutes(start))
-  }
-  return slots
-}
+// The calendar can move this many months past the current one.
+const MONTHS_AHEAD = 2
 
 const SERVICE_OPTIONS = [
   ...servicesData.map((service) => service.title),
@@ -60,9 +34,6 @@ const BUSY_SLOTS_URL = `${API_BASE_URL}/api/appointments/horarios-ocupados/`
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), ' +
   'textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-
-const formatDate = (year, monthIndex, day) =>
-  `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 
 const INITIAL_FORM = {
   nombre: '',
@@ -154,46 +125,16 @@ function BookingField({ id, label, error, children }) {
   )
 }
 
-// Accessible name for a calendar day: "martes 14 de octubre de 2026", plus
-// ", no disponible" when isUnavailable (past or closed days). The visible text
-// stays the number. es-CL writes "martes, 14 de…"; only the comma right after
-// the weekday is dropped.
-function dayAccessibleLabel(year, monthIndex, day, isUnavailable) {
-  const label = new Date(year, monthIndex, day)
-    .toLocaleDateString('es-CL', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    })
-    .replace(/^(\p{L}+),/u, '$1')
-  return isUnavailable ? `${label}, no disponible` : label
-}
-
-function buildMonthGrid(referenceDate) {
-  const year = referenceDate.getFullYear()
-  const month = referenceDate.getMonth()
-  const daysInMonth = new Date(year, month + 1, 0).getDate()
-  const firstWeekday = (new Date(year, month, 1).getDay() + 6) % 7 // Monday = 0
-
-  const cells = Array.from({ length: firstWeekday }, () => null)
-  for (let day = 1; day <= daysInMonth; day += 1) {
-    cells.push(day)
-  }
-
-  return cells
-}
-
 function BookingModal({ isOpen, onClose, initialService = '' }) {
-  const today = new Date()
-  const monthLabel = today.toLocaleDateString('es-ES', {
-    month: 'long',
-    year: 'numeric',
-  })
-  const monthCells = buildMonthGrid(today)
+  // Today and the current time in Chile, whatever the device's time zone.
+  const now = clinicNow()
+  const today = now.date
+  const currentMonth = monthOf(today)
+  const lastMonth = addMonths(currentMonth, MONTHS_AHEAD)
 
   const [step, setStep] = useState(1)
-  const [selectedDay, setSelectedDay] = useState(null)
+  const [viewMonth, setViewMonth] = useState(currentMonth)
+  const [selectedDate, setSelectedDate] = useState(null)
   const [selectedTime, setSelectedTime] = useState(null)
   const [formData, setFormData] = useState({
     ...INITIAL_FORM,
@@ -218,14 +159,8 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
           signal: controller.signal,
         })
         if (!response.ok) return
-        const data = await response.json()
-        // Backend sends "10:00:00"; trim seconds to match "10:00" slots.
-        setBusySlots(
-          data.map(({ appointment_date, appointment_time }) => ({
-            date: appointment_date,
-            time: appointment_time.slice(0, 5),
-          })),
-        )
+        // Backend sends "10:00:00"; trimmed to match "10:00" slots.
+        setBusySlots(parseBusySlots(await response.json()))
       } catch {
         // Network error or aborted: leave all slots enabled.
       }
@@ -321,33 +256,17 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
     }
   }
 
-  const selectedDate =
-    selectedDay != null
-      ? formatDate(today.getFullYear(), today.getMonth(), selectedDay)
-      : null
+  const selectedLabel = selectedDate ? formatDayMonth(selectedDate) : ''
+  const timeSlots = slotsForDate(selectedDate)
 
-  const timeSlots =
-    selectedDay != null
-      ? generateTimeSlots(today.getFullYear(), today.getMonth(), selectedDay)
-      : []
+  // Only the exact slot is blocked, as in the backend's public booking. A
+  // slot is past once its start time has been reached in Chile ("18:30" is
+  // disabled at 18:45).
+  const isTimeDisabled = (time) =>
+    isExactSlotBusy(busySlots, selectedDate, time) || isSlotPast(selectedDate, time, now)
 
-  const isSlotBusy = (time) =>
-    busySlots.some(
-      (slot) => slot.date === selectedDate && slot.time === time,
-    )
-
-  // Only today can have past slots: a slot is past once its start time has
-  // been reached on the clock ("18:30" is disabled at 18:45).
-  const isSlotPast = (time) => {
-    if (selectedDay !== today.getDate()) return false
-    const [hours, minutes] = time.split(':').map(Number)
-    return hours * 60 + minutes <= today.getHours() * 60 + today.getMinutes()
-  }
-
-  const handleDayClick = (day) => {
-    if (day == null || day < today.getDate()) return
-    if (isClosedDay(today.getFullYear(), today.getMonth(), day)) return
-    setSelectedDay(day)
+  const handleDayClick = (date) => {
+    setSelectedDate(date)
     setSelectedTime(null)
     setStep(2)
   }
@@ -457,7 +376,8 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
 
   const handleReset = () => {
     setStep(1)
-    setSelectedDay(null)
+    setViewMonth(currentMonth)
+    setSelectedDate(null)
     setSelectedTime(null)
     setFormData(INITIAL_FORM)
     setFieldErrors({})
@@ -468,7 +388,7 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
   const goToStep = (targetStep) => {
     if (isConfirmed) return
     if (targetStep === 1) setStep(1)
-    if (targetStep === 2 && selectedDay != null) setStep(2)
+    if (targetStep === 2 && selectedDate != null) setStep(2)
   }
 
   const handleClose = () => {
@@ -534,20 +454,18 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
                 <button
                   type="button"
                   className={`booking-modal__step ${step === 1 ? 'is-active' : ''
-                    } ${selectedDay != null ? 'is-done' : ''}`}
+                    } ${selectedDate != null ? 'is-done' : ''}`}
                   onClick={() => goToStep(1)}
                   disabled={isConfirmed}
                   aria-current={step === 1 && !isConfirmed ? 'step' : undefined}
                 >
                   <span className="booking-modal__step-index" aria-hidden="true">
-                    {selectedDay != null ? <Check size={14} strokeWidth={2.5} /> : 1}
+                    {selectedDate != null ? <Check size={14} strokeWidth={2.5} /> : 1}
                   </span>
                   <span>
                     <span className="booking-modal__step-label">Fecha</span>
                     <span className="booking-modal__step-value">
-                      {selectedDay != null
-                        ? `${selectedDay} de ${monthLabel}`
-                        : 'Sin seleccionar'}
+                      {selectedDate != null ? selectedLabel : 'Sin seleccionar'}
                     </span>
                   </span>
                 </button>
@@ -559,7 +477,7 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
                   className={`booking-modal__step ${step === 2 ? 'is-active' : ''
                     } ${selectedTime ? 'is-done' : ''}`}
                   onClick={() => goToStep(2)}
-                  disabled={isConfirmed || selectedDay == null}
+                  disabled={isConfirmed || selectedDate == null}
                   aria-current={step === 2 && !isConfirmed ? 'step' : undefined}
                 >
                   <span className="booking-modal__step-index" aria-hidden="true">
@@ -607,9 +525,7 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
                 </h3>
                 <p>
                   Hemos agendado tu hora para el{' '}
-                  <strong>
-                    {selectedDay} de {monthLabel}
-                  </strong>{' '}
+                  <strong>{selectedLabel}</strong>{' '}
                   a las <strong>{selectedTime}</strong>.
                 </p>
                 <p className="booking-modal__confirmation-name">
@@ -639,52 +555,16 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
                 </button>
               </div>
             ) : step === 1 ? (
-              <div className="booking-modal__calendar">
-                <p className="booking-modal__calendar-month">{monthLabel}</p>
-                <div className="booking-modal__weekdays" aria-hidden="true">
-                  {WEEKDAY_LABELS.map((label) => (
-                    <span key={label}>{label}</span>
-                  ))}
-                </div>
-                <div className="booking-modal__days">
-                  {monthCells.map((day, index) => {
-                    const isClosed =
-                      day != null &&
-                      isClosedDay(today.getFullYear(), today.getMonth(), day)
-                    const isPast =
-                      day != null && (day < today.getDate() || isClosed)
-                    const isToday = day === today.getDate()
-                    const isSelected = day === selectedDay
-
-                    return (
-                      <button
-                        type="button"
-                        key={index}
-                        className={`booking-modal__day ${day == null ? 'is-empty' : ''
-                          } ${isPast ? 'is-disabled' : ''} ${isToday ? 'is-today' : ''
-                          } ${isSelected ? 'is-selected' : ''}`}
-                        disabled={day == null || isPast}
-                        aria-hidden={day == null ? 'true' : undefined}
-                        aria-label={
-                          day == null
-                            ? undefined
-                            : dayAccessibleLabel(
-                                today.getFullYear(),
-                                today.getMonth(),
-                                day,
-                                isPast,
-                              )
-                        }
-                        aria-current={isToday ? 'date' : undefined}
-                        aria-pressed={day == null ? undefined : isSelected}
-                        onClick={() => handleDayClick(day)}
-                      >
-                        {day}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
+              <MonthCalendar
+                month={viewMonth}
+                onMonthChange={setViewMonth}
+                minMonth={currentMonth}
+                maxMonth={lastMonth}
+                today={today}
+                selectedDate={selectedDate}
+                onSelectDate={handleDayClick}
+                labelId="booking-month"
+              />
             ) : step === 2 ? (
               <div className="booking-modal__times">
                 <button
@@ -695,23 +575,16 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
                   <ChevronLeft className="booking-modal__back-icon" strokeWidth={2} aria-hidden="true" />
                   Volver al calendario
                 </button>
-                <p className="booking-modal__times-label">
-                  Horas disponibles para el {selectedDay} de {monthLabel}
+                <p id="booking-times-label" className="booking-modal__times-label">
+                  Horas disponibles para el {selectedLabel}
                 </p>
-                <div className="booking-modal__times-grid">
-                  {timeSlots.map((time) => (
-                    <button
-                      type="button"
-                      key={time}
-                      className={`booking-modal__time ${time === selectedTime ? 'is-selected' : ''
-                        }`}
-                      disabled={isSlotBusy(time) || isSlotPast(time)}
-                      onClick={() => handleTimeClick(time)}
-                    >
-                      {time}
-                    </button>
-                  ))}
-                </div>
+                <TimeSlotGrid
+                  times={timeSlots}
+                  selectedTime={selectedTime}
+                  onSelectTime={handleTimeClick}
+                  isTimeDisabled={isTimeDisabled}
+                  labelId="booking-times-label"
+                />
               </div>
             ) : (
               <form className="booking-modal__form" onSubmit={handleSubmit}>
@@ -724,7 +597,7 @@ function BookingModal({ isOpen, onClose, initialService = '' }) {
                   Volver a las horas
                 </button>
                 <p className="booking-modal__times-label">
-                  {selectedDay} de {monthLabel} · {selectedTime}
+                  {selectedLabel} · {selectedTime}
                 </p>
 
                 <BookingField id={FIELD_IDS.nombre} label="Nombre completo" error={fieldErrors.nombre}>

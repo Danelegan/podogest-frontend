@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, MotionConfig, motion } from 'framer-motion'
 import {
+  CalendarClock,
   Eraser,
   Footprints,
   HeartPulse,
@@ -21,6 +22,7 @@ import API_BASE_URL from '../config/api'
 import { authFetch, SESSION_EXPIRED_UNSAVED_MESSAGE } from '../utils/auth'
 import { parseObservations, PODOGRAM_MAPS } from '../utils/podogram'
 import { clinicDateOf, clinicNow, formatDateString } from '../utils/clinicDate'
+import NextControlSection from './NextControlSection'
 import './ClinicalRecordModal.css'
 
 const API_URL = `${API_BASE_URL}/api/clinical-records/`
@@ -691,7 +693,16 @@ function Section({ icon: Icon, title, children }) {
   )
 }
 
-function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId, appointment }) {
+const EMPTY_CONTROL_DRAFT = { date: '', time: '' }
+
+function ClinicalRecordModal({
+  isOpen,
+  onClose,
+  onSessionExpired,
+  onControlChanged,
+  appointmentId,
+  appointment,
+}) {
   const [form, setForm] = useState(EMPTY_FORM)
   const [recordId, setRecordId] = useState(null)
   // Lines in each backend field that this form doesn't manage; kept on save.
@@ -709,6 +720,11 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
   // "RUT 12.345.678-5" / "Pasaporte AB1234567", read-only (comes from the
   // appointment). Until the record exists, the appointment's own value is used.
   const [recordDocument, setRecordDocument] = useState('')
+  // Next control booked from this record (read-only, from the backend) and the
+  // day and hour chosen for a new one. Kept apart from `form`: booking it is
+  // not a change of the record, but an hour chosen and not booked is unsaved.
+  const [proximoControl, setProximoControl] = useState(null)
+  const [controlDraft, setControlDraft] = useState(EMPTY_CONTROL_DRAFT)
   // Old drawings keep the map they were drawn on; everything else uses v2.
   const [mapVersion, setMapVersion] = useState('v2')
   // Fields whose errors are visible: shown once the user leaves the field or
@@ -806,6 +822,8 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
       setMapVersion('v2')
       setRecordCreatedAt('')
       setRecordDocument('')
+      setProximoControl(null)
+      setControlDraft(EMPTY_CONTROL_DRAFT)
       setCheckedFields({})
       setIsSaveBlocked(false)
       setServerErrors({})
@@ -916,6 +934,7 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
         setRecordId(record.id)
         setRecordCreatedAt(record.created_at ?? '')
         setRecordDocument(record.document_display ?? '')
+        setProximoControl(record.proximo_control ?? null)
         setMigrationPending(pending)
         setLegacyPrice(/^\d+$/.test(priceText) ? formatClp(priceText) : priceText)
         setRest({
@@ -1056,21 +1075,33 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
     }
   }, [successMessage])
 
-  const hasUnsavedChanges = () =>
+  const hasRecordChanges = () =>
     !isLoading &&
     (!isSameForm(form, baselineRef.current.form) ||
       drawEditsRef.current !== baselineRef.current.drawEdits)
+
+  // An hour chosen for the next control but not booked yet.
+  const hasControlDraft = () => !isLoading && proximoControl == null && controlDraft.time !== ''
+
+  const hasUnsavedChanges = () => hasRecordChanges() || hasControlDraft()
+
+  // The control is booked at once (no "Guardar"); the dashboard updates its list.
+  const handleControlChange = (control, changedAppointment) => {
+    setProximoControl(control)
+    if (control != null) setControlDraft(EMPTY_CONTROL_DRAFT)
+    if (changedAppointment) onControlChanged?.(changedAppointment)
+  }
 
   // Closing is blocked while a save is in flight; if it fails, the normal
   // unsaved-changes confirmation applies again.
   const requestClose = () => {
     if (isSaving) return
-    if (
-      hasUnsavedChanges() &&
-      !window.confirm('Hay cambios sin guardar en la ficha. ¿Cerrar y descartarlos?')
-    ) {
-      return
-    }
+    const question = hasRecordChanges()
+      ? 'Hay cambios sin guardar en la ficha. ¿Cerrar y descartarlos?'
+      : hasControlDraft()
+        ? 'Elegiste una hora para el próximo control, pero no la agendaste. ¿Cerrar de todos modos?'
+        : ''
+    if (question && !window.confirm(question)) return
     onClose()
   }
 
@@ -1530,6 +1561,7 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
         setRecordId(saved.id ?? targetId)
         if (saved.created_at) setRecordCreatedAt(saved.created_at)
         if (saved.document_display) setRecordDocument(saved.document_display)
+        if ('proximo_control' in saved) setProximoControl(saved.proximo_control ?? null)
         // Converted to the new format by this save (or still pending).
         setMigrationPending(saved.migracion_pendiente ?? '')
         setShowErrorSummary(false)
@@ -2348,6 +2380,18 @@ function ClinicalRecordModal({ isOpen, onClose, onSessionExpired, appointmentId,
                           </fieldset>
                         )}
                       </div>
+                    </Section>
+
+                    <Section icon={CalendarClock} title="Próximo control">
+                      <NextControlSection
+                        recordId={recordId}
+                        control={proximoControl}
+                        draft={controlDraft}
+                        onDraftChange={setControlDraft}
+                        onControlChange={handleControlChange}
+                        onSessionExpired={handleSessionExpired}
+                        disabled={hasForeignRecord}
+                      />
                     </Section>
                   </>
                 )}

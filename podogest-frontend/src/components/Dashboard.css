@@ -582,6 +582,27 @@
   white-space: nowrap;
 }
 
+/* Cita agendada como próximo control desde una ficha. */
+.dashboard__tag {
+  align-self: flex-start;
+  width: fit-content;
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-primary-soft);
+  color: var(--color-primary-strong); /* 5.92:1 */
+  font-size: var(--text-xs);
+  font-weight: 600;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
+/* El correo de confirmación falló (el backend lo reintenta). */
+.dashboard__mail-failed {
+  color: var(--color-warning); /* ≈ 7:1 sobre blanco */
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
 /* Read by screen readers, not shown (the title tooltip does not reach touch or keyboard). */
 .dashboard__sr-only {
   position: absolute;

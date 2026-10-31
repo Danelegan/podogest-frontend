@@ -218,6 +218,16 @@ function Dashboard() {
     setIsManualModalOpen(false)
   }
 
+  // Next control booked or cancelled from a record: add it or replace it.
+  const handleControlChanged = (changed) => {
+    if (changed?.id == null) return
+    setAppointments((prev) =>
+      prev.some((item) => item.id === changed.id)
+        ? prev.map((item) => (item.id === changed.id ? changed : item))
+        : [changed, ...prev],
+    )
+  }
+
   // Fetches the CSV with the JWT (a plain <a href> can't send it) and triggers
   // the download through a temporary object URL.
   const downloadBackup = async () => {
@@ -643,6 +653,9 @@ function Dashboard() {
                                       <span className="dashboard__secondary dashboard__cell-mono">
                                         {appointment.appointment_time?.slice(0, 5)}
                                       </span>
+                                      {appointment.control_de != null && (
+                                        <span className="dashboard__tag">Control</span>
+                                      )}
                                     </span>
                                   </td>
                                   <td data-label="Contacto">
@@ -655,6 +668,9 @@ function Dashboard() {
                                         >
                                           {appointment.email}
                                         </span>
+                                      )}
+                                      {appointment.confirmation_failed_at && !appointment.confirmation_sent_at && (
+                                        <span className="dashboard__mail-failed">Correo no enviado</span>
                                       )}
                                     </span>
                                   </td>
@@ -712,6 +728,7 @@ function Dashboard() {
         isOpen={isModalOpen}
         onClose={closeRecord}
         onSessionExpired={handleSessionExpired}
+        onControlChanged={handleControlChanged}
         appointmentId={selectedAppointment?.id}
         appointment={selectedAppointment}
       />

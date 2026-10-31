@@ -266,95 +266,7 @@ button.booking-modal__step:disabled {
 
 /* ---------- Paso 1: calendario ---------- */
 
-/* Ancho máximo para que los días cuadrados no crezcan de más en escritorio. */
-.booking-modal__calendar {
-  max-width: 24rem;
-}
-
-.booking-modal__calendar-month {
-  margin: 0 0 var(--space-4);
-  font-family: var(--font-display);
-  font-size: var(--text-xl-compact);
-  font-weight: 500;
-  line-height: 1.2;
-  color: var(--color-text);
-}
-
-/* "octubre de 2026" → "Octubre de 2026" (capitalize pondría "De"). */
-.booking-modal__calendar-month::first-letter {
-  text-transform: uppercase;
-}
-
-.booking-modal__weekdays,
-.booking-modal__days {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: var(--space-1);
-}
-
-.booking-modal__weekdays {
-  margin-bottom: var(--space-2);
-}
-
-.booking-modal__weekdays span {
-  text-align: center;
-  font-size: var(--text-xs);
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--color-text-muted); /* ≈ 5.9:1 */
-}
-
-.booking-modal__day {
-  min-height: var(--control-height);
-  aspect-ratio: 1;
-  padding: 0;
-  border: 1px solid var(--color-border-input);
-  border-radius: 4px;
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-family: inherit;
-  font-size: var(--text-sm);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  cursor: pointer;
-  transition: background-color var(--duration) var(--ease), border-color var(--duration) var(--ease),
-    color var(--duration) var(--ease);
-}
-
-.booking-modal__day:hover:not(:disabled) {
-  border-color: var(--color-primary);
-  background: var(--color-primary-soft);
-}
-
-/* Hoy: número azul subrayado. */
-.booking-modal__day.is-today {
-  color: var(--color-primary-strong);
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 0.25em;
-}
-
-.booking-modal__day.is-selected {
-  border-color: var(--color-primary);
-  background: var(--color-primary);
-  color: var(--color-on-primary);
-}
-
-/* Pasados o cerrados: sin borde, en gris. */
-.booking-modal__day.is-disabled {
-  border-color: transparent;
-  background: none;
-  color: var(--color-border-input);
-  text-decoration: none;
-  cursor: not-allowed;
-}
-
-/* Celdas antes del día 1: invisibles. Van al final para ganar a .is-selected,
-   que hoy también reciben cuando aún no hay día elegido. */
-.booking-modal__day.is-empty {
-  visibility: hidden;
-}
+/* Calendario y horas: SlotPicker.css (compartido con el próximo control). */
 
 /* ---------- Paso 2: horas ---------- */
 
@@ -364,49 +276,6 @@ button.booking-modal__step:disabled {
   font-weight: 600;
   line-height: 1.4;
   color: var(--color-text);
-}
-
-.booking-modal__times-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-2);
-}
-
-.booking-modal__time {
-  min-height: var(--control-height);
-  padding: 0 var(--space-2);
-  border: 1px solid var(--color-border-input);
-  border-radius: 4px;
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-family: inherit;
-  font-size: var(--text-base);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  cursor: pointer;
-  transition: background-color var(--duration) var(--ease), border-color var(--duration) var(--ease),
-    color var(--duration) var(--ease);
-}
-
-.booking-modal__time:hover:not(:disabled) {
-  border-color: var(--color-primary);
-  background: var(--color-primary-soft);
-}
-
-/* Ocupadas o pasadas: borde discontinuo y tachadas. */
-.booking-modal__time:disabled {
-  border-style: dashed;
-  border-color: var(--color-border);
-  background: var(--color-bg);
-  color: var(--color-border-input);
-  text-decoration: line-through;
-  cursor: not-allowed;
-}
-
-.booking-modal__time.is-selected {
-  border-color: var(--color-primary);
-  background: var(--color-primary);
-  color: var(--color-on-primary);
 }
 
 /* ---------- Paso 3: formulario (campos del panel) ---------- */

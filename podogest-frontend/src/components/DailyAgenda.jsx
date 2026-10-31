@@ -8,6 +8,9 @@ const STATUS_META = {
   cancelada: { label: 'Cancelada', className: 'daily-agenda__badge--cancelled' },
 }
 
+// Panel keys stored as service_type; site services arrive as their title.
+const SERVICE_LABELS = { control: 'Control' }
+
 function capitalize(text) {
   return text.charAt(0).toUpperCase() + text.slice(1)
 }
@@ -48,8 +51,9 @@ export function StatusBadge({ status }) {
   return <span className={`daily-agenda__badge ${statusMeta.className}`}>{statusMeta.label}</span>
 }
 
-function AppointmentCard({ appointment_time, patient_name, service_type, status }) {
+function AppointmentCard({ appointment_time, patient_name, service_type, status, control_de }) {
   const isCancelled = status === 'cancelada'
+  const serviceLabel = SERVICE_LABELS[service_type] ?? (service_type || 'Consulta general')
 
   return (
     <li className={`daily-agenda__card${isCancelled ? ' daily-agenda__card--cancelled' : ''}`}>
@@ -63,7 +67,13 @@ function AppointmentCard({ appointment_time, patient_name, service_type, status 
           <User size={16} aria-hidden="true" />
           <span>{patient_name || 'Paciente sin nombre'}</span>
         </div>
-        <p className="daily-agenda__service">{service_type || 'Consulta general'}</p>
+        <p className="daily-agenda__service">
+          {serviceLabel}
+          {/* A control booked with another service still says it is a control. */}
+          {control_de != null && serviceLabel !== 'Control' && (
+            <span className="daily-agenda__tag">Control</span>
+          )}
+        </p>
       </div>
 
       <StatusBadge status={status} />
