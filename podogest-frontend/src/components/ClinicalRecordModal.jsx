@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, MotionConfig, motion } from 'framer-motion'
 import {
   CalendarClock,
+  ClipboardCopy,
   Eraser,
   Footprints,
   HeartPulse,
@@ -21,8 +22,9 @@ import {
 import API_BASE_URL from '../config/api'
 import { authFetch, SESSION_EXPIRED_UNSAVED_MESSAGE } from '../utils/auth'
 import { parseObservations, PODOGRAM_MAPS } from '../utils/podogram'
-import { clinicDateOf, clinicNow, formatDateString } from '../utils/clinicDate'
+import { clinicDateOf, clinicNow, formatDashDate, formatDateString } from '../utils/clinicDate'
 import NextControlSection from './NextControlSection'
+import PatientHistory from './PatientHistory'
 import './ClinicalRecordModal.css'
 
 const API_URL = `${API_BASE_URL}/api/clinical-records/`
@@ -105,6 +107,8 @@ const EMPTY_FORM = {
   indicaciones: '',
   // Rows of { id, medio, monto }; the form always shows at least one.
   pagos: [],
+  // "Atención sin cobro": no payments, and it doesn't count in the earnings.
+  sinCobro: false,
 }
 
 let nextPaymentId = 0
@@ -354,7 +358,8 @@ function validateForm(form, { day, limits }) {
   }
 
   const maxAmount = limits?.pago_monto_maximo
-  filledPayments(form.pagos).forEach((row) => {
+  // "Sin cobro" hides the rows: they are not sent, so they are not checked.
+  ;(form.sinCobro ? [] : filledPayments(form.pagos)).forEach((row) => {
     if (!row.medio) errors[paymentKey(row, 'medio')] = 'Indica el medio de pago.'
     if (!row.monto) {
       errors[paymentKey(row, 'monto')] = 'Indica el monto del pago.'
@@ -387,6 +392,7 @@ const FIELD_INPUT_IDS = {
   receta: 'clinical-receta',
   recetaOtro: 'clinical-receta-otro',
   indicaciones: 'clinical-indicaciones',
+  sinCobro: 'clinical-sin-cobro',
   pagos: 'clinical-pagos',
 }
 const fieldInputId = (key) => FIELD_INPUT_IDS[key] ?? `clinical-${key}`
@@ -420,6 +426,7 @@ const FIELD_LABELS = {
   receta: 'Receta',
   recetaOtro: 'Otro medicamento',
   indicaciones: 'Indicaciones',
+  sinCobro: 'Atención sin cobro',
   pagos: 'Pagos',
 }
 
@@ -437,6 +444,7 @@ const API_ERROR_KEYS = {
   receta_indicaciones: 'indicaciones',
   diagnostico: 'diagnostico',
   tratamiento_realizado: 'tratamiento',
+  sin_cobro: 'sinCobro',
 }
 const API_FIELD_NAMES = {
   antecedentes_medicos: 'Antecedentes',
@@ -554,6 +562,26 @@ function isSameForm(a, b) {
     return a[field].length === b[field].length && a[field].every((item) => b[field].includes(item))
   })
 }
+
+// Filled in from the appointment on every record, so they don't make it "used".
+const APPOINTMENT_FIELDS = ['nombre', 'telefono', 'email']
+
+// Whether the form holds any data of its own (the podogram is checked apart).
+function hasRecordData(form) {
+  return Object.keys(EMPTY_FORM).some((field) => {
+    if (APPOINTMENT_FIELDS.includes(field)) return false
+    const value = form[field]
+    if (field === 'pagos') return filledPayments(value).length > 0
+    if (Array.isArray(value)) return value.length > 0
+    if (typeof value === 'string') return value.trim() !== ''
+    return Boolean(value)
+  })
+}
+
+// Earlier records listed in historial/ at most (HISTORIAL_LIMIT in the backend).
+const HISTORY_LIMIT = 50
+// Vital signs belong to each visit: never copied from an earlier one.
+const NOT_COPIED_FIELDS = ['presionSistolica', 'presionDiastolica', 'frecuenciaCardiaca', 'pulso']
 
 // The backend sends `appointment` as the appointment's id. A record for any
 // other appointment is never shown or overwritten.
@@ -751,6 +779,13 @@ function ClinicalRecordModal({
   const [legacyPrice, setLegacyPrice] = useState('')
   const [drawTool, setDrawTool] = useState('pen')
   const [undoCount, setUndoCount] = useState(0)
+  // Saved record without data of its own (or none yet): offers to copy the
+  // last visit's data. Set on load and after each save.
+  const [isRecordBlank, setIsRecordBlank] = useState(true)
+  // historial/ of `appointmentId` for request number `attempt` (Reintentar adds one).
+  const [history, setHistory] = useState({ appointmentId: null, attempt: 0, status: 'loading' })
+  const [historyAttempt, setHistoryAttempt] = useState(0)
+  const [copyMessage, setCopyMessage] = useState('')
   const canvasRef = useRef(null)
   const isDrawingRef = useRef(false)
   const hasInkRef = useRef(false)
@@ -764,7 +799,11 @@ function ClinicalRecordModal({
   const wasSavingRef = useRef(false)
   // Latest handlers for the document-level listeners (Escape fallback,
   // beforeunload), which are registered once per opening.
-  const latestRef = useRef({ requestClose: () => {}, hasUnsavedChanges: () => false })
+  const latestRef = useRef({
+    requestClose: () => {},
+    hasUnsavedChanges: () => false,
+    sessionExpired: () => {},
+  })
   // Unsaved-changes tracking: the form as last loaded/saved, and a counter of
   // podogram edits (the canvas is not React state).
   const baselineRef = useRef({ form: EMPTY_FORM, drawEdits: 0 })
@@ -834,6 +873,10 @@ function ClinicalRecordModal({
       setMigrationPending('')
       setLegacyPrice('')
       setDrawTool('pen')
+      setIsRecordBlank(true)
+      setCopyMessage('')
+      // Reopening the same appointment must not show the previous answer.
+      setHistory({ appointmentId: null, attempt: 0, status: 'loading' })
       loadedDrawingRef.current = { drawing: '', version: 'v2', drawEdits: drawEditsRef.current }
       setForm(emptyForm())
 
@@ -946,27 +989,30 @@ function ClinicalRecordModal({
         loadedDrawingRef.current = { drawing, version, drawEdits: drawEditsRef.current }
         setSavedDrawing(drawing)
         setMapVersion(version)
-        setForm((prev) => {
-          const values = fromStoredValues({ ...medical.values, ...symptoms.values })
-          // Empty contact fields keep the appointment's data, as on a new record.
-          const contact = Object.fromEntries(
-            Object.entries(own).map(([field, value]) => [field, value || prev[field]]),
-          )
-          return {
-            ...prev,
-            ...values,
-            ...contact,
-            observaciones: observations,
-            anestesia: treatment.anesthesia,
-            diagnostico: record.diagnostico ?? '',
-            tratamiento: freeText,
-            edad: record.edad != null ? String(record.edad) : '',
-            receta,
-            recetaOtro: record.receta_otro ?? '',
-            indicaciones: record.receta_indicaciones ?? '',
-            pagos: pagos.length ? pagos : prev.pagos,
-          }
-        })
+        const prev = emptyForm()
+        const values = fromStoredValues({ ...medical.values, ...symptoms.values })
+        // Empty contact fields keep the appointment's data, as on a new record.
+        const contact = Object.fromEntries(
+          Object.entries(own).map(([field, value]) => [field, value || prev[field]]),
+        )
+        const loadedForm = {
+          ...prev,
+          ...values,
+          ...contact,
+          observaciones: observations,
+          anestesia: treatment.anesthesia,
+          diagnostico: record.diagnostico ?? '',
+          tratamiento: freeText,
+          edad: record.edad != null ? String(record.edad) : '',
+          receta,
+          recetaOtro: record.receta_otro ?? '',
+          indicaciones: record.receta_indicaciones ?? '',
+          // A record without charge has no payments; its rows stay hidden anyway.
+          pagos: pagos.length && record.sin_cobro !== true ? pagos : prev.pagos,
+          sinCobro: record.sin_cobro === true,
+        }
+        setForm(loadedForm)
+        setIsRecordBlank(!hasRecordData(loadedForm) && !drawing)
       } catch (error) {
         if (error.name === 'AbortError') return
         setErrorMessage('No se pudo conectar con el servidor.')
@@ -979,6 +1025,54 @@ function ClinicalRecordModal({
     return () => controller.abort()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, appointmentId])
+
+  // Earlier visits of the same patient, looked up by appointment: it works too
+  // for a record never saved (public bookings). This record is left out.
+  useEffect(() => {
+    if (!isOpen || isLoading || appointmentId == null) return undefined
+
+    const controller = new AbortController()
+    const done = (result) => setHistory({ appointmentId, attempt: historyAttempt, ...result })
+
+    const loadHistory = async () => {
+      try {
+        const response = await authFetch(`${API_URL}historial/?appointment=${appointmentId}`, {
+          headers: JSON_HEADERS,
+          signal: controller.signal,
+        })
+        if (response.status === 401) {
+          latestRef.current.sessionExpired()
+          // If the modal stays open (unsaved changes), don't keep "Cargando…".
+          done({
+            status: 'error',
+            error: 'Tu sesión expiró: vuelve a iniciar sesión para ver las atenciones anteriores.',
+          })
+          return
+        }
+        const data = response.ok ? await readJson(response) : null
+        if (!Array.isArray(data?.fichas)) {
+          done({
+            status: 'error',
+            error:
+              'No pudimos cargar las atenciones anteriores' +
+              (response.ok ? '' : ` (error ${response.status})`) +
+              '.',
+          })
+          return
+        }
+        done({ status: 'ready', fichas: data.fichas, copiable: data.copiable ?? null })
+      } catch (error) {
+        if (error.name === 'AbortError') return
+        done({
+          status: 'error',
+          error: 'No se pudo conectar con el servidor para cargar las atenciones anteriores.',
+        })
+      }
+    }
+
+    loadHistory()
+    return () => controller.abort()
+  }, [isOpen, isLoading, appointmentId, historyAttempt])
 
   // On open: remember who opened the modal ("Ver Ficha"), make the rest of the
   // page inert and focus the title. On close: undo that and hand focus back.
@@ -1107,7 +1201,7 @@ function ClinicalRecordModal({
   }
 
   useEffect(() => {
-    latestRef.current = { requestClose, hasUnsavedChanges }
+    latestRef.current = { requestClose, hasUnsavedChanges, sessionExpired: handleSessionExpired }
   })
 
   // Escape closes; Tab cycles within the dialog.
@@ -1415,6 +1509,60 @@ function ClinicalRecordModal({
     setForm((prev) => ({ ...prev, pagos: prev.pagos.filter((_, i) => i !== index) }))
   }
 
+  // Marking it removes the payments typed (after asking) and hides their rows.
+  const handleSinCobroChange = (event) => {
+    const { checked } = event.target
+    if (
+      checked &&
+      filledPayments(form.pagos).length > 0 &&
+      !window.confirm(
+        '¿Marcar como atención sin cobro? Se quitarán los pagos escritos en esta ficha. ' +
+          'La ficha guardada no cambia hasta que presiones Guardar.',
+      )
+    ) {
+      return
+    }
+    clearServerErrors(
+      'sinCobro',
+      'pagos',
+      ...form.pagos.flatMap((row) => [paymentKey(row, 'medio'), paymentKey(row, 'monto')]),
+    )
+    setForm((prev) => ({ ...prev, sinCobro: checked, pagos: checked ? [newPaymentRow()] : prev.pagos }))
+  }
+
+  // Fills only the fields still empty with the last visit's stable data
+  // (contact, birth date, health history). Nothing is saved until Guardar.
+  const handleCopyLastVisit = () => {
+    const source = history.copiable
+    // Already copied: a second click would change nothing.
+    if (!source || copyMessage) return
+    const medical = parseLines(source.antecedentes_medicos, MEDICAL_KEYS)
+    const values = fromStoredValues(medical.values)
+    NOT_COPIED_FIELDS.forEach((field) => delete values[field])
+    const copied = {
+      ...values,
+      ...Object.fromEntries(
+        Object.entries(CONTACT_FIELDS).map(([field, api]) => [field, (source[api] ?? '').trim()]),
+      ),
+      nacimiento: source.fecha_nacimiento || '',
+    }
+    const isEmpty = (value) =>
+      Array.isArray(value) ? value.length === 0 : !String(value ?? '').trim()
+    const filled = Object.keys(copied).filter((field) => !isEmpty(copied[field]))
+    setForm((prev) => {
+      const next = { ...prev }
+      filled.forEach((field) => {
+        if (isEmpty(prev[field])) next[field] = copied[field]
+      })
+      return next
+    })
+    clearServerErrors(...filled, 'edad')
+    setCopyMessage(
+      `Datos copiados de la atención del ${formatDashDate(history.fichas[0]?.appointment_date)}. ` +
+        'Revísalos antes de guardar.',
+    )
+  }
+
   const handleClear = () => {
     const confirmed = window.confirm(
       '¿Vaciar la ficha? Se borrarán todos los campos del formulario. ' +
@@ -1426,6 +1574,7 @@ function ClinicalRecordModal({
     setIsSaveBlocked(false)
     setServerErrors({})
     setShowErrorSummary(false)
+    setCopyMessage('')
     handleClearDrawing()
     setErrorMessage('')
     setSuccessMessage('')
@@ -1454,7 +1603,7 @@ function ClinicalRecordModal({
     setServerErrors({})
 
     const stored = toStoredValues(form)
-    const sentRows = filledPayments(form.pagos)
+    const sentRows = form.sinCobro ? [] : filledPayments(form.pagos)
     sentPaymentsRef.current = sentRows
     const age = form.nacimiento
       ? ageOn(form.nacimiento, appointmentDay)
@@ -1478,6 +1627,7 @@ function ClinicalRecordModal({
       receta_indicaciones: form.indicaciones.trim(),
       // The whole list: it replaces what was saved ([] removes every payment).
       pagos: sentRows.map((row) => ({ medio: row.medio, monto: Number(row.monto) })),
+      sin_cobro: form.sinCobro,
     }
     // A drawing edited since loading is exported from the canvas; an untouched
     // one is left as is, except in an old-format record, where it still lives
@@ -1566,6 +1716,8 @@ function ClinicalRecordModal({
         // Converted to the new format by this save (or still pending).
         setMigrationPending(saved.migracion_pendiente ?? '')
         setShowErrorSummary(false)
+        setIsRecordBlank(!hasRecordData(form) && !hasInkRef.current)
+        setCopyMessage('')
         setSuccessMessage('Ficha guardada correctamente.')
         onSaved?.()
       } else {
@@ -1650,6 +1802,19 @@ function ClinicalRecordModal({
     0,
   )
   const isSaveDisabled = isSaving || isLoading || hasForeignRecord || Boolean(migrationBlock) || !options
+
+  // Stale results (another appointment or an older attempt) count as loading.
+  const historyView =
+    history.appointmentId === appointmentId && history.attempt === historyAttempt
+      ? { ...history, limit: HISTORY_LIMIT }
+      : { status: 'loading' }
+  const lastVisitDate =
+    historyView.status === 'ready' ? formatDashDate(historyView.fichas[0]?.appointment_date) : ''
+  const canCopyLastVisit =
+    historyView.status === 'ready' && Boolean(historyView.copiable) && Boolean(lastVisitDate) && isRecordBlank
+  const medioLabel = (code) =>
+    options?.medios_pago.find((option) => option.codigo === code)?.etiqueta ?? code
+  const sinCobroError = fieldError('sinCobro')
 
   return (
     <MotionConfig reducedMotion="user">
@@ -1755,7 +1920,30 @@ function ClinicalRecordModal({
                         </ul>
                       </div>
                     )}
+                    <PatientHistory
+                      history={historyView}
+                      hasDocument={Boolean(documentDisplay)}
+                      medioLabel={medioLabel}
+                      onRetry={() => setHistoryAttempt((value) => value + 1)}
+                    />
                     <Section icon={User} title="Datos del paciente">
+                      {canCopyLastVisit && (
+                        <div className="patient-copy">
+                          <button
+                            type="button"
+                            className="clinical-btn"
+                            onClick={handleCopyLastVisit}
+                            // aria-disabled instead of disabled so the button keeps focus.
+                            aria-disabled={Boolean(copyMessage) || undefined}
+                          >
+                            <ClipboardCopy className="clinical-btn__icon" strokeWidth={2} aria-hidden="true" />
+                            Copiar datos de la última atención ({lastVisitDate})
+                          </button>
+                          <p className="patient-copy__status" role="status">
+                            {copyMessage}
+                          </p>
+                        </div>
+                      )}
                       <div className="clinical-grid clinical-grid--3">
                         <InputField
                           id={FIELD_INPUT_IDS.nombre}
@@ -2271,6 +2459,38 @@ function ClinicalRecordModal({
                                 Precio registrado (formato antiguo): {legacyPrice}
                               </p>
                             )}
+                            <div className="clinical-free">
+                              <label className="clinical-check clinical-free__check">
+                                <input
+                                  id={FIELD_INPUT_IDS.sinCobro}
+                                  type="checkbox"
+                                  checked={form.sinCobro}
+                                  onChange={handleSinCobroChange}
+                                  aria-invalid={sinCobroError ? true : undefined}
+                                  aria-describedby={
+                                    [
+                                      sinCobroError && `${FIELD_INPUT_IDS.sinCobro}-error`,
+                                      form.sinCobro && `${FIELD_INPUT_IDS.sinCobro}-hint`,
+                                    ]
+                                      .filter(Boolean)
+                                      .join(' ') || undefined
+                                  }
+                                />
+                                Atención sin cobro
+                              </label>
+                              {sinCobroError && (
+                                <p id={`${FIELD_INPUT_IDS.sinCobro}-error`} className="clinical-field__error">
+                                  {sinCobroError}
+                                </p>
+                              )}
+                              {form.sinCobro && (
+                                <p id={`${FIELD_INPUT_IDS.sinCobro}-hint`} className="clinical-field__hint">
+                                  No se registran pagos y no suma a las ganancias. Desmarca la casilla
+                                  para registrar un pago.
+                                </p>
+                              )}
+                            </div>
+                            {!form.sinCobro && (
                             <div className="clinical-payments">
                               {form.pagos.map((row, index) => {
                                 const medioId = `clinical-${paymentKey(row, 'medio')}`
@@ -2348,12 +2568,14 @@ function ClinicalRecordModal({
                                 )
                               })}
                             </div>
+                            )}
                             {fieldError('pagos') && (
                               <p id={`${FIELD_INPUT_IDS.pagos}-error`} className="clinical-field__error">
                                 {fieldError('pagos')}
                               </p>
                             )}
                             <div className="clinical-billing">
+                              {!form.sinCobro && (
                               <div className="clinical-payments__add">
                                 <button
                                   type="button"
@@ -2374,9 +2596,12 @@ function ClinicalRecordModal({
                                   </p>
                                 )}
                               </div>
+                              )}
                               <p className="clinical-billing__total">
                                 <span className="clinical-billing__label">Total pagado</span>
-                                <output aria-live="polite">{formatClp(String(totalPaid)) || '$0'}</output>
+                                <output aria-live="polite">
+                                  {form.sinCobro ? 'Sin cobro' : formatClp(String(totalPaid)) || '$0'}
+                                </output>
                               </p>
                             </div>
                           </fieldset>

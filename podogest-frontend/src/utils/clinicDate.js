@@ -38,6 +38,12 @@ export function formatDateString(dateString) {
   return match ? `${match[3]}/${match[2]}/${match[1]}` : ''
 }
 
+// "2026-10-24" -> "24-10-2026"; '' if it isn't a date.
+export function formatDashDate(dateString) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateString ?? '')
+  return match ? `${match[3]}-${match[2]}-${match[1]}` : ''
+}
+
 // Same day `years` later or earlier; 29 Feb becomes 28 Feb (as the backend does).
 export function shiftYears(dateString, years) {
   const [year, month, day] = dateString.split('-')
