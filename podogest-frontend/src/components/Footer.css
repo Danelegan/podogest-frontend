@@ -188,17 +188,90 @@
   margin: 0 0 1rem;
 }
 
+/* Sin overflow: hidden a propósito: con el texto muy agrandado, el recuadro
+   crece en vez de recortar el botón y el aviso. */
 .footer__map {
+  display: flex;
   width: 100%;
   aspect-ratio: 16 / 10;
   border: 1px solid var(--footer-line);
   border-radius: 2px;
-  overflow: hidden;
   background: rgba(255, 255, 255, 0.06);
 }
 
 .footer__map iframe {
   display: block;
+  border: 0;
+}
+
+/* El foco pasa al mapa al cargarlo; el anillo va por dentro del recuadro. */
+.footer__map iframe:focus-visible {
+  outline: 2px solid var(--footer-focus);
+  outline-offset: -2px;
+}
+
+/* Antes de cargar el mapa: ocupa el mismo recuadro (mismo aspect-ratio), así
+   que al pulsar "Ver mapa" no se mueve nada. */
+.footer__map-placeholder {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  text-align: center;
+}
+
+.footer__map-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: var(--control-height);
+  padding: 0 1.1rem;
+  border: 1px solid var(--footer-control);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--footer-text);
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+
+.footer__map-button:hover {
+  border-color: var(--footer-text);
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.footer__map-notice {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--footer-text-muted);
+  max-width: 28ch;
+}
+
+.footer__map-link {
+  position: relative; /* contiene el texto solo para lectores de pantalla */
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: var(--control-height);
+  margin-top: 0.25rem;
+  color: var(--footer-text-soft);
+  font-size: 0.95rem;
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 255, 255, 0.45);
+  text-underline-offset: 0.25em;
+  transition: color 150ms ease, text-decoration-color 150ms ease;
+}
+
+.footer__map-link:hover {
+  color: var(--footer-text);
+  text-decoration-color: currentColor;
 }
 
 /* ---------- Barra inferior ---------- */
@@ -219,7 +292,9 @@
 /* ---------- Foco ---------- */
 
 .footer__social-link:focus-visible,
-.footer__list a:focus-visible {
+.footer__list a:focus-visible,
+.footer__map-button:focus-visible,
+.footer__map-link:focus-visible {
   outline: 2px solid var(--footer-focus);
   outline-offset: 2px;
   border-radius: 4px;
@@ -271,7 +346,9 @@
 
 @media (prefers-reduced-motion: reduce) {
   .footer__social-link,
-  .footer__list a {
+  .footer__list a,
+  .footer__map-button,
+  .footer__map-link {
     transition: none;
   }
 }

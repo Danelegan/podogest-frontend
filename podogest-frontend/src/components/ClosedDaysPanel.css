@@ -141,6 +141,36 @@
   flex: 1 1 14rem;
 }
 
+/* Aviso bajo "Motivo". En móvil sigue el orden del DOM (fecha, motivo, aviso,
+   botón); en pantallas anchas una rejilla lo deja en la columna del motivo sin
+   desalinear la fecha ni el botón. */
+.closed-days__reason-notice {
+  flex: 1 1 100%;
+  margin: calc(var(--space-2) * -1) 0 0; /* pegado a su campo */
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  color: var(--color-text-muted);
+}
+
+@media (min-width: 721px) {
+  .closed-days__fields {
+    display: grid;
+    grid-template-columns: auto minmax(14rem, 1fr) auto;
+    row-gap: var(--space-1);
+  }
+
+  .closed-days__fields > .closed-days__btn {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .closed-days__reason-notice {
+    grid-column: 2;
+    grid-row: 2;
+    margin: 0;
+  }
+}
+
 .closed-days__optional {
   font-weight: 400;
 }

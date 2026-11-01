@@ -278,7 +278,7 @@ function ClosedDaysPanel({ onSessionExpired }) {
             </div>
             <div className="closed-days__field closed-days__field--grow">
               <label htmlFor="closed-days-reason">
-                Motivo <span className="closed-days__optional">(opcional, lo verán los pacientes)</span>
+                Motivo <span className="closed-days__optional">(opcional)</span>
               </label>
               <input
                 id="closed-days-reason"
@@ -288,8 +288,12 @@ function ClosedDaysPanel({ onSessionExpired }) {
                 maxLength={REASON_MAX_LENGTH}
                 placeholder="Ej.: Capacitación"
                 autoComplete="off"
+                aria-describedby="closed-days-reason-notice"
               />
             </div>
+            <p id="closed-days-reason-notice" className="closed-days__reason-notice">
+              Lo ven los pacientes. No escribas datos personales.
+            </p>
             <button type="submit" className="closed-days__btn closed-days__btn--primary">
               <CalendarOff size={18} strokeWidth={2} aria-hidden="true" />
               {pendingAction === 'other' ? 'Cerrando…' : 'Cerrar día'}

@@ -3,6 +3,7 @@ import { Check, ChevronLeft, CircleCheck, Clock, MapPin, X } from 'lucide-react'
 import { DEFAULT_DOCUMENT_TYPE, validateDocument } from '../utils/documentValidation'
 import { servicesData, specialtiesData } from '../data/services'
 import API_BASE_URL from '../config/api'
+import { CLINIC_ADDRESS, CLINIC_MAPS_URL } from '../config/clinic'
 import DocumentField from './DocumentField'
 import { MonthCalendar, TimeSlotGrid } from './SlotPicker'
 import { clinicNow } from '../utils/clinicDate'
@@ -44,11 +45,6 @@ const INITIAL_FORM = {
   motivo: '',
 }
 
-// Same address as the footer; the link opens Google Maps directions to it.
-const CLINIC_ADDRESS = 'Av. José Joaquín Pérez 4435, Local A, Quinta Normal, Santiago'
-// The maps query keeps the original address so the "how to get there" link points to the same place.
-const CLINIC_MAPS_QUERY = 'Av. José Joaquín Pérez 4435, Quinta Normal, Santiago, Chile'
-const CLINIC_MAPS_URL = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(CLINIC_MAPS_QUERY)}`
 
 // Name: letters (accents and ñ included), spaces, apostrophes and hyphens.
 const formatName = (value) => value.replace(/[^\p{L}\s'’-]/gu, '')
