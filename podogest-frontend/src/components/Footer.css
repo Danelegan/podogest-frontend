@@ -188,19 +188,32 @@
   margin: 0 0 1rem;
 }
 
-/* Sin overflow: hidden a propósito: con el texto muy agrandado, el recuadro
-   crece en vez de recortar el botón y el aviso. */
+/* El tamaño lo fija un espaciador con la proporción del mapa (::before), en la
+   misma celda que la tarjeta: el recuadro mide eso, pero si el texto se agranda
+   crece en vez de recortar el botón y el aviso. El iframe va encima, sin
+   participar en el tamaño, así que al cargarlo no se mueve nada. */
 .footer__map {
-  display: flex;
+  container: footer-map / inline-size;
+  position: relative;
+  display: grid;
   width: 100%;
-  aspect-ratio: 16 / 10;
   border: 1px solid var(--footer-line);
   border-radius: 2px;
   background: rgba(255, 255, 255, 0.06);
 }
 
+.footer__map::before {
+  content: '';
+  grid-area: 1 / 1;
+  aspect-ratio: 16 / 10;
+}
+
 .footer__map iframe {
+  position: absolute;
+  inset: 0;
   display: block;
+  width: 100%;
+  height: 100%;
   border: 0;
 }
 
@@ -210,17 +223,93 @@
   outline-offset: -2px;
 }
 
-/* Antes de cargar el mapa: ocupa el mismo recuadro (mismo aspect-ratio), así
-   que al pulsar "Ver mapa" no se mueve nada. */
+/* Tarjeta previa al mapa: ocupa la misma celda que el espaciador. */
 .footer__map-placeholder {
-  flex: 1;
+  --map-art-street: rgba(255, 255, 255, 0.13);
+  --map-art-minor: rgba(255, 255, 255, 0.07);
+  --map-art-block: rgba(255, 255, 255, 0.04);
+  --map-art-pin: var(--footer-accent);
+  --map-art-pin-shadow: rgba(0, 0, 0, 0.35);
+  --map-control-bg: var(--color-bg-deeper);  /* botón opaco sobre el dibujo */
+  --map-control-bg-hover: color-mix(in srgb, var(--color-bg-deeper), #fff 8%);
+
+  position: relative;
+  grid-area: 1 / 1;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  padding: 1rem;
-  text-align: center;
+  align-items: flex-start;
+  gap: 0.4rem;
+  padding: 0.6rem 0.85rem;
+}
+
+/* Dibujo de fondo: llena el recuadro y queda detrás del texto. */
+.footer__map-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.footer__map-art-streets path,
+.footer__map-art-minor path {
+  fill: none;
+  stroke-linecap: round;
+}
+
+.footer__map-art-streets path {
+  stroke: var(--map-art-street);
+  stroke-width: 7;
+}
+
+.footer__map-art-minor path {
+  stroke: var(--map-art-minor);
+  stroke-width: 3;
+}
+
+.footer__map-art-blocks rect {
+  fill: var(--map-art-block);
+}
+
+.footer__map-art-pin path {
+  fill: var(--map-art-pin);
+}
+
+.footer__map-art-pin circle {
+  fill: var(--color-bg-deeper);
+}
+
+.footer__map-art-pin ellipse {
+  fill: var(--map-art-pin-shadow);
+}
+
+/* Texto y controles por encima del dibujo. */
+.footer__map-place,
+.footer__map-button,
+.footer__map-notice {
+  position: relative;
+}
+
+/* Empuja el botón y el aviso al fondo de la tarjeta. Con margin (y no flex: 1)
+   el recuadro sigue creciendo si el texto se agranda. */
+.footer__map-place {
+  margin-bottom: auto;
+}
+
+.footer__map-name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--footer-text);
+}
+
+.footer__map-address {
+  margin: 0.15rem 0 0;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  color: var(--footer-text-soft);
 }
 
 .footer__map-button {
@@ -232,7 +321,7 @@
   padding: 0 1.1rem;
   border: 1px solid var(--footer-control);
   border-radius: 4px;
-  background: transparent;
+  background: var(--map-control-bg);
   color: var(--footer-text);
   font: inherit;
   font-size: 0.95rem;
@@ -243,15 +332,14 @@
 
 .footer__map-button:hover {
   border-color: var(--footer-text);
-  background-color: rgba(255, 255, 255, 0.08);
+  background-color: var(--map-control-bg-hover);
 }
 
 .footer__map-notice {
   margin: 0;
-  font-size: 0.82rem;
-  line-height: 1.4;
+  font-size: 0.8rem;
+  line-height: 1.35;
   color: var(--footer-text-muted);
-  max-width: 28ch;
 }
 
 .footer__map-link {
@@ -272,6 +360,38 @@
 .footer__map-link:hover {
   color: var(--footer-text);
   text-decoration-color: currentColor;
+}
+
+/* Con cuatro columnas (desde 1101px) la tarjeta mide unos 230–277px de ancho y
+   no cabe todo: la dirección se omite aquí porque está justo encima. */
+@media (min-width: 1101px) {
+  .footer__map-placeholder {
+    padding-inline: 0.7rem;
+  }
+
+  .footer__map-name {
+    font-size: 0.85rem;
+  }
+
+  .footer__map-notice {
+    font-size: 0.75rem; /* en cuatro columnas no cabe más grande */
+  }
+
+  .footer__map-address {
+    display: none;
+  }
+}
+
+/* Columna más estrecha (≈ 1101–1170px): nombre en una línea y menos aire. */
+@container footer-map (max-width: 250px) {
+  .footer__map-placeholder {
+    gap: 0.3rem;
+    padding-block: 0.4rem;
+  }
+
+  .footer__map-name {
+    font-size: 0.8rem;
+  }
 }
 
 /* ---------- Barra inferior ---------- */
@@ -339,7 +459,7 @@
     padding-bottom: 2.5rem;
   }
 
-  .footer__map {
+  .footer__map::before {
     aspect-ratio: 4 / 3;
   }
 }
