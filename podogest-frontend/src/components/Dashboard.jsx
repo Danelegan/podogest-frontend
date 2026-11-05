@@ -7,6 +7,7 @@ import ClosedDaysPanel from './ClosedDaysPanel'
 import EarningsCard from './EarningsCard'
 import ManualAttentionModal from './ManualAttentionModal'
 import API_BASE_URL from '../config/api'
+import { recordActionLabel } from '../utils/appointmentRecord'
 import { authFetch, getAccessToken, logout, SESSION_EXPIRED_MESSAGE } from '../utils/auth'
 import { clinicNow, formatDateString } from '../utils/clinicDate'
 import { normalizeDocumentSearch } from '../utils/documentValidation'
@@ -15,6 +16,29 @@ import './Dashboard.css'
 const APPOINTMENTS_URL = `${API_BASE_URL}/api/appointments/`
 const BACKUP_URL = `${API_BASE_URL}/api/appointments/exportar-respaldo/`
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+
+// Agenda actions: status -> route under /api/appointments/{id}/.
+const STATUS_ROUTES = { atendida: 'marcar-atendida', no_asistio: 'marcar-no-asistio' }
+const STATUS_TIMEOUT_MS = 20000
+const STATUS_TIMEOUT_MESSAGE =
+  'No se pudo confirmar el cambio. Revisa la agenda antes de volver a intentarlo.'
+const CONNECTION_MESSAGE = 'No se pudo conectar con el servidor. Inténtalo de nuevo.'
+
+// DRF sends { field: ["msg"] }, { detail: "msg" } or a list; keep only the texts.
+function collectMessages(value) {
+  if (typeof value === 'string') return value.trim() ? [value.trim()] : []
+  if (Array.isArray(value)) return value.flatMap(collectMessages)
+  if (value && typeof value === 'object') return Object.values(value).flatMap(collectMessages)
+  return []
+}
+
+const readJson = async (response) => {
+  try {
+    return await response.json()
+  } catch {
+    return null
+  }
+}
 
 // Reads the name from Content-Disposition (exposed via CORS by the backend);
 // falls back to the backend's own naming pattern.
@@ -154,6 +178,11 @@ function Dashboard() {
   const [activeTab, setActiveTab] = useState('agenda')
   const [isManualModalOpen, setIsManualModalOpen] = useState(false)
   const [deletingId, setDeletingId] = useState(null)
+  // Agenda status change being saved ({ id, action }) and the last error per appointment.
+  const [statusBusy, setStatusBusy] = useState(null)
+  const [statusErrors, setStatusErrors] = useState({})
+  const [statusNotice, setStatusNotice] = useState('')
+  const statusBusyRef = useRef(false)
   const [isDownloading, setIsDownloading] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [view, setView] = useState('upcoming')
@@ -235,6 +264,91 @@ function Dashboard() {
         : [changed, ...prev],
     )
     refreshEarnings()
+  }
+
+  const setStatusError = (id, message) =>
+    setStatusErrors((prev) => {
+      if (!message) {
+        if (!(id in prev)) return prev
+        return Object.fromEntries(Object.entries(prev).filter(([key]) => key !== String(id)))
+      }
+      return { ...prev, [id]: message }
+    })
+
+  // "Atendida" / "No asistió" from the agenda. The backend answers with the
+  // updated appointment; 409 when a no-show still has a record with data.
+  const markStatus = async (appointment, action) => {
+    const route = STATUS_ROUTES[action]
+    if (!route || statusBusyRef.current) return
+    statusBusyRef.current = true
+    setStatusBusy({ id: appointment.id, action })
+    setStatusError(appointment.id, '')
+    setStatusNotice('')
+
+    const timeout = new AbortController()
+    const timeoutId = setTimeout(() => timeout.abort(), STATUS_TIMEOUT_MS)
+    try {
+      const response = await authFetch(`${APPOINTMENTS_URL}${appointment.id}/${route}/`, {
+        method: 'POST',
+        signal: timeout.signal,
+      })
+
+      if (response.status === 401) {
+        handleSessionExpired()
+        return
+      }
+
+      const data = await readJson(response)
+      if (response.ok) {
+        setAppointments((prev) =>
+          prev.map((item) =>
+            item.id === appointment.id ? { ...item, ...(data ?? {}), status: data?.status ?? action } : item,
+          ),
+        )
+        refreshEarnings()
+        setStatusNotice(
+          `${appointment.patient_name || 'Cita'}: marcada como ${
+            action === 'atendida' ? 'atendida' : 'no asistió'
+          }.`,
+        )
+        return
+      }
+
+      setStatusError(
+        appointment.id,
+        collectMessages(data).join(' ') ||
+          (response.status === 404
+            ? 'Esta cita ya no existe. Recarga la página.'
+            : `No se pudo guardar el cambio (error ${response.status}). Inténtalo de nuevo.`),
+      )
+    } catch {
+      setStatusError(appointment.id, timeout.signal.aborted ? STATUS_TIMEOUT_MESSAGE : CONNECTION_MESSAGE)
+    } finally {
+      clearTimeout(timeoutId)
+      statusBusyRef.current = false
+      setStatusBusy(null)
+    }
+  }
+
+  // After saving a record, its appointment may now have data ("Crear ficha"
+  // becomes "Ver ficha"): reload that appointment. Errors are ignored; the
+  // label is fixed on the next load.
+  const refreshAppointment = async (id) => {
+    if (id == null) return
+    try {
+      const response = await authFetch(`${APPOINTMENTS_URL}${id}/`)
+      if (!response.ok) return
+      const data = await readJson(response)
+      if (data?.id == null) return
+      setAppointments((prev) => prev.map((item) => (item.id === data.id ? { ...item, ...data } : item)))
+    } catch {
+      // Offline or aborted: keep the current label.
+    }
+  }
+
+  const handleRecordSaved = () => {
+    refreshEarnings()
+    refreshAppointment(selectedAppointment?.id)
   }
 
   // Fetches the CSV with the JWT (a plain <a href> can't send it) and triggers
@@ -524,7 +638,14 @@ function Dashboard() {
             {errorMessage}
           </p>
         ) : (
-          <DailyAgenda appointments={todayAppointments} />
+          <DailyAgenda
+            appointments={todayAppointments}
+            onOpenRecord={openRecord}
+            onMarkStatus={markStatus}
+            statusBusy={statusBusy}
+            statusErrors={statusErrors}
+            statusNotice={statusNotice}
+          />
         ))}
 
       {activeTab === 'citas' &&
@@ -707,7 +828,7 @@ function Dashboard() {
                                         className="dashboard__action"
                                         onClick={() => openRecord(appointment)}
                                       >
-                                        Ver Ficha
+                                        {recordActionLabel(appointment)}
                                       </button>
                                       <button
                                         type="button"
@@ -752,7 +873,7 @@ function Dashboard() {
         onClose={closeRecord}
         onSessionExpired={handleSessionExpired}
         onControlChanged={handleControlChanged}
-        onSaved={refreshEarnings}
+        onSaved={handleRecordSaved}
         appointmentId={selectedAppointment?.id}
         appointment={selectedAppointment}
       />

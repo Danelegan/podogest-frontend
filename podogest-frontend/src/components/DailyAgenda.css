@@ -44,8 +44,10 @@
   box-shadow: var(--shadow-md);
 }
 
+/* Wraps so the actions (and their messages) can take a row of their own. */
 .daily-agenda__card {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-3);
   min-height: 4rem;
@@ -77,8 +79,9 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* The basis keeps the name readable: below it, the actions wrap instead. */
 .daily-agenda__info {
-  flex: 1;
+  flex: 1 1 10rem;
   min-width: 0;
 }
 
@@ -163,6 +166,18 @@
   color: var(--color-text-muted);
 }
 
+/* Atendida: filled green, one step beyond "Confirmada" (white on success 5.02:1). */
+.daily-agenda__badge--attended {
+  background: var(--color-success);
+  color: var(--color-on-primary);
+}
+
+/* No asistió: grey with a red cast, quieter than an error (text ≈ 6:1). */
+.daily-agenda__badge--no-show {
+  background: color-mix(in srgb, var(--color-danger-soft) 70%, var(--color-bg));
+  color: color-mix(in srgb, var(--color-danger) 55%, var(--color-text-muted));
+}
+
 /* Sin estado conocido, el punto no aporta significado. */
 .daily-agenda__badge--neutral::before {
   content: none;
@@ -183,6 +198,158 @@
 
 .daily-agenda__card--cancelled .daily-agenda__patient span {
   text-decoration: line-through;
+}
+
+/* No asistió: the hour steps back; the name stays as is (not struck through). */
+.daily-agenda__card--no-show .daily-agenda__time {
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+}
+
+/* Focused after marking it, while the change is saved. */
+.daily-agenda__card:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: -2px;
+}
+
+/* ---------- Actions ---------- */
+
+/* Phone: a row of their own; the record button full width, the two marks
+   side by side, and stacked when there is no room for both. */
+.daily-agenda__actions {
+  display: flex;
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.daily-agenda__action {
+  display: inline-flex;
+  flex: 1 1 8rem;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border-input);  /* 3.10:1: reads as a button at rest */
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+  cursor: pointer;
+  transition:
+    background-color var(--duration) var(--ease),
+    border-color var(--duration) var(--ease),
+    color var(--duration) var(--ease);
+}
+
+.daily-agenda__action:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.daily-agenda__action:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+/* The button being saved keeps full contrast: "Guardando…" is real information. */
+.daily-agenda__action--saving:disabled {
+  opacity: 1;
+}
+
+.daily-agenda__sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.daily-agenda__action svg {
+  flex-shrink: 0;
+}
+
+/* Same look as "Ver ficha" in the table. */
+.daily-agenda__action--record {
+  flex-basis: 100%;
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.daily-agenda__action--record:hover:not(:disabled) {
+  border-color: var(--color-primary-strong);
+  background: var(--color-primary-soft);
+  color: var(--color-primary-strong);
+}
+
+.daily-agenda__action--attended {
+  border-color: var(--color-success);
+  color: var(--color-success-strong);
+}
+
+.daily-agenda__action--attended:hover:not(:disabled) {
+  background: var(--color-success-soft);
+}
+
+.daily-agenda__action--quiet:hover:not(:disabled) {
+  border-color: var(--color-border-input);
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.daily-agenda__action--danger {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+.daily-agenda__action--danger:hover:not(:disabled) {
+  background: var(--color-danger-soft);
+}
+
+.daily-agenda__confirm {
+  display: flex;
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+.daily-agenda__confirm-text {
+  margin: 0;
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.daily-agenda__confirm-buttons {
+  display: flex;
+  flex: 1 1 10rem;
+  gap: var(--space-2);
+}
+
+.daily-agenda__confirm-buttons .daily-agenda__action {
+  flex: 1 1 4.5rem;
+}
+
+.daily-agenda__error {
+  flex: 1 1 100%;
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-danger-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+  font-size: var(--text-sm);
+  line-height: 1.45;
 }
 
 .daily-agenda__empty {
@@ -225,5 +392,32 @@
     gap: var(--space-2);
     min-width: 5.5rem;
     padding: var(--space-2) var(--space-3);
+  }
+
+  /* Beside the badge, aligned right; they wrap below when the row is full. */
+  .daily-agenda__actions {
+    flex: 0 1 auto;
+    justify-content: flex-end;
+    margin-left: auto;
+  }
+
+  /* On a phone the text may wrap (large system font); here there is room. */
+  .daily-agenda__action,
+  .daily-agenda__action--record {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .daily-agenda__confirm {
+    flex: 0 1 auto;
+  }
+
+  .daily-agenda__confirm-buttons {
+    flex: 0 0 auto;
+  }
+
+  .daily-agenda__confirm-buttons .daily-agenda__action {
+    flex: 0 0 auto;
+    min-width: 4.5rem;
   }
 }
