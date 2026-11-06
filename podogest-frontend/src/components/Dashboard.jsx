@@ -2,12 +2,15 @@ import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronDown, Home, LogOut, Trash2, UserPlus, X } from 'lucide-react'
 import ClinicalRecordModal from './ClinicalRecordModal'
-import DailyAgenda, { StatusBadge } from './DailyAgenda'
+import DailyAgenda from './DailyAgenda'
+import { StatusControl } from './StatusBadge'
 import ClosedDaysPanel from './ClosedDaysPanel'
 import EarningsCard from './EarningsCard'
 import ManualAttentionModal from './ManualAttentionModal'
 import API_BASE_URL from '../config/api'
+import useClinicClock from '../hooks/useClinicClock'
 import { recordActionLabel } from '../utils/appointmentRecord'
+import { STATUS_META } from '../utils/appointmentStatus'
 import { authFetch, getAccessToken, logout, SESSION_EXPIRED_MESSAGE } from '../utils/auth'
 import { clinicNow, formatDateString } from '../utils/clinicDate'
 import { normalizeDocumentSearch } from '../utils/documentValidation'
@@ -17,7 +20,7 @@ const APPOINTMENTS_URL = `${API_BASE_URL}/api/appointments/`
 const BACKUP_URL = `${API_BASE_URL}/api/appointments/exportar-respaldo/`
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 
-// Agenda actions: status -> route under /api/appointments/{id}/.
+// Statuses with their own route under /api/appointments/{id}/; the rest are a PATCH.
 const STATUS_ROUTES = { atendida: 'marcar-atendida', no_asistio: 'marcar-no-asistio' }
 const STATUS_TIMEOUT_MS = 20000
 const STATUS_TIMEOUT_MESSAGE =
@@ -178,11 +181,15 @@ function Dashboard() {
   const [activeTab, setActiveTab] = useState('agenda')
   const [isManualModalOpen, setIsManualModalOpen] = useState(false)
   const [deletingId, setDeletingId] = useState(null)
-  // Agenda status change being saved ({ id, action }) and the last error per appointment.
-  const [statusBusy, setStatusBusy] = useState(null)
+  // Status changes being saved ({ [appointmentId]: true }) and the last error
+  // per appointment. One change at a time per appointment; others go on.
+  const [statusBusy, setStatusBusy] = useState({})
   const [statusErrors, setStatusErrors] = useState({})
   const [statusNotice, setStatusNotice] = useState('')
-  const statusBusyRef = useRef(false)
+  const statusBusyRef = useRef(new Set())
+  // Chile time, refreshed every minute: a badge turns into the attended /
+  // no-show menu once its appointment has started.
+  const now = useClinicClock()
   const [isDownloading, setIsDownloading] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [view, setView] = useState('upcoming')
@@ -275,23 +282,33 @@ function Dashboard() {
       return { ...prev, [id]: message }
     })
 
-  // "Atendida" / "No asistió" from the agenda. The backend answers with the
-  // updated appointment; 409 when a no-show still has a record with data.
-  const markStatus = async (appointment, action) => {
-    const route = STATUS_ROUTES[action]
-    if (!route || statusBusyRef.current) return
-    statusBusyRef.current = true
-    setStatusBusy({ id: appointment.id, action })
-    setStatusError(appointment.id, '')
+  // Status chosen from the badge (StatusControl). Atendida / No asistió use
+  // their own routes (409 when a no-show still has a record with data);
+  // pendiente <-> confirmada is a PATCH. The backend answers with the updated
+  // appointment, which replaces the old one. One change at a time per appointment.
+  const changeStatus = async (appointment, target) => {
+    const { id } = appointment
+    if (statusBusyRef.current.has(id) || target === appointment.status) return
+    statusBusyRef.current.add(id)
+    setStatusBusy((prev) => ({ ...prev, [id]: true }))
+    setStatusError(id, '')
     setStatusNotice('')
 
+    const route = STATUS_ROUTES[target]
     const timeout = new AbortController()
     const timeoutId = setTimeout(() => timeout.abort(), STATUS_TIMEOUT_MS)
     try {
-      const response = await authFetch(`${APPOINTMENTS_URL}${appointment.id}/${route}/`, {
-        method: 'POST',
-        signal: timeout.signal,
-      })
+      const response = await authFetch(
+        route ? `${APPOINTMENTS_URL}${id}/${route}/` : `${APPOINTMENTS_URL}${id}/`,
+        route
+          ? { method: 'POST', signal: timeout.signal }
+          : {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ status: target }),
+              signal: timeout.signal,
+            },
+      )
 
       if (response.status === 401) {
         handleSessionExpired()
@@ -300,33 +317,30 @@ function Dashboard() {
 
       const data = await readJson(response)
       if (response.ok) {
+        const status = data?.status ?? target
         setAppointments((prev) =>
-          prev.map((item) =>
-            item.id === appointment.id ? { ...item, ...(data ?? {}), status: data?.status ?? action } : item,
-          ),
+          prev.map((item) => (item.id === id ? { ...item, ...(data ?? {}), status } : item)),
         )
         refreshEarnings()
         setStatusNotice(
-          `${appointment.patient_name || 'Cita'}: marcada como ${
-            action === 'atendida' ? 'atendida' : 'no asistió'
-          }.`,
+          `${appointment.patient_name || 'Cita'}: marcada como ${(STATUS_META[status]?.label ?? status).toLowerCase()}.`,
         )
         return
       }
 
       setStatusError(
-        appointment.id,
+        id,
         collectMessages(data).join(' ') ||
           (response.status === 404
             ? 'Esta cita ya no existe. Recarga la página.'
             : `No se pudo guardar el cambio (error ${response.status}). Inténtalo de nuevo.`),
       )
     } catch {
-      setStatusError(appointment.id, timeout.signal.aborted ? STATUS_TIMEOUT_MESSAGE : CONNECTION_MESSAGE)
+      setStatusError(id, timeout.signal.aborted ? STATUS_TIMEOUT_MESSAGE : CONNECTION_MESSAGE)
     } finally {
       clearTimeout(timeoutId)
-      statusBusyRef.current = false
-      setStatusBusy(null)
+      statusBusyRef.current.delete(id)
+      setStatusBusy((prev) => Object.fromEntries(Object.entries(prev).filter(([key]) => key !== String(id))))
     }
   }
 
@@ -596,6 +610,13 @@ function Dashboard() {
         )}
       </div>
 
+      {/* Status changed from a badge (pendiente / confirmada / atendida / no
+          asistió), in the agenda or the table. Always mounted, so it is
+          announced; the badge already shows the change. */}
+      <p className="dashboard__sr-only" role="status">
+        {statusNotice}
+      </p>
+
       <EarningsCard refreshKey={earningsKey} />
 
       <div className="dashboard__tabs" role="tablist" aria-label="Secciones del panel">
@@ -641,10 +662,10 @@ function Dashboard() {
           <DailyAgenda
             appointments={todayAppointments}
             onOpenRecord={openRecord}
-            onMarkStatus={markStatus}
+            now={now}
+            onChangeStatus={changeStatus}
             statusBusy={statusBusy}
             statusErrors={statusErrors}
-            statusNotice={statusNotice}
           />
         ))}
 
@@ -772,7 +793,9 @@ function Dashboard() {
                                   {/* Row header: screen readers name each cell after the patient. */}
                                   <th scope="row" className="dashboard__cell-patient">
                                     <span className="dashboard__lines">
-                                      <span className="dashboard__name">{appointment.patient_name}</span>
+                                      <span id={`dashboard-patient-${appointment.id}`} className="dashboard__name">
+                                        {appointment.patient_name}
+                                      </span>
                                       <span className="dashboard__secondary dashboard__cell-mono">
                                         {appointment.document_display || appointment.rut}
                                       </span>
@@ -819,9 +842,28 @@ function Dashboard() {
                                     </span>
                                   </td>
                                   <td data-label="Estado">
-                                    <StatusBadge status={appointment.status} />
+                                    <StatusControl
+                                      appointment={appointment}
+                                      now={now}
+                                      onChange={(newStatus) => changeStatus(appointment, newStatus)}
+                                      isBusy={Boolean(statusBusy[appointment.id])}
+                                      describedBy={
+                                        statusErrors[appointment.id]
+                                          ? `dashboard-patient-${appointment.id} dashboard-status-error-${appointment.id}`
+                                          : `dashboard-patient-${appointment.id}`
+                                      }
+                                    />
                                   </td>
                                   <td className="dashboard__cell-actions">
+                                    {statusErrors[appointment.id] && (
+                                      <p
+                                        id={`dashboard-status-error-${appointment.id}`}
+                                        className="dashboard__status-error"
+                                        role="alert"
+                                      >
+                                        {statusErrors[appointment.id]}
+                                      </p>
+                                    )}
                                     <div className="dashboard__actions">
                                       <button
                                         type="button"

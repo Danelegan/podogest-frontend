@@ -9,7 +9,7 @@ import {
   overlapsBusySlot,
   parseBusySlots,
 } from '../utils/schedule'
-import { StatusBadge } from './DailyAgenda'
+import { StatusBadge } from './StatusBadge'
 import SlotPicker from './SlotPicker'
 import './NextControlSection.css'
 

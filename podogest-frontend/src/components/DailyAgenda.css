@@ -166,6 +166,139 @@
   color: var(--color-text-muted);
 }
 
+/* Tappable badge (online bookings): the button gives a 44px target around
+   the pill, which keeps its size; a border and the arrows say it can change. */
+.daily-agenda__badge-button {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  min-height: var(--control-height);
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+}
+
+.daily-agenda__badge-button[aria-disabled='true'] {
+  cursor: progress;
+}
+
+.daily-agenda__badge--toggle {
+  border: 1px solid color-mix(in srgb, currentColor 70%, transparent);  /* ≈3:1 on the pill */
+  transition:
+    background-color var(--duration) var(--ease),
+    border-color var(--duration) var(--ease);
+}
+
+/* Pointer devices only: on touch the hover would stick after the tap. */
+@media (hover: hover) {
+  .daily-agenda__badge-button:hover:not([aria-disabled='true']) .daily-agenda__badge--toggle {
+    border-color: currentColor;
+    background-image: linear-gradient(
+      color-mix(in srgb, currentColor 8%, transparent),
+      color-mix(in srgb, currentColor 8%, transparent)
+    );
+  }
+}
+
+.daily-agenda__badge-button:focus-visible {
+  outline: none;
+}
+
+.daily-agenda__badge-button:focus-visible .daily-agenda__badge--toggle {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.daily-agenda__badge-icon {
+  flex-shrink: 0;
+  margin-left: calc(var(--space-1) * -1);
+}
+
+.daily-agenda__badge-text {
+  display: inline-grid;
+}
+
+.daily-agenda__badge-text > * {
+  grid-area: 1 / 1;
+}
+
+.daily-agenda__badge-text--hidden {
+  visibility: hidden;
+}
+
+/* Badge + its menu (StatusBadge.jsx). */
+.daily-agenda__status {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+/* Attended / no-show menu: fixed (placed by StatusControl), above the
+   sticky navbar (100) but below the modals (1000). Hidden until placed,
+   so it never flashes in the wrong spot. */
+.daily-agenda__menu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  visibility: hidden;
+  z-index: 150;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 10rem;
+  padding: var(--space-1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-lg);
+}
+
+.daily-agenda__menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* Same dot as the badge it leads to. */
+.daily-agenda__menu-item::before {
+  content: '';
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.daily-agenda__menu-item--atendida::before {
+  background: var(--color-success);
+}
+
+.daily-agenda__menu-item--no_asistio::before {
+  background: color-mix(in srgb, var(--color-danger) 55%, var(--color-text-muted));
+}
+
+.daily-agenda__menu-item:hover,
+.daily-agenda__menu-item:focus-visible {
+  background: var(--color-primary-soft);
+  color: var(--color-primary-strong);
+}
+
+.daily-agenda__menu-item:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: -2px;
+}
+
 /* Atendida: filled green, one step beyond "Confirmada" (white on success 5.02:1). */
 .daily-agenda__badge--attended {
   background: var(--color-success);
@@ -206,35 +339,28 @@
   color: var(--color-text-muted);
 }
 
-/* Focused after marking it, while the change is saved. */
-.daily-agenda__card:focus-visible {
-  outline: var(--focus-ring);
-  outline-offset: -2px;
-}
-
 /* ---------- Actions ---------- */
 
-/* Phone: a row of their own; the record button full width, the two marks
-   side by side, and stacked when there is no room for both. */
+/* Phone: the record button takes a row of its own, full width. */
 .daily-agenda__actions {
   display: flex;
   flex: 1 1 100%;
-  flex-wrap: wrap;
   gap: var(--space-2);
 }
 
+/* Same look as "Ver ficha" in the table. */
 .daily-agenda__action {
   display: inline-flex;
-  flex: 1 1 8rem;
+  flex: 1 1 100%;
   align-items: center;
   justify-content: center;
   gap: var(--space-1);
   min-height: var(--control-height);
   padding: 0 var(--space-3);
-  border: 1px solid var(--color-border-input);  /* 3.10:1: reads as a button at rest */
+  border: 1px solid var(--color-primary);
   border-radius: var(--radius-sm);
   background: var(--color-surface);
-  color: var(--color-text-muted);
+  color: var(--color-primary);
   font-family: inherit;
   font-size: var(--text-sm);
   font-weight: 600;
@@ -247,97 +373,19 @@
     color var(--duration) var(--ease);
 }
 
-.daily-agenda__action:focus-visible {
-  outline: var(--focus-ring);
-  outline-offset: 2px;
-}
-
-.daily-agenda__action:disabled {
-  opacity: 0.6;
-  cursor: progress;
-}
-
-/* The button being saved keeps full contrast: "Guardando…" is real information. */
-.daily-agenda__action--saving:disabled {
-  opacity: 1;
-}
-
-.daily-agenda__sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-  border: 0;
-}
-
-.daily-agenda__action svg {
-  flex-shrink: 0;
-}
-
-/* Same look as "Ver ficha" in the table. */
-.daily-agenda__action--record {
-  flex-basis: 100%;
-  border-color: var(--color-primary);
-  color: var(--color-primary);
-}
-
-.daily-agenda__action--record:hover:not(:disabled) {
+.daily-agenda__action:hover {
   border-color: var(--color-primary-strong);
   background: var(--color-primary-soft);
   color: var(--color-primary-strong);
 }
 
-.daily-agenda__action--attended {
-  border-color: var(--color-success);
-  color: var(--color-success-strong);
+.daily-agenda__action:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
 }
 
-.daily-agenda__action--attended:hover:not(:disabled) {
-  background: var(--color-success-soft);
-}
-
-.daily-agenda__action--quiet:hover:not(:disabled) {
-  border-color: var(--color-border-input);
-  background: var(--color-bg);
-  color: var(--color-text);
-}
-
-.daily-agenda__action--danger {
-  border-color: var(--color-danger);
-  color: var(--color-danger);
-}
-
-.daily-agenda__action--danger:hover:not(:disabled) {
-  background: var(--color-danger-soft);
-}
-
-.daily-agenda__confirm {
-  display: flex;
-  flex: 1 1 100%;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2) var(--space-3);
-}
-
-.daily-agenda__confirm-text {
-  margin: 0;
-  color: var(--color-text);
-  font-size: var(--text-sm);
-  font-weight: 600;
-}
-
-.daily-agenda__confirm-buttons {
-  display: flex;
-  flex: 1 1 10rem;
-  gap: var(--space-2);
-}
-
-.daily-agenda__confirm-buttons .daily-agenda__action {
-  flex: 1 1 4.5rem;
+.daily-agenda__action svg {
+  flex-shrink: 0;
 }
 
 .daily-agenda__error {
@@ -394,30 +442,15 @@
     padding: var(--space-2) var(--space-3);
   }
 
-  /* Beside the badge, aligned right; they wrap below when the row is full. */
+  /* Beside the badge, aligned right. */
   .daily-agenda__actions {
     flex: 0 1 auto;
     justify-content: flex-end;
     margin-left: auto;
   }
 
-  /* On a phone the text may wrap (large system font); here there is room. */
-  .daily-agenda__action,
-  .daily-agenda__action--record {
+  .daily-agenda__action {
     flex: 0 0 auto;
     white-space: nowrap;
-  }
-
-  .daily-agenda__confirm {
-    flex: 0 1 auto;
-  }
-
-  .daily-agenda__confirm-buttons {
-    flex: 0 0 auto;
-  }
-
-  .daily-agenda__confirm-buttons .daily-agenda__action {
-    flex: 0 0 auto;
-    min-width: 4.5rem;
   }
 }
