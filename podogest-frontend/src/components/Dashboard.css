@@ -440,9 +440,9 @@
   width: 11rem;
 }
 
-/* Room for "Crear ficha" and "Eliminando..." side by side. */
+/* Room for three buttons (record, new attention, delete); they wrap if it isn't enough. */
 .dashboard__col-actions {
-  width: 16rem;
+  width: 21rem;
 }
 
 .dashboard__table thead th {
@@ -657,6 +657,7 @@
 
 .dashboard__actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: var(--space-2);
 }
@@ -694,6 +695,16 @@
     background-color var(--duration) var(--ease),
     border-color var(--duration) var(--ease),
     color var(--duration) var(--ease);
+}
+
+.dashboard__action:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.dashboard__action--secondary {
+  border-color: var(--color-border-input);
+  color: var(--color-text);
 }
 
 .dashboard__action:hover:not(:disabled) {
@@ -878,6 +889,7 @@
     margin-bottom: 0;
   }
 
+  /* Three buttons may not fit side by side at 375 px: they wrap instead of overflowing. */
   .dashboard__actions {
     width: 100%;
   }
@@ -885,6 +897,7 @@
   .dashboard__action {
     flex: 1 1 0;
     justify-content: center;
+    min-width: fit-content;
     min-height: var(--control-height);
   }
 

@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronDown, Home, LogOut, Trash2, UserPlus, X } from 'lucide-react'
+import { CalendarPlus, ChevronDown, Home, LogOut, Trash2, UserPlus, X } from 'lucide-react'
 import ClinicalRecordModal from './ClinicalRecordModal'
 import DailyAgenda from './DailyAgenda'
 import { StatusControl } from './StatusBadge'
@@ -9,7 +9,7 @@ import EarningsCard from './EarningsCard'
 import ManualAttentionModal from './ManualAttentionModal'
 import API_BASE_URL from '../config/api'
 import useClinicClock from '../hooks/useClinicClock'
-import { recordActionLabel } from '../utils/appointmentRecord'
+import { hasAppointmentDocument, patientFromAppointment, recordActionLabel } from '../utils/appointmentRecord'
 import { STATUS_META } from '../utils/appointmentStatus'
 import { authFetch, getAccessToken, logout, SESSION_EXPIRED_MESSAGE } from '../utils/auth'
 import { clinicNow, formatDateString } from '../utils/clinicDate'
@@ -180,6 +180,9 @@ function Dashboard() {
   const [selectedAppointment, setSelectedAppointment] = useState(null)
   const [activeTab, setActiveTab] = useState('agenda')
   const [isManualModalOpen, setIsManualModalOpen] = useState(false)
+  // "Nueva atención" from an existing appointment: its patient data, copied
+  // into the manual attention modal. null for a plain walk-in.
+  const [newAttentionPatient, setNewAttentionPatient] = useState(null)
   const [deletingId, setDeletingId] = useState(null)
   // Status changes being saved ({ [appointmentId]: true }) and the last error
   // per appointment. One change at a time per appointment; others go on.
@@ -244,22 +247,36 @@ function Dashboard() {
   // The walk-in endpoint returns the new appointment (its clinical record is
   // already created), so we add it to the top of the table instead of
   // refetching; "Ver Ficha" works on it right away.
-  const handleManualCreated = (appointment) => {
+  // From "Nueva atención" (newAttentionPatient set), its empty record opens
+  // right away; `warning` says why it could not be marked as attended.
+  const handleManualCreated = (appointment, { warning = '' } = {}) => {
     // Another day's attention doesn't show in today's agenda: say where it went.
     const date = appointment.appointment_date ?? ''
     const today = getTodayDateString()
-    setCreatedNotice(
+    const whereNotice =
       date && date !== today
         ? `Atención registrada el ${formatDateString(date)}. La encontrarás en Todas las Citas, pestaña ${
             date < today ? 'Pasadas' : 'Próximas'
           }.`
-        : '',
-    )
+        : ''
+    setCreatedNotice([warning, whereNotice].filter(Boolean).join(' '))
     setAppointments((prev) => [appointment, ...prev])
     refreshEarnings()
+    setIsManualModalOpen(false)
+    if (newAttentionPatient) {
+      // The search stays: it keeps the row of the "Nueva atención" button on
+      // screen, so focus can go back to it when the record closes.
+      openRecord(appointment)
+      return
+    }
     setSearchTerm('')
     setSearchOpen({})
-    setIsManualModalOpen(false)
+  }
+
+  const startNewAttention = (appointment) => {
+    setCreatedNotice('')
+    setNewAttentionPatient(patientFromAppointment(appointment))
+    setIsManualModalOpen(true)
   }
 
   // Next control booked or cancelled from a record: add it or replace it.
@@ -664,6 +681,7 @@ function Dashboard() {
             onOpenRecord={openRecord}
             now={now}
             onChangeStatus={changeStatus}
+            onNewAttention={startNewAttention}
             statusBusy={statusBusy}
             statusErrors={statusErrors}
           />
@@ -701,6 +719,7 @@ function Dashboard() {
                 className="dashboard__new-attention"
                 onClick={() => {
                   setCreatedNotice('')
+                  setNewAttentionPatient(null)
                   setIsManualModalOpen(true)
                 }}
               >
@@ -872,6 +891,17 @@ function Dashboard() {
                                       >
                                         {recordActionLabel(appointment)}
                                       </button>
+                                      {hasAppointmentDocument(appointment) && (
+                                        <button
+                                          type="button"
+                                          className="dashboard__action dashboard__action--secondary"
+                                          onClick={() => startNewAttention(appointment)}
+                                          aria-describedby={`dashboard-patient-${appointment.id}`}
+                                        >
+                                          <CalendarPlus size={14} aria-hidden="true" />
+                                          Nueva atención
+                                        </button>
+                                      )}
                                       <button
                                         type="button"
                                         className="dashboard__action dashboard__action--danger"
@@ -907,6 +937,8 @@ function Dashboard() {
         onClose={closeManualAttention}
         onCreated={handleManualCreated}
         onSessionExpired={handleSessionExpired}
+        initialPatient={newAttentionPatient}
+        pastOnly={newAttentionPatient != null}
       />
 
       <ClinicalRecordModal

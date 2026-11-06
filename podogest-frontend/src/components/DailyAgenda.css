@@ -345,13 +345,16 @@
 .daily-agenda__actions {
   display: flex;
   flex: 1 1 100%;
+  flex-wrap: wrap;
   gap: var(--space-2);
 }
 
 /* Same look as "Ver ficha" in the table. */
 .daily-agenda__action {
   display: inline-flex;
-  flex: 1 1 100%;
+  /* Side by side while both fit (min-width), one under the other when not. */
+  flex: 1 1 0;
+  min-width: fit-content;
   align-items: center;
   justify-content: center;
   gap: var(--space-1);
@@ -386,6 +389,12 @@
 
 .daily-agenda__action svg {
   flex-shrink: 0;
+}
+
+/* "Nueva atención": neutral, so the record button stays the main action. */
+.daily-agenda__action--secondary {
+  border-color: var(--color-border-input);
+  color: var(--color-text);
 }
 
 .daily-agenda__error {

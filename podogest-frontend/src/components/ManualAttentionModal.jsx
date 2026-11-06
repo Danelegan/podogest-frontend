@@ -10,7 +10,12 @@ import { useClosedDays } from '../utils/closedDays'
 import { isClosedDay, monthOf, parseDate } from '../utils/schedule'
 import './ManualAttentionModal.css'
 
-const API_URL = `${API_BASE_URL}/api/appointments/atencion-espontanea/`
+const APPOINTMENTS_URL = `${API_BASE_URL}/api/appointments/`
+const API_URL = `${APPOINTMENTS_URL}atencion-espontanea/`
+
+// The appointment was created but could not be marked as attended.
+const MARK_FAILED_MESSAGE = 'La atención se creó, pero no quedó como atendida.'
+const MARK_FAILED_HINT = 'Puedes marcarla desde su estado en la agenda.'
 
 const EMPTY_FORM = {
   nombre: '',
@@ -62,14 +67,40 @@ function splitDocumentErrors(data) {
   return { document: documentPart, rest }
 }
 
+// pastOnly: a future attention isn't allowed (Chile time). '' when valid.
+function futureWhenError(fecha, hora, now) {
+  if (fecha > now.date) return 'La fecha no puede ser futura: elige hoy o un día anterior.'
+  if (fecha === now.date && hora.slice(0, 5) > now.time) {
+    return `La hora no puede ser posterior a la actual (${now.time}).`
+  }
+  return ''
+}
+
+// Whether the attention's date and time are already over (it then counts as attended).
+const hasStarted = (fecha, hora, now) => `${fecha} ${hora.slice(0, 5)}` < `${now.date} ${now.time}`
+
 // Walk-in patient: the backend creates the appointment (by default today, at
 // the current time) plus its empty clinical record in one request.
-function ManualAttentionModal({ isOpen, onClose, onCreated, onSessionExpired }) {
+// initialPatient: data copied from an existing appointment ("Nueva atención");
+// pastOnly: today or an earlier day only, and a past one is marked as attended.
+function ManualAttentionModal({
+  isOpen,
+  onClose,
+  onCreated,
+  onSessionExpired,
+  initialPatient = null,
+  pastOnly = false,
+}) {
   const [formData, setFormData] = useState(EMPTY_FORM)
   // Whether the date or time were changed since the modal opened (each opening
   // resets them to the current Chile date and time).
   const [isDateTouched, setIsDateTouched] = useState(false)
   const [wasOpen, setWasOpen] = useState(false)
+  // Opened with initialPatient: the form starts from `baseline` (the copied
+  // data) and the walk-in draft waits in `walkInDraft` for the next normal opening.
+  const [isPrefilled, setIsPrefilled] = useState(false)
+  const [baseline, setBaseline] = useState(EMPTY_FORM)
+  const [walkInDraft, setWalkInDraft] = useState(EMPTY_FORM)
   const [errorMessage, setErrorMessage] = useState('')
   const [documentError, setDocumentError] = useState('')
   const [isSaving, setIsSaving] = useState(false)
@@ -77,6 +108,8 @@ function ManualAttentionModal({ isOpen, onClose, onCreated, onSessionExpired }) 
   const isSubmittingRef = useRef(false)
   const dialogRef = useRef(null)
   const nameInputRef = useRef(null)
+  const fechaInputRef = useRef(null)
+  const horaInputRef = useRef(null)
   const documentInputRef = useRef(null)
   const returnFocusRef = useRef(null)
   // Latest handlers for the document-level listeners (Escape fallback,
@@ -106,7 +139,8 @@ function ManualAttentionModal({ isOpen, onClose, onCreated, onSessionExpired }) 
       node = node.parentElement
     }
 
-    nameInputRef.current?.focus()
+    // Copied data: the date is what usually changes.
+    ;(isPrefilled ? fechaInputRef : nameInputRef).current?.focus()
 
     const handleDocumentKeyDown = (event) => {
       // Fallback for when focus is not inside the dialog (e.g. on <body>);
@@ -135,21 +169,36 @@ function ManualAttentionModal({ isOpen, onClose, onCreated, onSessionExpired }) 
       const opener = returnFocusRef.current
       if (opener?.isConnected) opener.focus()
     }
-  }, [isOpen])
+  }, [isOpen, isPrefilled])
 
   if (isOpen !== wasOpen) {
     setWasOpen(isOpen)
     if (isOpen) {
       const now = clinicNow()
-      setFormData((prev) => ({ ...prev, fecha: now.date, hora: now.time }))
+      const opensPrefilled = initialPatient != null
+      if (opensPrefilled) {
+        const copied = { ...EMPTY_FORM, ...initialPatient }
+        // An unsaved walk-in draft is kept for the next "Nueva atención manual".
+        if (!isPrefilled) setWalkInDraft(formData)
+        setBaseline(copied)
+        setFormData({ ...copied, fecha: now.date, hora: now.time })
+        // An old document may not pass today's rules: say so right away.
+        setDocumentError(validateDocument(copied.documentType, copied.documentNumber))
+      } else {
+        setBaseline(EMPTY_FORM)
+        setFormData((prev) => ({ ...(isPrefilled ? walkInDraft : prev), fecha: now.date, hora: now.time }))
+        setDocumentError('')
+      }
+      // A message from the other kind of opening doesn't belong here.
+      if (opensPrefilled || isPrefilled) setErrorMessage('')
+      setIsPrefilled(opensPrefilled)
       setIsDateTouched(false)
-      setDocumentError('')
     }
   }
 
   const hasUnsavedChanges = () =>
     isDateTouched ||
-    PATIENT_FIELDS.some((field) => formData[field] !== EMPTY_FORM[field])
+    PATIENT_FIELDS.some((field) => formData[field] !== baseline[field])
 
   // Closing is blocked while the request is in flight.
   const requestClose = () => {
@@ -203,6 +252,34 @@ function ManualAttentionModal({ isOpen, onClose, onCreated, onSessionExpired }) 
     setDocumentError('')
   }
 
+  // POST marcar-atendida for the appointment just created. Never throws:
+  // { appointment } on success, { expired: true } on 401, { warning } otherwise.
+  const markAttended = async (id) => {
+    const timeout = new AbortController()
+    const timeoutId = setTimeout(() => timeout.abort(), SAVE_TIMEOUT_MS)
+    try {
+      const response = await authFetch(`${APPOINTMENTS_URL}${id}/marcar-atendida/`, {
+        method: 'POST',
+        signal: timeout.signal,
+      })
+      if (response.status === 401) return { expired: true }
+      const data = await response.json().catch(() => null)
+      if (response.ok && data?.id != null) return { appointment: data }
+      const detail = describeErrors(data)
+      return {
+        warning: `${MARK_FAILED_MESSAGE} ${detail || `(error ${response.status}).`} ${MARK_FAILED_HINT}`,
+      }
+    } catch {
+      return {
+        warning: timeout.signal.aborted
+          ? `${MARK_FAILED_MESSAGE} No se pudo confirmar el cambio. ${MARK_FAILED_HINT}`
+          : `${MARK_FAILED_MESSAGE} No se pudo conectar con el servidor. ${MARK_FAILED_HINT}`,
+      }
+    } finally {
+      clearTimeout(timeoutId)
+    }
+  }
+
   const handleSubmit = async (event) => {
     event.preventDefault()
     if (isSubmittingRef.current) return
@@ -215,6 +292,16 @@ function ManualAttentionModal({ isOpen, onClose, onCreated, onSessionExpired }) 
       return
     }
     setDocumentError('')
+
+    // The date picker doesn't stop a future date typed by hand. The message
+    // itself is already on screen (whenError); this only blocks and focuses.
+    if (pastOnly) {
+      const now = clinicNow()
+      if (futureWhenError(formData.fecha, formData.hora, now)) {
+        ;(formData.fecha > now.date ? fechaInputRef : horaInputRef).current?.focus()
+        return
+      }
+    }
 
     isSubmittingRef.current = true
     setIsSaving(true)
@@ -269,10 +356,25 @@ function ManualAttentionModal({ isOpen, onClose, onCreated, onSessionExpired }) 
         return
       }
 
+      let appointment = data.appointment
+      let warning = ''
+      // A past attention already happened: it is marked as attended right away.
+      // If that fails, the appointment stays created and the reason is passed on.
+      if (pastOnly && appointment?.id != null && hasStarted(formData.fecha, formData.hora, clinicNow())) {
+        const marked = await markAttended(appointment.id)
+        if (marked.expired) {
+          setFormData(EMPTY_FORM)
+          onSessionExpired()
+          return
+        }
+        if (marked.appointment) appointment = { ...appointment, ...marked.appointment }
+        warning = marked.warning ?? ''
+      }
+
       setFormData(EMPTY_FORM)
       setDocumentError('')
       setIsDateTouched(false)
-      onCreated(data.appointment)
+      onCreated(appointment, { warning })
     } catch {
       setErrorMessage(
         timeout.signal.aborted ? SAVE_TIMEOUT_MESSAGE : 'No se pudo conectar con el servidor.',
@@ -284,8 +386,19 @@ function ManualAttentionModal({ isOpen, onClose, onCreated, onSessionExpired }) 
     }
   }
 
-  const today = clinicNow().date
+  const renderNow = clinicNow()
+  const today = renderNow.date
   const isOtherDay = formData.fecha !== '' && formData.fecha !== today
+  // Shown while the date or time is in the future; Guardar re-checks it with a fresh clock.
+  const whenError =
+    pastOnly && /^\d{4}-\d{2}-\d{2}$/.test(formData.fecha)
+      ? futureWhenError(formData.fecha, formData.hora, renderNow)
+      : ''
+  const isFutureDate = whenError !== '' && formData.fecha > today
+  const isDocumentChanged =
+    isPrefilled &&
+    (formData.documentType !== baseline.documentType ||
+      formData.documentNumber !== baseline.documentNumber)
 
   // A walk-in can be registered on a closed day (the backend allows it); the
   // notice only makes sure it is on purpose.
@@ -299,9 +412,14 @@ function ManualAttentionModal({ isOpen, onClose, onCreated, onSessionExpired }) 
     const reason = closedDays[formData.fecha]
     return `Ese día está marcado como cerrado${reason ? ` (${reason})` : ''}.`
   })()
-  const fechaHints = [isOtherDay && 'manual-fecha-hint', closedNotice && 'manual-fecha-closed']
+  const fechaHints = [
+    isFutureDate && 'manual-when-error',
+    isOtherDay && 'manual-fecha-hint',
+    closedNotice && 'manual-fecha-closed',
+  ]
     .filter(Boolean)
     .join(' ')
+  const isFutureTime = whenError !== '' && !isFutureDate
 
   return (
     <MotionConfig reducedMotion="user">
@@ -337,10 +455,12 @@ function ManualAttentionModal({ isOpen, onClose, onCreated, onSessionExpired }) 
               <header className="manual-modal__header">
                 <div>
                   <h2 id="manual-modal-title" className="manual-modal__title">
-                    Nueva atención manual
+                    {isPrefilled ? 'Nueva atención' : 'Nueva atención manual'}
                   </h2>
                   <p id="manual-modal-meta" className="manual-modal__meta">
-                    Por defecto se registra hoy, a la hora actual.
+                    {isPrefilled
+                      ? 'Se copian nombre, documento, teléfono y correo. La ficha queda vacía.'
+                      : 'Por defecto se registra hoy, a la hora actual.'}
                   </p>
                 </div>
                 <button
@@ -380,6 +500,12 @@ function ManualAttentionModal({ isOpen, onClose, onCreated, onSessionExpired }) 
                   error={documentError}
                   required
                 />
+                {isPrefilled && (
+                  <p className="manual-modal__closed" aria-live="polite">
+                    {isDocumentChanged &&
+                      'Si cambias el documento, esta atención no se enlazará con el historial.'}
+                  </p>
+                )}
 
                 <label className="manual-modal__field">
                   <span>
@@ -414,14 +540,16 @@ function ManualAttentionModal({ isOpen, onClose, onCreated, onSessionExpired }) 
                     <div className="manual-modal__field">
                       <label htmlFor="manual-fecha">Fecha de la atención</label>
                       <input
+                        ref={fechaInputRef}
                         id="manual-fecha"
                         type="date"
                         name="fecha"
                         value={formData.fecha}
                         onChange={handleChange}
                         min={shiftYears(today, -YEARS_BACK)}
-                        max={shiftYears(today, YEARS_AHEAD)}
+                        max={pastOnly ? today : shiftYears(today, YEARS_AHEAD)}
                         autoComplete="off"
+                        aria-invalid={isFutureDate || undefined}
                         aria-describedby={fechaHints || undefined}
                         required
                       />
@@ -430,16 +558,24 @@ function ManualAttentionModal({ isOpen, onClose, onCreated, onSessionExpired }) 
                     <div className="manual-modal__field">
                       <label htmlFor="manual-hora">Hora</label>
                       <input
+                        ref={horaInputRef}
                         id="manual-hora"
                         type="time"
                         name="hora"
                         value={formData.hora}
                         onChange={handleChange}
                         autoComplete="off"
+                        aria-invalid={isFutureTime || undefined}
+                        aria-describedby={isFutureTime ? 'manual-when-error' : undefined}
                         required
                       />
                     </div>
                   </div>
+                  {pastOnly && (
+                    <p id="manual-when-error" className="manual-modal__field-error" aria-live="polite">
+                      {whenError}
+                    </p>
+                  )}
                   <p id="manual-fecha-hint" className="manual-modal__hint" aria-live="polite">
                     {isOtherDay && `Se registrará como atención del ${formatDateString(formData.fecha)}.`}
                   </p>

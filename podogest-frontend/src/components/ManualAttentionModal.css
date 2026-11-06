@@ -183,6 +183,25 @@
   margin: 0;
 }
 
+/* "Nueva atención": a future date or time, next to the date and time fields. */
+.manual-modal__field-error {
+  margin: var(--space-2) 0 0;
+  color: var(--color-danger);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.manual-modal__field-error:empty {
+  margin: 0;
+}
+
+/* Also while hovered or focused: the red border must not give way. */
+.manual-modal__field input[aria-invalid='true'],
+.manual-modal__field input[aria-invalid='true']:hover,
+.manual-modal__field input[aria-invalid='true']:focus {
+  border-color: var(--color-danger);
+}
+
 /* Día cerrado (feriado, cierre del panel o domingo): aviso, no bloqueo. */
 .manual-modal__closed {
   margin: var(--space-2) 0 0;

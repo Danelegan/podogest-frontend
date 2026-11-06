@@ -1,5 +1,5 @@
-import { CalendarX, Clock, FilePlus, FileText, User } from 'lucide-react'
-import { recordActionLabel } from '../utils/appointmentRecord'
+import { CalendarPlus, CalendarX, Clock, FilePlus, FileText, User } from 'lucide-react'
+import { hasAppointmentDocument, recordActionLabel } from '../utils/appointmentRecord'
 import { clinicNow } from '../utils/clinicDate'
 import { StatusControl } from './StatusBadge'
 import './DailyAgenda.css'
@@ -28,12 +28,22 @@ function formatTime(time) {
   return time ? time.slice(0, 5) : '--:--'
 }
 
-function AppointmentCard({ appointment, now, isBusy, error, onOpenRecord, onChangeStatus }) {
+function AppointmentCard({
+  appointment,
+  now,
+  isBusy,
+  error,
+  onOpenRecord,
+  onChangeStatus,
+  onNewAttention,
+}) {
   const { id, appointment_time, patient_name, service_type, status, control_de } = appointment
 
   const isCancelled = status === 'cancelada'
   const isNoShow = status === 'no_asistio'
   const canOpenRecord = !isCancelled && !isNoShow && Boolean(onOpenRecord)
+  // Also on cancelled and no-show appointments: the patient may come another day.
+  const canStartNew = Boolean(onNewAttention) && hasAppointmentDocument(appointment)
   const serviceLabel = SERVICE_LABELS[service_type] ?? (service_type || 'Consulta general')
   const patientId = `daily-agenda-patient-${id}`
   const errorId = `daily-agenda-error-${id}`
@@ -76,17 +86,30 @@ function AppointmentCard({ appointment, now, isBusy, error, onOpenRecord, onChan
         onChange={(newStatus) => onChangeStatus?.(appointment, newStatus)}
       />
 
-      {canOpenRecord && (
+      {(canOpenRecord || canStartNew) && (
         <div className="daily-agenda__actions">
-          <button
-            type="button"
-            className="daily-agenda__action"
-            onClick={() => onOpenRecord(appointment)}
-            aria-describedby={patientId}
-          >
-            <RecordIcon size={16} aria-hidden="true" />
-            {recordActionLabel(appointment)}
-          </button>
+          {canOpenRecord && (
+            <button
+              type="button"
+              className="daily-agenda__action"
+              onClick={() => onOpenRecord(appointment)}
+              aria-describedby={patientId}
+            >
+              <RecordIcon size={16} aria-hidden="true" />
+              {recordActionLabel(appointment)}
+            </button>
+          )}
+          {canStartNew && (
+            <button
+              type="button"
+              className="daily-agenda__action daily-agenda__action--secondary"
+              onClick={() => onNewAttention(appointment)}
+              aria-describedby={patientId}
+            >
+              <CalendarPlus size={16} aria-hidden="true" />
+              Nueva atención
+            </button>
+          )}
         </div>
       )}
 
@@ -107,6 +130,7 @@ function DailyAgenda({
   now = clinicNow(),
   onOpenRecord,
   onChangeStatus,
+  onNewAttention,
   statusBusy = {},
   statusErrors = {},
 }) {
@@ -135,6 +159,7 @@ function DailyAgenda({
               error={statusErrors[appointment.id] ?? ''}
               onOpenRecord={onOpenRecord}
               onChangeStatus={onChangeStatus}
+              onNewAttention={onNewAttention}
             />
           ))}
         </ul>
