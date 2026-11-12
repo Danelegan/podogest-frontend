@@ -409,6 +409,113 @@
   line-height: 1.45;
 }
 
+/* ---------- Bloqueo de horas ---------- */
+
+.daily-agenda__action[aria-disabled='true'] {
+  cursor: progress;
+  color: var(--color-text-muted);
+  border-color: var(--color-border-input);
+}
+
+/* Guardando: sin efecto de hover. */
+.daily-agenda__action[aria-disabled='true']:hover {
+  background: var(--color-surface);
+  border-color: var(--color-border-input);
+  color: var(--color-text-muted);
+}
+
+/* Franja libre: tranquila, para que las citas sigan siendo lo principal. */
+.daily-agenda__card--free .daily-agenda__time,
+.daily-agenda__card--blocked .daily-agenda__time {
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+}
+
+.daily-agenda__free-label {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-base);
+  font-weight: 500;
+}
+
+/* Bloqueada: fondo apagado, distinto de una cita (sin nombre ni estado). */
+.daily-agenda__card--blocked {
+  background: var(--color-bg);
+  box-shadow: inset 3px 0 0 var(--color-border-input);
+}
+
+.daily-agenda__card--blocked:hover {
+  background: var(--color-surface-hover);
+}
+
+/* El botón de la franja libre va en la misma línea que la hora. */
+.daily-agenda__card--free .daily-agenda__actions {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.daily-agenda__card--free .daily-agenda__action {
+  flex: 0 0 auto;
+  min-width: 7rem;
+}
+
+/* "¿Liberar? Sí / No": cada botón conserva el alto táctil. */
+.daily-agenda__confirm {
+  display: flex;
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.daily-agenda__confirm-text {
+  flex: 1 1 auto;
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.daily-agenda__confirm .daily-agenda__action {
+  flex: 0 0 auto;
+  min-width: 4.5rem;
+}
+
+.daily-agenda__action--confirm {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+.daily-agenda__action--confirm:hover {
+  border-color: var(--color-primary-strong);
+  background: var(--color-primary-strong);
+  color: var(--color-on-primary);
+}
+
+/* Aviso breve (no es un error): "ya estaba bloqueada". */
+.daily-agenda__notice {
+  flex: 1 1 100%;
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-primary-soft);
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-soft);
+  color: var(--color-primary-strong);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+}
+
+/* Mensajes sueltos, fuera de la lista. */
+.daily-agenda__error--standalone,
+.daily-agenda__notice--standalone {
+  margin-bottom: var(--space-3);
+}
+
+.daily-agenda__loading {
+  margin: 0 0 var(--space-3);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
 .daily-agenda__empty {
   display: flex;
   flex-direction: column;

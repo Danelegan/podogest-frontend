@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CalendarPlus, ChevronDown, Home, LogOut, Trash2, UserPlus, X } from 'lucide-react'
 import ClinicalRecordModal from './ClinicalRecordModal'
@@ -12,6 +12,15 @@ import useClinicClock from '../hooks/useClinicClock'
 import { hasAppointmentDocument, patientFromAppointment, recordActionLabel } from '../utils/appointmentRecord'
 import { STATUS_META } from '../utils/appointmentStatus'
 import { authFetch, getAccessToken, logout, SESSION_EXPIRED_MESSAGE } from '../utils/auth'
+import {
+  BLOCK_TIMEOUT_MESSAGE,
+  BLOCK_TIMEOUT_MS,
+  BLOCKS_LOAD_MESSAGE,
+  BLOCKS_URL,
+  blockFailureMessage,
+  fetchBlocks,
+  normalizeBlock,
+} from '../utils/blocks'
 import { clinicNow, formatDateString } from '../utils/clinicDate'
 import { normalizeDocumentSearch } from '../utils/documentValidation'
 import './Dashboard.css'
@@ -190,6 +199,14 @@ function Dashboard() {
   const [statusErrors, setStatusErrors] = useState({})
   const [statusNotice, setStatusNotice] = useState('')
   const statusBusyRef = useRef(new Set())
+  // Bloqueos de hoy (solo "Agenda de hoy"). blockBusy / blockMessages van por hora
+  // ("11:30"); una acción a la vez por hora: blockBusyRef evita el doble toque.
+  const [blocks, setBlocks] = useState([])
+  const [blocksReady, setBlocksReady] = useState(false)
+  const [blocksError, setBlocksError] = useState('')
+  const [blockBusy, setBlockBusy] = useState({})
+  const [blockMessages, setBlockMessages] = useState({})
+  const blockBusyRef = useRef(new Set())
   // Chile time, refreshed every minute: a badge turns into the attended /
   // no-show menu once its appointment has started.
   const now = useClinicClock()
@@ -361,6 +378,141 @@ function Dashboard() {
     }
   }
 
+  // Aplica la respuesta de fetchBlocks. Devuelve la lista, o null si falló.
+  const applyBlocksResult = useCallback(
+    (result) => {
+      if (result.status === 'unauthorized') {
+        navigate('/login', { replace: true, state: { notice: SESSION_EXPIRED_MESSAGE } })
+        return null
+      }
+      if (result.status === 'error') {
+        setBlocksError(BLOCKS_LOAD_MESSAGE)
+        return null
+      }
+      setBlocks(result.blocks)
+      setBlocksError('')
+      setBlocksReady(true)
+      return result.blocks
+    },
+    [navigate],
+  )
+
+  const refreshBlocks = async () => applyBlocksResult(await fetchBlocks(now.date))
+
+  // Todas las citas otra vez (tras un "ya hay cita"); los errores se ignoran.
+  const reloadAppointments = async () => {
+    try {
+      const response = await authFetch(APPOINTMENTS_URL)
+      if (response.status === 401) {
+        handleSessionExpired()
+        return
+      }
+      if (!response.ok) return
+      const data = await readJson(response)
+      if (data) setAppointments(Array.isArray(data) ? data : (data.results ?? []))
+    } catch {
+      // Sin conexión: se queda lo que ya se ve.
+    }
+  }
+
+  const setBlockMessage = (time, message) =>
+    setBlockMessages((prev) => {
+      if (!message) {
+        if (!(time in prev)) return prev
+        return Object.fromEntries(Object.entries(prev).filter(([key]) => key !== time))
+      }
+      return { ...prev, [time]: message }
+    })
+
+  // Una acción por hora a la vez, con límite de 20 s y sin reintento automático.
+  const runBlockRequest = async (time, request) => {
+    if (blockBusyRef.current.has(time)) return
+    blockBusyRef.current.add(time)
+    setBlockBusy((prev) => ({ ...prev, [time]: true }))
+    setBlockMessage(time, null)
+
+    const timeout = new AbortController()
+    const timeoutId = setTimeout(() => timeout.abort(), BLOCK_TIMEOUT_MS)
+    try {
+      await request(timeout.signal)
+    } catch {
+      const timedOut = timeout.signal.aborted
+      setBlockMessage(time, {
+        kind: 'error',
+        text: timedOut ? BLOCK_TIMEOUT_MESSAGE : CONNECTION_MESSAGE,
+      })
+      // Sin saber si llegó a guardarse: se vuelve a leer lo que tiene el servidor.
+      if (timedOut) refreshBlocks()
+    } finally {
+      clearTimeout(timeoutId)
+      blockBusyRef.current.delete(time)
+      setBlockBusy((prev) => Object.fromEntries(Object.entries(prev).filter(([key]) => key !== time)))
+    }
+  }
+
+  // Bloquea la franja de hoy a esa hora.
+  const blockSlot = (time) =>
+    runBlockRequest(time, async (signal) => {
+      const response = await authFetch(BLOCKS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fecha: now.date, hora: time }),
+        signal,
+      })
+      if (response.status === 401) {
+        handleSessionExpired()
+        return
+      }
+      const data = await readJson(response)
+
+      if (response.ok) {
+        const created = normalizeBlock(data)
+        if (created) setBlocks((prev) => [...prev.filter((block) => block.id !== created.id), created])
+        await refreshBlocks()
+        return
+      }
+
+      if (response.status === 400 || response.status === 409) {
+        // Ya hay una cita, o ya estaba bloqueada: se lee de nuevo qué hay.
+        const [loaded] = await Promise.all([refreshBlocks(), reloadAppointments()])
+        if (loaded?.some((block) => block.time === time)) {
+          setBlockMessage(time, { kind: 'notice', text: 'Esa hora ya estaba bloqueada.' })
+        } else {
+          setBlockMessage(time, {
+            kind: 'error',
+            text:
+              collectMessages(data).join(' ') ||
+              'No se pudo bloquear esa hora. Revisa la agenda antes de volver a intentarlo.',
+          })
+        }
+        return
+      }
+
+      setBlockMessage(time, { kind: 'error', text: blockFailureMessage(response.status) })
+    })
+
+  // Libera un bloqueo. 404: ya no existía, la fila se actualiza sin error.
+  const releaseSlot = (block) =>
+    runBlockRequest(block.time, async (signal) => {
+      const response = await authFetch(`${BLOCKS_URL}${block.id}/`, { method: 'DELETE', signal })
+      if (response.status === 401) {
+        handleSessionExpired()
+        return
+      }
+      if (response.ok || response.status === 404) {
+        setBlocks((prev) => prev.filter((item) => item.id !== block.id))
+        await refreshBlocks()
+        return
+      }
+      const explained = response.status === 400 || response.status === 409
+      const data = explained ? await readJson(response) : null
+      setBlockMessage(block.time, {
+        kind: 'error',
+        text: (explained && collectMessages(data).join(' ')) || blockFailureMessage(response.status),
+      })
+      if (explained) refreshBlocks()
+    })
+
   // After saving a record, its appointment may now have data ("Crear ficha"
   // becomes "Ver ficha"): reload that appointment. Errors are ignored; the
   // label is fixed on the next load.
@@ -491,6 +643,16 @@ function Dashboard() {
     loadAppointments()
     return () => controller.abort()
   }, [navigate])
+
+  // Bloqueos de hoy: se leen al abrir "Agenda de hoy" y cuando cambia el día.
+  useEffect(() => {
+    if (activeTab !== 'agenda') return undefined
+    const controller = new AbortController()
+    fetchBlocks(now.date, controller.signal).then((result) => {
+      if (!controller.signal.aborted) applyBlocksResult(result)
+    })
+    return () => controller.abort()
+  }, [activeTab, now.date, applyBlocksResult])
 
   const normalizedSearch = searchTerm.trim().toLowerCase()
   // Documents are compared without dots, hyphens or spaces, in uppercase.
@@ -684,6 +846,13 @@ function Dashboard() {
             onNewAttention={startNewAttention}
             statusBusy={statusBusy}
             statusErrors={statusErrors}
+            blocks={blocks}
+            blocksReady={blocksReady}
+            blocksError={blocksError}
+            blockBusy={blockBusy}
+            blockMessages={blockMessages}
+            onBlockSlot={blockSlot}
+            onReleaseSlot={releaseSlot}
           />
         ))}
 
