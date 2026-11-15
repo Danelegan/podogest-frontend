@@ -205,3 +205,156 @@
 .other-day__upcoming-error p {
   margin: 0;
 }
+
+/* ======================================================================
+   Pantallas anchas (computador). Por debajo de 768 px nada de lo siguiente
+   se aplica: el celular queda como está. Todo con alcance dentro de
+   .other-day, así que el calendario del modal de reservas no cambia.
+   ====================================================================== */
+@media (min-width: 768px) {
+  .other-day__title {
+    font-size: var(--text-xl);
+  }
+
+  /* Tarjeta del calendario: compacta, sin estirarse a todo el ancho. */
+  .other-day__calendar {
+    max-width: 400px;
+    padding: var(--space-4);
+  }
+
+  .other-day .slot-picker__month-row {
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+    padding-inline: 0;
+  }
+
+  .other-day .slot-picker__month {
+    font-size: var(--text-lg);
+  }
+
+  /* Flechas y días: 44 px con pantalla táctil; más discretos solo con ratón (abajo). */
+  .other-day .slot-picker__nav {
+    width: var(--control-height);
+    height: var(--control-height);
+  }
+
+  .other-day .slot-picker__days,
+  .other-day .slot-picker__weekdays {
+    gap: var(--space-1);
+  }
+
+  .other-day .slot-picker__weekdays {
+    margin-bottom: var(--space-1);
+  }
+
+  /* Celdas no cuadradas: más bajas que anchas. */
+  .other-day .slot-picker__day {
+    min-height: 0;
+    height: var(--control-height);
+    aspect-ratio: auto;
+    border-color: var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-hover);
+  }
+
+  .other-day .slot-picker__day:hover:not(:disabled):not(.is-selected) {
+    border-color: var(--color-primary);
+    background: var(--color-primary-soft);
+  }
+
+  /* Hoy: contorno azul y número azul (sin subrayado), distinto del día elegido. */
+  .other-day .slot-picker__day.is-today {
+    border-color: var(--color-primary);
+    color: var(--color-primary-strong);
+    text-decoration: none;
+  }
+
+  .other-day .slot-picker__day.is-selected {
+    border-color: var(--color-primary);
+    background: var(--color-primary);
+    color: var(--color-on-primary);
+    box-shadow: var(--shadow-primary);
+  }
+
+  /* Domingos, feriados y pasados: sin fondo ni borde y con peso normal, pero legibles. */
+  .other-day .slot-picker__day.is-disabled {
+    border-color: transparent;
+    background: none;
+    color: var(--color-text-muted);
+    font-weight: 500;
+  }
+
+  .other-day .slot-picker__day.is-closed {
+    text-decoration-color: var(--color-text-muted);
+  }
+
+  .other-day .slot-picker__closed {
+    margin-top: var(--space-3);
+    padding-top: var(--space-3);
+    border-top: 1px solid var(--color-border);
+  }
+
+  /* Próximos bloqueos y avisos: mismo ancho que el calendario y mismo estilo de tarjeta. */
+  .other-day__upcoming {
+    max-width: 400px;
+  }
+
+  .other-day__subtitle {
+    font-size: var(--text-lg);
+  }
+
+  .other-day__day-button {
+    box-shadow: var(--shadow-sm);
+  }
+
+  .other-day__prompt {
+    margin: 0;
+    padding: var(--space-6) var(--space-5);
+    border: 1px dashed var(--color-border-input);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+    text-align: center;
+  }
+}
+
+/* Con puntero fino (ratón) el calendario baja a un tamaño de escritorio. */
+@media (min-width: 768px) and (pointer: fine) {
+  .other-day .slot-picker__nav {
+    width: 32px;
+    height: 32px;
+  }
+
+  .other-day .slot-picker__day {
+    height: 38px;
+  }
+}
+
+/* Calendario y próximos bloqueos a la izquierda; las franjas del día a la derecha. */
+@media (min-width: 900px) {
+  .other-day {
+    display: grid;
+    grid-template-columns: minmax(320px, 400px) minmax(0, 1fr);
+    /* Las cinco filas de la izquierda, y una sobrante que absorbe la altura de las franjas. */
+    grid-template-rows: repeat(4, auto) 1fr;
+    column-gap: var(--space-6);
+    align-items: start;
+  }
+
+  .other-day__bar,
+  .other-day__title,
+  .other-day__hint,
+  .other-day__calendar,
+  .other-day__upcoming {
+    grid-column: 1;
+  }
+
+  .other-day__result {
+    grid-column: 2;
+    grid-row: 1 / -1;
+  }
+
+  /* El calendario ya está a la vista: no hace falta volver a subir. */
+  .other-day__change {
+    display: none;
+  }
+}
