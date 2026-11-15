@@ -111,8 +111,13 @@ function uniqueTop(items, key) {
 }
 
 function Summary({ data, hidden }) {
-  const { total, attended, noShow, cancelled, unmarked, upcoming, patients, earnings, services, days, hours } = data
+  const {
+    total, attended, noShow, cancelled, unmarked, upcoming, patients, earnings, services, problems, coverage, days, hours,
+  } = data
   const percent = (n) => (total > 0 ? Math.round((n / total) * 100) : 0)
+
+  // Sin bloque, vacío o cobertura en 0: estado vacío amable.
+  const hasProblems = problems.length > 0 && (coverage === null || coverage.withProblems > 0)
 
   const topDay = uniqueTop(days, 'busy')
   const topHour = uniqueTop(hours, 'count')
@@ -151,6 +156,44 @@ function Summary({ data, hidden }) {
       </dl>
 
       <div className="weekly__grid">
+        <section className="weekly__card weekly__card--main" aria-labelledby="weekly-problems">
+          <h3 id="weekly-problems" className="weekly__card-title">
+            Problemas registrados
+          </h3>
+          {hasProblems ? (
+            <>
+              <p className="weekly__lead">Fichas clínicas de la semana según el problema registrado.</p>
+              <BarList
+                caption="Fichas de la semana por problema registrado"
+                labelHeader="Problema"
+                valueHeader="Fichas"
+                rows={problems.map((problem, index) => ({
+                  key: `${index}-${problem.label}`,
+                  label: problem.label,
+                  value: problem.count,
+                  display: problem.count,
+                  srValue: `${problem.count} ${problem.count === 1 ? 'ficha' : 'fichas'}`,
+                }))}
+              />
+              <p className="weekly__note">
+                Una ficha puede tener varios problemas, por eso la suma puede superar las citas.
+                {coverage && coverage.nonCancelled > 0 && coverage.withProblems <= coverage.nonCancelled && (
+                  <>
+                    {' '}
+                    <strong>
+                      Citas con problemas registrados: {coverage.withProblems} de {coverage.nonCancelled}.
+                    </strong>
+                  </>
+                )}
+              </p>
+            </>
+          ) : (
+            <p className="weekly__empty">
+              Sin problemas registrados esta semana; se llenan desde la ficha clínica.
+            </p>
+          )}
+        </section>
+
         <section className="weekly__card" aria-labelledby="weekly-money">
           <h3 id="weekly-money" className="weekly__card-title">
             Ganancias de la semana
@@ -227,29 +270,6 @@ function Summary({ data, hidden }) {
           </p>
         </section>
 
-        <section className="weekly__card" aria-labelledby="weekly-services">
-          <h3 id="weekly-services" className="weekly__card-title">
-            Servicios más realizados
-          </h3>
-          <p className="weekly__lead">Citas por servicio.</p>
-          {services.length === 0 ? (
-            <p className="weekly__empty">Sin servicios esta semana.</p>
-          ) : (
-            <BarList
-              caption="Citas por servicio"
-              labelHeader="Servicio"
-              valueHeader="Citas"
-              rows={services.map((service) => ({
-                key: service.label,
-                label: service.label,
-                value: service.count,
-                display: service.count,
-                srValue: citasText(service.count),
-              }))}
-            />
-          )}
-        </section>
-
         <section className="weekly__card" aria-labelledby="weekly-days">
           <h3 id="weekly-days" className="weekly__card-title">
             Días más ocupados
@@ -306,6 +326,29 @@ function Summary({ data, hidden }) {
               }
             })}
           />
+        </section>
+
+        <section className="weekly__card" aria-labelledby="weekly-services">
+          <h3 id="weekly-services" className="weekly__card-title">
+            Servicio agendado
+          </h3>
+          <p className="weekly__lead">Citas según el servicio con que se agendaron.</p>
+          {services.length === 0 ? (
+            <p className="weekly__empty">Sin servicios esta semana.</p>
+          ) : (
+            <BarList
+              caption="Citas por servicio"
+              labelHeader="Servicio"
+              valueHeader="Citas"
+              rows={services.map((service) => ({
+                key: service.label,
+                label: service.label,
+                value: service.count,
+                display: service.count,
+                srValue: citasText(service.count),
+              }))}
+            />
+          )}
         </section>
       </div>
     </>

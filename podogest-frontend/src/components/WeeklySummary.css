@@ -219,6 +219,10 @@
   box-shadow: var(--shadow-md);
 }
 
+.weekly__card--main {
+  grid-column: 1 / -1;
+}
+
 .weekly__card-title {
   margin: 0 0 var(--space-1);
   font-family: var(--font-ui);
@@ -272,6 +276,7 @@
 
 .weekly__bars tbody th {
   width: 40%;
+  overflow-wrap: anywhere;
   padding-right: var(--space-3);
   font-size: var(--text-sm);
   font-weight: 500;

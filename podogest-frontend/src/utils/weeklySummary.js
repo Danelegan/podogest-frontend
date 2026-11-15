@@ -30,6 +30,12 @@
 //                  // solo horas con citas; la grilla la dibuja este archivo
 //   }
 //
+//   Bloque aditivo (el frontend tolera que falte): solo etiquetas y conteos.
+//     "problemas": [ { "problema": "Uña encarnada", "fichas": 6 } ],  // ya ordenado
+//     "cobertura": { "citas_con_problemas": 9, "citas_no_canceladas": 20 }
+//   Una ficha puede tener varios problemas: la suma de "fichas" puede superar
+//   las citas. Nada más se lee de estos bloques (ningún nombre ni dato clínico).
+//
 //   400 semana inválida o fuera de rango (mensaje en español) · 401 · 403.
 //
 // "Ocupado" (por día) = atendidas + no_asistio: lo calcula este archivo.
@@ -201,6 +207,17 @@ export function normalizeWeeklySummary(raw) {
     services: list(raw.servicios)
       .map((item) => ({ label: String(item.servicio ?? '').trim() || 'Sin nombre', count: count(item.citas) }))
       .filter((item) => item.count > 0),
+    // Sin bloque (backend antiguo) queda [] y la pantalla muestra el estado vacío.
+    // La etiqueta se recorta a 80 caracteres por si llegara muy larga.
+    problems: list(raw.problemas)
+      .map((item) => ({ label: String(item.problema ?? '').trim().slice(0, 80), count: count(item.fichas) }))
+      .filter((item) => item.label !== '' && item.count > 0),
+    coverage: isObject(raw.cobertura)
+      ? {
+          withProblems: count(raw.cobertura.citas_con_problemas),
+          nonCancelled: count(raw.cobertura.citas_no_canceladas),
+        }
+      : null,
     days,
     hours: buildHourRows(hours, days),
     isEmpty: count(citas.total) === 0,
