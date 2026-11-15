@@ -119,6 +119,17 @@ const newPaymentRow = (medio = '', monto = '') => {
 // A row with neither medio nor monto is not sent and is not a change.
 const filledPayments = (rows) => rows.filter((row) => row.medio || row.monto)
 
+// Payment limits. The backend sends them in opciones/ (`pagos_maximo`,
+// `pagos_maximo_por_medio`); these apply when a value is missing. 1 per medio is
+// how it worked before the field existed.
+const PAGOS_MAXIMO_PREDETERMINADO = 4
+const PAGOS_POR_MEDIO_PREDETERMINADO = 1
+const limitOrDefault = (value, fallback) => (Number.isInteger(value) && value >= 1 ? value : fallback)
+const timesLabel = (count) => (count === 1 ? 'vez' : 'veces')
+// { efectivo: 1, debito: 2 }: how many rows use each medio (empty ones don't count).
+const countMedios = (rows) =>
+  rows.reduce((counts, row) => (row.medio ? { ...counts, [row.medio]: (counts[row.medio] ?? 0) + 1 } : counts), {})
+
 // Contact fields: own backend fields in Ficha 2.0 (form field -> API field).
 const CONTACT_FIELDS = {
   nombre: 'contacto_nombre',
@@ -367,6 +378,21 @@ function validateForm(form, { day, limits }) {
       errors[paymentKey(row, 'monto')] = 'El monto del pago debe ser mayor que 0.'
     } else if (maxAmount && Number(row.monto) > maxAmount) {
       errors[paymentKey(row, 'monto')] = `El monto de un pago no puede superar ${formatClp(String(maxAmount))}.`
+    }
+  })
+  // The selects already hide a medio used up to the limit; this catches the rest
+  // (a row left over from a stale list). The error goes on the extra row.
+  const maxPerMedio = limitOrDefault(limits?.pagos_maximo_por_medio, PAGOS_POR_MEDIO_PREDETERMINADO)
+  const seen = {}
+  ;(form.sinCobro ? [] : filledPayments(form.pagos)).forEach((row) => {
+    if (!row.medio) return
+    seen[row.medio] = (seen[row.medio] ?? 0) + 1
+    const key = paymentKey(row, 'medio')
+    if (seen[row.medio] > maxPerMedio && !errors[key]) {
+      errors[key] =
+        maxPerMedio === 1
+          ? 'Este medio de pago ya se usó en otro pago. Elige otro.'
+          : `Un medio de pago se puede usar hasta ${maxPerMedio} ${timesLabel(maxPerMedio)} por atención. Elige otro medio.`
     }
   })
   return errors
@@ -1788,15 +1814,21 @@ function ClinicalRecordModal({
       ...extraCodes.medios.map((code) => ({ codigo: code, etiqueta: code })),
     ]
     : []
-  const maxPayments = options?.pagos_maximo ?? 4
-  const usedMedios = form.pagos.map((row) => row.medio).filter(Boolean)
-  const hasFreeMedio = medioOptions.some((option) => !usedMedios.includes(option.codigo))
+  const maxPayments = limitOrDefault(options?.pagos_maximo, PAGOS_MAXIMO_PREDETERMINADO)
+  const maxPerMedio = limitOrDefault(options?.pagos_maximo_por_medio, PAGOS_POR_MEDIO_PREDETERMINADO)
+  const medioCounts = countMedios(form.pagos)
+  const hasFreeMedio = medioOptions.some((option) => (medioCounts[option.codigo] ?? 0) < maxPerMedio)
   const canAddPayment = form.pagos.length < maxPayments && hasFreeMedio
+  const perMedioHint = `Cada medio de pago se puede usar hasta ${maxPerMedio} ${timesLabel(maxPerMedio)} por atención.`
   const addPaymentHint = canAddPayment
-    ? ''
+    ? maxPerMedio > 1
+      ? perMedioHint
+      : ''
     : form.pagos.length >= maxPayments
-      ? `Se pueden registrar hasta ${maxPayments} medios de pago por atención.`
-      : 'Ya se usaron todos los medios de pago.'
+      ? `Se pueden registrar hasta ${maxPayments} ${maxPerMedio > 1 ? 'pagos' : 'medios de pago'} por atención.`
+      : maxPerMedio > 1
+        ? `Todos los medios de pago ya se usaron ${maxPerMedio} ${timesLabel(maxPerMedio)}.`
+        : 'Ya se usaron todos los medios de pago.'
   const totalPaid = filledPayments(form.pagos).reduce(
     (sum, row) => sum + (Number(row.monto) || 0),
     0,
@@ -2497,10 +2529,12 @@ function ClinicalRecordModal({
                                 const montoId = `clinical-${paymentKey(row, 'monto')}`
                                 const medioError = fieldError(paymentKey(row, 'medio'))
                                 const montoError = fieldError(paymentKey(row, 'monto'))
-                                // Each select offers only the medios no other row uses.
+                                // Each select offers its own medio and the ones still under the
+                                // limit (the count includes this row only for its own medio).
                                 const available = medioOptions.filter(
                                   (option) =>
-                                    option.codigo === row.medio || !usedMedios.includes(option.codigo),
+                                    option.codigo === row.medio ||
+                                    (medioCounts[option.codigo] ?? 0) < maxPerMedio,
                                 )
                                 return (
                                   <div
@@ -2509,6 +2543,11 @@ function ClinicalRecordModal({
                                     role="group"
                                     aria-label={`Pago ${index + 1}`}
                                   >
+                                    {form.pagos.length > 1 && (
+                                      <p className="clinical-payment__title" aria-hidden="true">
+                                        Pago {index + 1}
+                                      </p>
+                                    )}
                                     <div className="clinical-field clinical-payment__medio">
                                       <label htmlFor={medioId}>Medio de pago</label>
                                       <select
@@ -2588,7 +2627,7 @@ function ClinicalRecordModal({
                                   }
                                 >
                                   <Plus className="clinical-btn__icon" strokeWidth={2} />
-                                  Agregar otro medio de pago
+                                  {maxPerMedio > 1 ? 'Agregar otro pago' : 'Agregar otro medio de pago'}
                                 </button>
                                 {addPaymentHint && (
                                   <p id={`${FIELD_INPUT_IDS.pagos}-hint`} className="clinical-field__hint">

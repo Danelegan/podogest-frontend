@@ -788,15 +788,27 @@
   gap: var(--space-3);
 }
 
+/* "Pago 1", "Pago 2": only with more than one block; the group already has that name. */
+.clinical-payment__title {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
 /* Without a remove button the two fields share the whole row. */
 .clinical-payment--single {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-/* Next to the inputs; a field's error would only push it if it were "end". */
+/* Next to the inputs; a field's error would only push it if it were "end".
+   `1lh` must be the label's line, so the button takes the inherited line-height
+   (its own would be "normal", which left it a few px above the input). */
 .clinical-payment__remove {
   grid-column: 3;
   align-self: start;
+  line-height: inherit;
   margin-top: calc(1lh + var(--space-2));
 }
 
