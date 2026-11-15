@@ -1,0 +1,47 @@
+/* Aviso cuando falla la carga del panel por segunda vez seguida (safeReload.js). */
+.app-reload-notice {
+  position: fixed;
+  inset: auto var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
+  z-index: 1000;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  max-width: 32rem;
+  margin: 0 auto;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-danger-border);
+  border-left: 4px solid var(--color-danger);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
+}
+
+.app-reload-notice p {
+  flex: 1 1 14rem;
+  margin: 0;
+}
+
+.app-reload-notice button {
+  min-height: var(--control-height);
+  padding: 0 var(--space-4);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  border: 0;
+  border-radius: var(--radius-md);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.app-reload-notice button:hover {
+  background: var(--color-primary-strong);
+}
+
+.app-reload-notice button:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}

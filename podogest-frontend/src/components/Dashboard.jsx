@@ -12,6 +12,7 @@ import WeeklySummary from './WeeklySummary'
 import API_BASE_URL from '../config/api'
 import useClinicClock from '../hooks/useClinicClock'
 import useDayBlocks from '../hooks/useDayBlocks'
+import useReloadOnReturn from '../hooks/useReloadOnReturn'
 import { hasAppointmentDocument, patientFromAppointment, recordActionLabel } from '../utils/appointmentRecord'
 import { STATUS_META } from '../utils/appointmentStatus'
 import { authFetch, getAccessToken, logout, SESSION_EXPIRED_MESSAGE } from '../utils/auth'
@@ -159,6 +160,7 @@ function SpreadsheetIcon() {
 
 function Dashboard() {
   const navigate = useNavigate()
+  useReloadOnReturn()
   const [appointments, setAppointments] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')

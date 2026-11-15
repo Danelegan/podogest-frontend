@@ -1,4 +1,5 @@
 import API_BASE_URL from '../config/api'
+import { beginRequest } from './pendingRequests'
 
 const REFRESH_URL = `${API_BASE_URL}/api/token/refresh/`
 const LOGOUT_URL = `${API_BASE_URL}/api/logout/`
@@ -122,7 +123,7 @@ export function refreshAccessToken(failedAccess) {
 // repeat is safe even for a POST. Without an access token it renews before
 // sending. A 401 coming back from authFetch (real, or made up when nothing was
 // sent) means the session expired.
-export async function authFetch(url, options = {}) {
+async function sendAuthenticated(url, options) {
   const send = (token) =>
     fetch(url, {
       ...options,
@@ -144,6 +145,16 @@ export async function authFetch(url, options = {}) {
   const stored = getAccessToken()
   if (retried.status === 401 && (stored === (renewed ?? token) || stored === null)) clearTokens()
   return retried
+}
+
+// Counts the request as in flight so an automatic reload doesn't cut it off.
+export async function authFetch(url, options = {}) {
+  const finish = beginRequest()
+  try {
+    return await sendAuthenticated(url, options)
+  } finally {
+    finish()
+  }
 }
 
 // Revokes the refresh token on the backend, then removes both tokens. If the
