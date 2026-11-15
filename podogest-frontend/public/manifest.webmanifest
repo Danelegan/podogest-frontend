@@ -1,0 +1,44 @@
+{
+  "id": "/dashboard",
+  "name": "Pasos Saludables",
+  "short_name": "Podogest",
+  "description": "Panel de gestión de Pasos Saludables: agenda, citas y fichas clínicas.",
+  "lang": "es-CL",
+  "dir": "ltr",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1c3766",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Bloquear otro día",
+      "short_name": "Bloquear día",
+      "url": "/dashboard?vista=bloqueos",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Todas las citas",
+      "short_name": "Citas",
+      "url": "/dashboard?vista=citas",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Resumen semanal",
+      "short_name": "Resumen",
+      "url": "/dashboard?vista=resumen",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Días cerrados",
+      "short_name": "Cerrados",
+      "url": "/dashboard?vista=cerrados",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ]
+}
