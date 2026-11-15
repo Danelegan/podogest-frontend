@@ -373,10 +373,11 @@ function Dashboard() {
 
   // Bloqueos de hoy (vista de hoy) y del día elegido (vista "otro día"): cada una
   // carga solo cuando se ve, y cada acción va atada a su fecha.
-  const { blocks, blocksReady, blocksError, blockBusy, blockMessages, blockSlot, releaseSlot } = useDayBlocks(
-    now.date,
-    { enabled: activeTab === 'agenda' && !isOtherDayOpen, ...blockHandlers },
-  )
+  const todayBlocks = useDayBlocks(now.date, {
+    enabled: activeTab === 'agenda' && !isOtherDayOpen,
+    ...blockHandlers,
+  })
+  const { blocks, blocksReady, blocksError, blockBusy, blockMessages, blockSlot, releaseSlot } = todayBlocks
   const otherDay = useDayBlocks(pickedDate, {
     enabled: activeTab === 'agenda' && pickedDate !== '',
     ...blockHandlers,
@@ -384,11 +385,23 @@ function Dashboard() {
 
   // Citas se releen al abrir la vista, para no trabajar con datos viejos.
   const openOtherDay = () => {
+    pickedTodayRef.current = false
     setOtherDate('')
     setIsOtherDayOpen(true)
     reloadAppointments()
   }
+  // Si en la vista de otro día se eligió hoy, lo de hoy pudo cambiar: al volver se
+  // vuelve a leer en vez de mostrar un instante la lista anterior.
+  const pickedTodayRef = useRef(false)
+  const pickOtherDate = (date) => {
+    if (date === now.date) pickedTodayRef.current = true
+    setOtherDate(date)
+  }
   const closeOtherDay = () => {
+    if (pickedTodayRef.current) {
+      pickedTodayRef.current = false
+      todayBlocks.invalidate()
+    }
     setIsOtherDayOpen(false)
     setOtherDate('')
   }
@@ -731,13 +744,17 @@ function Dashboard() {
             <OtherDayView
               today={now.date}
               date={pickedDate}
-              onDateChange={setOtherDate}
+              onDateChange={pickOtherDate}
               onBack={closeOtherDay}
-              renderAgenda={(closedReason) => (
+              refreshKey={otherDay.changeCount}
+              onSessionExpired={handleSessionExpired}
+              renderAgenda={(closedReason, isCheckingClosed) => (
                 <DailyAgenda
                   isOtherDay
                   date={pickedDate}
                   closedReason={closedReason}
+                  isCheckingClosed={isCheckingClosed}
+                  announcement={otherDay.announcement}
                   appointments={otherDayAppointments}
                   onOpenRecord={openRecord}
                   now={now}

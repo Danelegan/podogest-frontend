@@ -46,10 +46,11 @@ export function normalizeBlock(raw) {
 export const normalizeBlocks = (data) =>
   (Array.isArray(data) ? data : (data?.results ?? [])).map(normalizeBlock).filter(Boolean)
 
-// Bloqueos de un día. { status: 'ok', blocks } | { status: 'unauthorized' } | { status: 'error' }.
-export async function fetchBlocks(date, signal) {
+// Bloqueos de un rango de días (ambos incluidos; el backend admite hasta 366 días).
+// { status: 'ok', blocks } | { status: 'unauthorized' } | { status: 'error' }.
+export async function fetchBlocksRange(from, to, signal) {
   try {
-    const params = new URLSearchParams({ desde: date, hasta: date })
+    const params = new URLSearchParams({ desde: from, hasta: to })
     const response = await authFetch(`${BLOCKS_URL}?${params}`, { signal })
     if (response.status === 401) return { status: 'unauthorized' }
     if (!response.ok) return { status: 'error' }
@@ -58,6 +59,9 @@ export async function fetchBlocks(date, signal) {
     return { status: 'error' }
   }
 }
+
+// Bloqueos de un solo día.
+export const fetchBlocks = (date, signal) => fetchBlocksRange(date, date, signal)
 
 // Mensaje para un fallo que el backend no explicó (403, 5xx, otros).
 export function blockFailureMessage(status) {

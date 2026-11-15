@@ -94,3 +94,114 @@
 .other-day .slot-picker__weekdays {
   gap: 2px;
 }
+
+/* ---------- Próximos bloqueos ---------- */
+
+.other-day__upcoming {
+  margin-bottom: var(--space-5);
+}
+
+.other-day__subtitle {
+  margin: 0 0 var(--space-1);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: normal;
+  color: var(--color-text);
+}
+
+.other-day__list {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.other-day__day-button,
+.other-day__change,
+.other-day__retry {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-height);
+  border: 1px solid var(--color-border-input);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.other-day__day-button {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+}
+
+.other-day__day-button svg {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+}
+
+.other-day__day-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.other-day__day-times {
+  color: var(--color-text-muted);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.other-day__day-button[aria-current='true'] {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+
+.other-day__change,
+.other-day__retry {
+  justify-content: center;
+  padding: 0 var(--space-3);
+}
+
+.other-day__change {
+  width: 100%;
+  margin-bottom: var(--space-3);
+}
+
+.other-day__day-button:hover,
+.other-day__change:hover,
+.other-day__retry:hover {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+
+.other-day__day-button:focus-visible,
+.other-day__change:focus-visible,
+.other-day__retry:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.other-day__upcoming-error {
+  display: grid;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-danger-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+}
+
+.other-day__upcoming-error p {
+  margin: 0;
+}

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { authFetch } from '../utils/auth'
+import { formatWeekdayDate } from '../utils/schedule'
 import {
   BLOCK_CONNECTION_MESSAGE,
   BLOCK_TIMEOUT_MESSAGE,
@@ -23,6 +24,8 @@ const freshState = (date) => ({
   // Por hora ("11:30"): acción en curso y último mensaje.
   busy: {},
   messages: {},
+  // Texto para un aviso de voz (aria-live) tras bloquear o liberar.
+  announcement: '',
 })
 
 const without = (map, key) => Object.fromEntries(Object.entries(map).filter(([item]) => item !== key))
@@ -35,6 +38,8 @@ const without = (map, key) => Object.fromEntries(Object.entries(map).filter(([it
 // Cada acción captura la fecha al tocarla: una respuesta tardía nunca escribe en otro día.
 export default function useDayBlocks(date, { enabled = true, onSessionExpired, onReloadAppointments } = {}) {
   const [state, setState] = useState(() => freshState(date))
+  // Sube tras cada acción terminada: otras listas (próximos bloqueos) se releen.
+  const [changeCount, setChangeCount] = useState(0)
   // Una acción a la vez por día y hora ("2026-10-25 11:30"): evita el doble toque.
   const busyRef = useRef(new Set())
 
@@ -59,6 +64,9 @@ export default function useDayBlocks(date, { enabled = true, onSessionExpired, o
       if (!message) return time in prev.messages ? { messages: without(prev.messages, time) } : {}
       return { messages: { ...prev.messages, [time]: message } }
     })
+
+  const announce = (day, time, outcome) =>
+    patch(day, () => ({ announcement: `La hora de las ${time} del ${formatWeekdayDate(day)} ${outcome}.` }))
 
   // Aplica la respuesta de fetchBlocks. Devuelve la lista, o null si falló.
   const applyResult = useCallback(
@@ -94,7 +102,7 @@ export default function useDayBlocks(date, { enabled = true, onSessionExpired, o
     const busyKey = `${day} ${time}`
     if (busyRef.current.has(busyKey)) return
     busyRef.current.add(busyKey)
-    patch(day, (prev) => ({ busy: { ...prev.busy, [time]: true } }))
+    patch(day, (prev) => ({ busy: { ...prev.busy, [time]: true }, announcement: '' }))
     setMessage(day, time, null)
 
     const timeout = new AbortController()
@@ -113,6 +121,7 @@ export default function useDayBlocks(date, { enabled = true, onSessionExpired, o
       clearTimeout(timeoutId)
       busyRef.current.delete(busyKey)
       patch(day, (prev) => ({ busy: without(prev.busy, time) }))
+      setChangeCount((count) => count + 1)
     }
   }
 
@@ -138,6 +147,7 @@ export default function useDayBlocks(date, { enabled = true, onSessionExpired, o
           patch(day, (prev) => ({ blocks: [...prev.blocks.filter((block) => block.id !== created.id), created] }))
         }
         await refresh(day)
+        announce(day, time, 'quedó bloqueada')
         return
       }
 
@@ -173,6 +183,7 @@ export default function useDayBlocks(date, { enabled = true, onSessionExpired, o
       if (response.ok || response.status === 404) {
         patch(day, (prev) => ({ blocks: prev.blocks.filter((item) => item.id !== block.id) }))
         await refresh(day)
+        announce(day, block.time, 'quedó libre')
         return
       }
       const explained = response.status === 400 || response.status === 409
@@ -185,13 +196,19 @@ export default function useDayBlocks(date, { enabled = true, onSessionExpired, o
     })
   }
 
+  // Vuelve a "sin cargar" (por ejemplo, al salir de una vista que pudo cambiar este día).
+  const invalidate = () => setState(freshState(date))
+
   return {
     blocks: view.blocks,
     blocksReady: view.ready,
     blocksError: view.error,
     blockBusy: view.busy,
     blockMessages: view.messages,
+    announcement: view.announcement,
+    changeCount,
     blockSlot,
     releaseSlot,
+    invalidate,
   }
 }

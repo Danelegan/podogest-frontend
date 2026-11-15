@@ -309,6 +309,8 @@ function DailyAgenda({
   onReleaseSlot,
   date = now.date,
   isOtherDay = false,
+  isCheckingClosed = false,
+  announcement = '',
   closedReason,
   onOpenOtherDay,
 }) {
@@ -321,9 +323,9 @@ function DailyAgenda({
         appointments,
         blocks,
         now,
-        includeFree: blocksReady && Boolean(onBlockSlot) && !isClosed,
+        includeFree: blocksReady && Boolean(onBlockSlot) && !isClosed && !isCheckingClosed,
       }),
-    [date, now, appointments, blocks, blocksReady, onBlockSlot, isClosed],
+    [date, now, appointments, blocks, blocksReady, onBlockSlot, isClosed, isCheckingClosed],
   )
 
   // Tras bloquear o liberar, la fila cambia de tipo y se desmonta: el foco pasa al botón nuevo.
@@ -351,10 +353,17 @@ function DailyAgenda({
   // ahora hay una cita): se muestran arriba para que no se pierdan.
   const rowTimes = new Set(timeline.filter((item) => item.kind !== 'appointment').map((item) => item.time))
   const looseMessages = Object.entries(blockMessages).filter(([time]) => !rowTimes.has(time))
-  const waitingForBlocks = Boolean(onBlockSlot) && !blocksReady && !blocksError
+  const waitingForBlocks = Boolean(onBlockSlot) && (!blocksReady || isCheckingClosed) && !blocksError
 
   return (
     <section className="daily-agenda" aria-labelledby="daily-agenda-title">
+      {/* Aviso de voz tras bloquear o liberar (solo en la vista de otro día). */}
+      {isOtherDay && (
+        <p className="daily-agenda__sr" role="status">
+          {announcement}
+        </p>
+      )}
+
       <header className="daily-agenda__header">
         {isOtherDay ? (
           // Otro día: la fecha es el título; nada dice "hoy".

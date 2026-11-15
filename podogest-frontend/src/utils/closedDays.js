@@ -50,8 +50,9 @@ function loadMonth(month) {
 }
 
 // Closed days of `month` ({ year, monthIndex } or null), reloaded when the
-// month changes or the panel invalidates the cache.
-export function useClosedDays(month) {
+// month changes or the panel invalidates the cache. `isLoaded` is false until
+// that month has arrived (a failed load also ends as loaded, with no days).
+export function useClosedDaysStatus(month) {
   const key = month ? monthKey(month) : null
   const [currentVersion, setCurrentVersion] = useState(version)
   const [loaded, setLoaded] = useState({ key: null, days: {} })
@@ -73,8 +74,11 @@ export function useClosedDays(month) {
   }, [key, currentVersion])
 
   // Until the month arrives, nothing is marked (the old month is not shown).
-  return loaded.key === key ? loaded.days : {}
+  const isLoaded = key == null || loaded.key === key
+  return { days: loaded.key === key ? loaded.days : {}, isLoaded }
 }
+
+export const useClosedDays = (month) => useClosedDaysStatus(month).days
 
 // "Feriado: Navidad" -> "Feriado (Navidad)", for "…, cerrado: Feriado (Navidad)".
 export const spokenClosedReason = (reason) => String(reason ?? '').replace(/^Feriado: (.+)$/, 'Feriado ($1)')
