@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { CalendarPlus, ChevronDown, Home, LogOut, Trash2, UserPlus, X } from 'lucide-react'
 import ClinicalRecordModal from './ClinicalRecordModal'
 import DailyAgenda from './DailyAgenda'
@@ -19,6 +19,7 @@ import { authFetch, getAccessToken, logout, SESSION_EXPIRED_MESSAGE } from '../u
 import { collectMessages, readJson } from '../utils/blocks'
 import { clinicNow, formatDateString } from '../utils/clinicDate'
 import { normalizeDocumentSearch } from '../utils/documentValidation'
+import { panelViewFromSearch } from '../utils/panelRoutes'
 import './Dashboard.css'
 
 const APPOINTMENTS_URL = `${API_BASE_URL}/api/appointments/`
@@ -160,7 +161,11 @@ function SpreadsheetIcon() {
 
 function Dashboard() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const [, setSearchParams] = useSearchParams()
   useReloadOnReturn()
+  // ?vista= (atajos de la app instalada). Se lee al montar; un valor inválido se ignora.
+  const [initialView] = useState(() => panelViewFromSearch(window.location.search))
   const [appointments, setAppointments] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
@@ -168,7 +173,7 @@ function Dashboard() {
   const [searchTerm, setSearchTerm] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedAppointment, setSelectedAppointment] = useState(null)
-  const [activeTab, setActiveTab] = useState('agenda')
+  const [activeTab, setActiveTab] = useState(initialView && initialView !== 'bloqueos' ? initialView : 'agenda')
   const [isManualModalOpen, setIsManualModalOpen] = useState(false)
   // "Nueva atención" from an existing appointment: its patient data, copied
   // into the manual attention modal. null for a plain walk-in.
@@ -214,7 +219,11 @@ function Dashboard() {
   const refreshEarnings = () => setEarningsKey((key) => key + 1)
 
   const handleSessionExpired = () => {
-    navigate('/login', { replace: true, state: { notice: SESSION_EXPIRED_MESSAGE } })
+    // `from` lleva la ruta actual (con ?vista=) para volver ahí tras iniciar sesión.
+    navigate('/login', {
+      replace: true,
+      state: { notice: SESSION_EXPIRED_MESSAGE, from: location.pathname + location.search },
+    })
   }
 
   const openRecord = (appointment) => {
@@ -368,7 +377,7 @@ function Dashboard() {
   }
 
   // "Bloquear otro día": vista dentro de "Agenda de hoy" con su propio día elegido.
-  const [isOtherDayOpen, setIsOtherDayOpen] = useState(false)
+  const [isOtherDayOpen, setIsOtherDayOpen] = useState(initialView === 'bloqueos')
   const [otherDate, setOtherDate] = useState('')
   // Un día que ya quedó atrás (pasó la medianoche) cuenta como no elegido.
   const pickedDate = isOtherDayOpen && otherDate >= now.date ? otherDate : ''
@@ -385,6 +394,14 @@ function Dashboard() {
     enabled: activeTab === 'agenda' && pickedDate !== '',
     ...blockHandlers,
   })
+
+  // Si el panel se abrió con ?vista=, la URL sigue a la pestaña actual: así una
+  // recarga o volver del login cae donde estaba y no en la vista del atajo.
+  const currentView = activeTab === 'agenda' && isOtherDayOpen ? 'bloqueos' : activeTab
+  useEffect(() => {
+    if (!initialView) return
+    setSearchParams({ vista: currentView }, { replace: true })
+  }, [initialView, currentView, setSearchParams])
 
   // Citas se releen al abrir la vista, para no trabajar con datos viejos.
   const openOtherDay = () => {
@@ -527,7 +544,13 @@ function Dashboard() {
         const response = await authFetch(APPOINTMENTS_URL, { signal: controller.signal })
 
         if (response.status === 401) {
-          navigate('/login', { replace: true, state: { notice: SESSION_EXPIRED_MESSAGE } })
+          navigate('/login', {
+            replace: true,
+            state: {
+              notice: SESSION_EXPIRED_MESSAGE,
+              from: window.location.pathname + window.location.search,
+            },
+          })
           return
         }
 

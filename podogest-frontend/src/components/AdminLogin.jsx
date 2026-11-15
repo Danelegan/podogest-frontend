@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import API_BASE_URL from '../config/api'
 import { saveTokens } from '../utils/auth'
+import { safeReturnPath } from '../utils/panelRoutes'
 import './AdminLogin.css'
 
 const TOKEN_URL = `${API_BASE_URL}/api/token/`
@@ -10,7 +11,9 @@ const TOKEN_URL = `${API_BASE_URL}/api/token/`
 function AdminLogin() {
   const navigate = useNavigate()
   // Set by the panel when it sends the user back here (e.g. expired session).
-  const notice = useLocation().state?.notice
+  const { notice, from } = useLocation().state ?? {}
+  // Solo rutas internas del panel; cualquier otra cosa se ignora.
+  const returnPath = safeReturnPath(from) ?? '/dashboard'
   const [credentials, setCredentials] = useState({ username: '', password: '' })
   const [isLoading, setIsLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
@@ -35,7 +38,7 @@ function AdminLogin() {
       if (response.ok) {
         const data = await response.json()
         saveTokens(data.access, data.refresh)
-        navigate('/dashboard')
+        navigate(returnPath)
       } else if (response.status === 401) {
         setErrorMessage('Credenciales inválidas')
       } else {
