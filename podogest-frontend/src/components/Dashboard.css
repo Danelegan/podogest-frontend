@@ -173,6 +173,27 @@
   color: var(--color-primary-strong);
 }
 
+/* Nombres cortos solo en pantallas angostas: con la pestaña "Resumen" los
+   cuatro nombres largos no caben a 360px. En computador no cambia nada. */
+.dashboard__tab-short {
+  display: none;
+}
+
+@media (max-width: 600px) {
+  .dashboard__tab-long {
+    display: none;
+  }
+
+  .dashboard__tab-short {
+    display: inline;
+  }
+
+  .dashboard__tab {
+    min-height: var(--control-height);
+    padding: 0 var(--space-2);
+  }
+}
+
 /* ---------- Status messages ---------- */
 
 .dashboard__message {

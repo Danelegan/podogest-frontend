@@ -71,6 +71,8 @@ function saveHidden(hidden) {
   } catch {
     // Not remembered; it still applies until the page is reloaded.
   }
+  // The "Resumen" tab hides its amounts too.
+  window.dispatchEvent(new Event('podogest:montos-ocultos'))
 }
 
 // Amount, or the mask with a name screen readers can say.

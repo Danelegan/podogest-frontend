@@ -8,6 +8,7 @@ import ClosedDaysPanel from './ClosedDaysPanel'
 import EarningsCard from './EarningsCard'
 import ManualAttentionModal from './ManualAttentionModal'
 import OtherDayView from './OtherDayView'
+import WeeklySummary from './WeeklySummary'
 import API_BASE_URL from '../config/api'
 import useClinicClock from '../hooks/useClinicClock'
 import useDayBlocks from '../hooks/useDayBlocks'
@@ -705,32 +706,49 @@ function Dashboard() {
           type="button"
           role="tab"
           aria-selected={activeTab === 'agenda'}
+          aria-label="Agenda de hoy"
           className={`dashboard__tab ${activeTab === 'agenda' ? 'dashboard__tab--active' : ''}`}
           onClick={() => setActiveTab('agenda')}
         >
-          Agenda de hoy
+          <span className="dashboard__tab-long">Agenda de hoy</span>
+          <span className="dashboard__tab-short">Hoy</span>
         </button>
         <button
           type="button"
           role="tab"
           aria-selected={activeTab === 'citas'}
+          aria-label="Todas las Citas"
           className={`dashboard__tab ${activeTab === 'citas' ? 'dashboard__tab--active' : ''}`}
           onClick={() => setActiveTab('citas')}
         >
-          Todas las Citas
+          <span className="dashboard__tab-long">Todas las Citas</span>
+          <span className="dashboard__tab-short">Citas</span>
         </button>
         <button
           type="button"
           role="tab"
           aria-selected={activeTab === 'cerrados'}
+          aria-label="Días cerrados"
           className={`dashboard__tab ${activeTab === 'cerrados' ? 'dashboard__tab--active' : ''}`}
           onClick={() => setActiveTab('cerrados')}
         >
-          Días cerrados
+          <span className="dashboard__tab-long">Días cerrados</span>
+          <span className="dashboard__tab-short">Cerrados</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'resumen'}
+          className={`dashboard__tab ${activeTab === 'resumen' ? 'dashboard__tab--active' : ''}`}
+          onClick={() => setActiveTab('resumen')}
+        >
+          Resumen
         </button>
       </div>
 
       {activeTab === 'cerrados' && <ClosedDaysPanel onSessionExpired={handleSessionExpired} />}
+
+      {activeTab === 'resumen' && <WeeklySummary onSessionExpired={handleSessionExpired} />}
 
       {activeTab === 'agenda' &&
         (isLoading ? (
