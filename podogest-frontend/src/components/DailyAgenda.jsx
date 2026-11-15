@@ -143,9 +143,9 @@ function SlotMessage({ id, message, standalone = false }) {
 }
 
 // Franja libre de la grilla: un toque la bloquea, sin confirmación.
-function FreeSlotRow({ time, isBusy, message, onBlock }) {
-  const labelId = `daily-agenda-free-${time}`
-  const messageId = `daily-agenda-free-message-${time}`
+function FreeSlotRow({ date, time, isBusy, message, onBlock }) {
+  const labelId = `daily-agenda-free-${date}-${time}`
+  const messageId = `daily-agenda-free-message-${date}-${time}`
 
   return (
     <li className="daily-agenda__card daily-agenda__card--free">
@@ -160,7 +160,7 @@ function FreeSlotRow({ time, isBusy, message, onBlock }) {
       </div>
       <div className="daily-agenda__actions">
         <button
-          id={`daily-agenda-block-${time}`}
+          id={`daily-agenda-block-${date}-${time}`}
           type="button"
           className="daily-agenda__action daily-agenda__action--secondary"
           // aria-disabled, no disabled: el botón conserva el foco mientras guarda.
@@ -181,7 +181,7 @@ function FreeSlotRow({ time, isBusy, message, onBlock }) {
 }
 
 // Franja bloqueada. "Liberar" pide una confirmación breve dentro de la tarjeta.
-function BlockCard({ block, canRelease, isBusy, message, onRelease }) {
+function BlockCard({ date, block, canRelease, isBusy, message, onRelease }) {
   const [isConfirming, setIsConfirming] = useState(false)
   const releaseRef = useRef(null)
   const noRef = useRef(null)
@@ -261,7 +261,7 @@ function BlockCard({ block, canRelease, isBusy, message, onRelease }) {
           ) : (
             <button
               ref={releaseRef}
-              id={`daily-agenda-release-${block.time}`}
+              id={`daily-agenda-release-${date}-${block.time}`}
               type="button"
               className="daily-agenda__action"
               aria-disabled={isBusy || undefined}
@@ -287,7 +287,7 @@ function BlockCard({ block, canRelease, isBusy, message, onRelease }) {
 // `statusBusy`: { [appointmentId]: true } while its status change is saved.
 // `statusErrors`: { [appointmentId]: message } from the last failed change.
 // Bloqueos (opcionales; sin `onBlockSlot` solo se ven las citas):
-// `blocks`: bloqueos de hoy ya normalizados; `blocksReady`: ya se cargaron;
+// `date`: día que se muestra (por defecto, hoy en `now`); `blocks`: bloqueos de ese día ya normalizados; `blocksReady`: ya se cargaron;
 // `blocksError`: texto si falló la carga; `blockBusy`: { [hora]: true } mientras guarda;
 // `blockMessages`: { [hora]: { kind: 'error' | 'notice', text } }.
 function DailyAgenda({
@@ -305,17 +305,18 @@ function DailyAgenda({
   blockMessages = {},
   onBlockSlot,
   onReleaseSlot,
+  date = now.date,
 }) {
   const timeline = useMemo(
     () =>
       buildTimeline({
-        date: now.date,
+        date,
         appointments,
         blocks,
         now,
         includeFree: blocksReady && Boolean(onBlockSlot),
       }),
-    [now, appointments, blocks, blocksReady, onBlockSlot],
+    [date, now, appointments, blocks, blocksReady, onBlockSlot],
   )
 
   // Tras bloquear o liberar, la fila cambia de tipo y se desmonta: el foco pasa al botón nuevo.
@@ -331,11 +332,11 @@ function DailyAgenda({
   }, [timeline])
 
   const handleBlock = (time) => {
-    focusTargetRef.current = `daily-agenda-release-${time}`
+    focusTargetRef.current = `daily-agenda-release-${date}-${time}`
     onBlockSlot(time)
   }
   const handleRelease = (block) => {
-    focusTargetRef.current = `daily-agenda-block-${block.time}`
+    focusTargetRef.current = `daily-agenda-block-${date}-${block.time}`
     onReleaseSlot(block)
   }
 
@@ -385,6 +386,7 @@ function DailyAgenda({
                 return (
                   <FreeSlotRow
                     key={item.key}
+                    date={date}
                     time={item.time}
                     isBusy={Boolean(blockBusy[item.time])}
                     message={blockMessages[item.time]}
@@ -396,6 +398,7 @@ function DailyAgenda({
                 return (
                   <BlockCard
                     key={item.key}
+                    date={date}
                     block={item.block}
                     canRelease={!item.isEnded && Boolean(onReleaseSlot)}
                     isBusy={Boolean(blockBusy[item.time])}

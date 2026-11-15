@@ -8,8 +8,9 @@ export const BLOCKS_URL = `${API_BASE_URL}/api/bloqueos/`
 export const BLOCK_TIMEOUT_MS = 20000
 export const BLOCK_TIMEOUT_MESSAGE =
   'No se pudo confirmar el cambio. Revisa la agenda antes de volver a intentarlo.'
+export const BLOCK_CONNECTION_MESSAGE = 'No se pudo conectar con el servidor. Inténtalo de nuevo.'
 export const BLOCKS_LOAD_MESSAGE =
-  'No se pudieron cargar los bloqueos de hoy. Las horas bloqueadas podrían verse como libres.'
+  'No se pudieron cargar los bloqueos de la agenda. Las horas bloqueadas podrían verse como libres.'
 
 // DRF manda { campo: ["msg"] }, { detail: "msg" } o una lista; quedan solo los textos.
 export function collectMessages(value) {
