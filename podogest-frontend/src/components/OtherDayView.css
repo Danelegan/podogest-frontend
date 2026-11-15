@@ -1,0 +1,96 @@
+/* Vista "Bloquear otro día" (dentro de "Agenda de hoy"). Mobile-first. */
+
+.other-day {
+  width: 100%;
+  max-width: var(--panel-width);
+  margin: 0 auto var(--space-6);
+}
+
+.other-day__bar {
+  margin-bottom: var(--space-3);
+}
+
+.other-day__back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border-input);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.other-day__back:hover {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+
+.other-day__back:focus-visible,
+.other-day__title:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.other-day__title {
+  margin: 0 0 var(--space-1);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: normal;
+  color: var(--color-text);
+}
+
+.other-day__hint,
+.other-day__prompt {
+  margin: 0 0 var(--space-4);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.other-day__calendar {
+  margin-bottom: var(--space-4);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-md);
+}
+
+.other-day__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* El calendario es el de las reservas; aquí se afina solo dentro de esta vista.
+   A 360 px las celdas de 7 columnas deben medir 44 px: sin relleno lateral en la
+   tarjeta y con huecos de 2 px (el mes y las flechas conservan su margen). */
+.other-day__calendar {
+  padding-inline: 0;
+}
+
+.other-day .slot-picker__calendar {
+  max-width: none;
+}
+
+.other-day .slot-picker__month-row {
+  padding-inline: var(--space-3);
+}
+
+.other-day .slot-picker__days,
+.other-day .slot-picker__weekdays {
+  gap: 2px;
+}

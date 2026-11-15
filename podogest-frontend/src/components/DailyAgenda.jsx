@@ -3,6 +3,8 @@ import { CalendarPlus, CalendarX, Clock, FilePlus, FileText, Lock, User } from '
 import { hasAppointmentDocument, recordActionLabel } from '../utils/appointmentRecord'
 import { buildTimeline } from '../utils/blocks'
 import { clinicNow } from '../utils/clinicDate'
+import { spokenClosedReason } from '../utils/closedDays'
+import { formatWeekdayDate } from '../utils/schedule'
 import { StatusControl } from './StatusBadge'
 import './DailyAgenda.css'
 
@@ -13,9 +15,9 @@ function capitalize(text) {
   return text.charAt(0).toUpperCase() + text.slice(1)
 }
 
-// Today in Chile, like the agenda's filter; built as a local date so
-// toLocaleDateString doesn't move it to another day.
-function getTodayLabel(date) {
+// "Jueves 19 de noviembre"; built as a local date so toLocaleDateString
+// doesn't move it to another day.
+function getDayLabel(date) {
   const [year, month, day] = date.split('-').map(Number)
   const label = new Date(year, month - 1, day).toLocaleDateString('es-CL', {
     weekday: 'long',
@@ -306,7 +308,12 @@ function DailyAgenda({
   onBlockSlot,
   onReleaseSlot,
   date = now.date,
+  isOtherDay = false,
+  closedReason,
+  onOpenOtherDay,
 }) {
+  // closedReason: texto (puede ser '') si el día está cerrado o es feriado.
+  const isClosed = typeof closedReason === 'string'
   const timeline = useMemo(
     () =>
       buildTimeline({
@@ -314,9 +321,9 @@ function DailyAgenda({
         appointments,
         blocks,
         now,
-        includeFree: blocksReady && Boolean(onBlockSlot),
+        includeFree: blocksReady && Boolean(onBlockSlot) && !isClosed,
       }),
-    [date, now, appointments, blocks, blocksReady, onBlockSlot],
+    [date, now, appointments, blocks, blocksReady, onBlockSlot, isClosed],
   )
 
   // Tras bloquear o liberar, la fila cambia de tipo y se desmonta: el foco pasa al botón nuevo.
@@ -349,11 +356,38 @@ function DailyAgenda({
   return (
     <section className="daily-agenda" aria-labelledby="daily-agenda-title">
       <header className="daily-agenda__header">
-        <h2 id="daily-agenda-title" className="daily-agenda__title">
-          Agenda de hoy
-        </h2>
-        <p className="daily-agenda__date">{getTodayLabel(now.date)}</p>
+        {isOtherDay ? (
+          // Otro día: la fecha es el título; nada dice "hoy".
+          <h3 id="daily-agenda-title" className="daily-agenda__title daily-agenda__title--day">
+            {capitalize(formatWeekdayDate(date))}
+          </h3>
+        ) : (
+          <>
+            <h2 id="daily-agenda-title" className="daily-agenda__title">
+              Agenda de hoy
+            </h2>
+            <p className="daily-agenda__date">{getDayLabel(now.date)}</p>
+          </>
+        )}
+        {onOpenOtherDay && (
+          <button
+            id="daily-agenda-other-day-button"
+            type="button"
+            className="daily-agenda__other-day"
+            onClick={onOpenOtherDay}
+          >
+            <CalendarPlus size={16} aria-hidden="true" />
+            Bloquear otro día
+          </button>
+        )}
       </header>
+
+      {isClosed && (
+        <p className="daily-agenda__closed">
+          Este día está cerrado{closedReason ? `: ${spokenClosedReason(closedReason)}` : ''}. Solo puedes
+          liberar las horas bloqueadas.
+        </p>
+      )}
 
       {blocksError && (
         <p className="daily-agenda__error daily-agenda__error--standalone" role="alert">
@@ -376,7 +410,7 @@ function DailyAgenda({
       {timeline.length === 0 && !waitingForBlocks ? (
         <div className="daily-agenda__empty" role="status">
           <CalendarX size={32} strokeWidth={1.5} aria-hidden="true" />
-          <p>No tienes citas agendadas para hoy</p>
+          <p>{isOtherDay ? 'No hay horas para mostrar este día' : 'No tienes citas agendadas para hoy'}</p>
         </div>
       ) : (
         timeline.length > 0 && (

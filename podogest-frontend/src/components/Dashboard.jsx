@@ -7,6 +7,7 @@ import { StatusControl } from './StatusBadge'
 import ClosedDaysPanel from './ClosedDaysPanel'
 import EarningsCard from './EarningsCard'
 import ManualAttentionModal from './ManualAttentionModal'
+import OtherDayView from './OtherDayView'
 import API_BASE_URL from '../config/api'
 import useClinicClock from '../hooks/useClinicClock'
 import useDayBlocks from '../hooks/useDayBlocks'
@@ -363,15 +364,45 @@ function Dashboard() {
     }
   }
 
-  // Bloqueos de hoy (solo "Agenda de hoy"): carga y acciones por fecha en el hook.
+  // "Bloquear otro día": vista dentro de "Agenda de hoy" con su propio día elegido.
+  const [isOtherDayOpen, setIsOtherDayOpen] = useState(false)
+  const [otherDate, setOtherDate] = useState('')
+  // Un día que ya quedó atrás (pasó la medianoche) cuenta como no elegido.
+  const pickedDate = isOtherDayOpen && otherDate >= now.date ? otherDate : ''
+  const blockHandlers = { onSessionExpired: handleSessionExpired, onReloadAppointments: reloadAppointments }
+
+  // Bloqueos de hoy (vista de hoy) y del día elegido (vista "otro día"): cada una
+  // carga solo cuando se ve, y cada acción va atada a su fecha.
   const { blocks, blocksReady, blocksError, blockBusy, blockMessages, blockSlot, releaseSlot } = useDayBlocks(
     now.date,
-    {
-      enabled: activeTab === 'agenda',
-      onSessionExpired: handleSessionExpired,
-      onReloadAppointments: reloadAppointments,
-    },
+    { enabled: activeTab === 'agenda' && !isOtherDayOpen, ...blockHandlers },
   )
+  const otherDay = useDayBlocks(pickedDate, {
+    enabled: activeTab === 'agenda' && pickedDate !== '',
+    ...blockHandlers,
+  })
+
+  // Citas se releen al abrir la vista, para no trabajar con datos viejos.
+  const openOtherDay = () => {
+    setOtherDate('')
+    setIsOtherDayOpen(true)
+    reloadAppointments()
+  }
+  const closeOtherDay = () => {
+    setIsOtherDayOpen(false)
+    setOtherDate('')
+  }
+
+  // Al volver a hoy, el foco regresa al botón "Bloquear otro día".
+  const wasOtherDayOpenRef = useRef(false)
+  useEffect(() => {
+    if (isOtherDayOpen) {
+      wasOtherDayOpenRef.current = true
+    } else if (wasOtherDayOpenRef.current) {
+      wasOtherDayOpenRef.current = false
+      document.getElementById('daily-agenda-other-day-button')?.focus()
+    }
+  }, [isOtherDayOpen])
 
   // After saving a record, its appointment may now have data ("Crear ficha"
   // becomes "Ver ficha"): reload that appointment. Errors are ignored; the
@@ -503,6 +534,14 @@ function Dashboard() {
     loadAppointments()
     return () => controller.abort()
   }, [navigate])
+
+  const otherDayAppointments = useMemo(
+    () =>
+      appointments
+        .filter((appointment) => appointment.appointment_date === pickedDate)
+        .sort((a, b) => (a.appointment_time ?? '').localeCompare(b.appointment_time ?? '')),
+    [appointments, pickedDate],
+  )
 
   const normalizedSearch = searchTerm.trim().toLowerCase()
   // Documents are compared without dots, hyphens or spaces, in uppercase.
@@ -688,6 +727,35 @@ function Dashboard() {
             {errorMessage}
           </p>
         ) : (
+          isOtherDayOpen ? (
+            <OtherDayView
+              today={now.date}
+              date={pickedDate}
+              onDateChange={setOtherDate}
+              onBack={closeOtherDay}
+              renderAgenda={(closedReason) => (
+                <DailyAgenda
+                  isOtherDay
+                  date={pickedDate}
+                  closedReason={closedReason}
+                  appointments={otherDayAppointments}
+                  onOpenRecord={openRecord}
+                  now={now}
+                  onChangeStatus={changeStatus}
+                  onNewAttention={startNewAttention}
+                  statusBusy={statusBusy}
+                  statusErrors={statusErrors}
+                  blocks={otherDay.blocks}
+                  blocksReady={otherDay.blocksReady}
+                  blocksError={otherDay.blocksError}
+                  blockBusy={otherDay.blockBusy}
+                  blockMessages={otherDay.blockMessages}
+                  onBlockSlot={otherDay.blockSlot}
+                  onReleaseSlot={otherDay.releaseSlot}
+                />
+              )}
+            />
+          ) : (
           <DailyAgenda
             appointments={todayAppointments}
             onOpenRecord={openRecord}
@@ -703,7 +771,9 @@ function Dashboard() {
             blockMessages={blockMessages}
             onBlockSlot={blockSlot}
             onReleaseSlot={releaseSlot}
+            onOpenOtherDay={openOtherDay}
           />
+          )
         ))}
 
       {activeTab === 'citas' &&
