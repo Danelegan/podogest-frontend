@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { CalendarPlus, ChevronDown, Home, LogOut, Trash2, UserPlus, X } from 'lucide-react'
 import ClinicalRecordModal from './ClinicalRecordModal'
@@ -21,6 +21,9 @@ import { clinicNow, formatDateString } from '../utils/clinicDate'
 import { normalizeDocumentSearch } from '../utils/documentValidation'
 import { panelViewFromSearch } from '../utils/panelRoutes'
 import './Dashboard.css'
+
+// Vales de regalo: se descargan solo al abrir la pestaña.
+const ValesPanel = lazy(() => import('./vales/ValesPanel'))
 
 const APPOINTMENTS_URL = `${API_BASE_URL}/api/appointments/`
 const BACKUP_URL = `${API_BASE_URL}/api/appointments/exportar-respaldo/`
@@ -769,11 +772,26 @@ function Dashboard() {
         >
           Resumen
         </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'vales'}
+          className={`dashboard__tab ${activeTab === 'vales' ? 'dashboard__tab--active' : ''}`}
+          onClick={() => setActiveTab('vales')}
+        >
+          Vales
+        </button>
       </div>
 
       {activeTab === 'cerrados' && <ClosedDaysPanel onSessionExpired={handleSessionExpired} />}
 
       {activeTab === 'resumen' && <WeeklySummary onSessionExpired={handleSessionExpired} />}
+
+      {activeTab === 'vales' && (
+        <Suspense fallback={<p className="dashboard__message">Cargando vales...</p>}>
+          <ValesPanel onSessionExpired={handleSessionExpired} />
+        </Suspense>
+      )}
 
       {activeTab === 'agenda' &&
         (isLoading ? (

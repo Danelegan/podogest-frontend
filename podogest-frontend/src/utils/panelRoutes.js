@@ -1,7 +1,7 @@
 // Vistas del panel que se pueden abrir con /dashboard?vista=... (atajos de la
 // app instalada) y rutas de retorno tras iniciar sesión.
 
-const PANEL_VIEWS = ['agenda', 'citas', 'cerrados', 'resumen', 'bloqueos']
+const PANEL_VIEWS = ['agenda', 'citas', 'cerrados', 'resumen', 'bloqueos', 'vales']
 
 // Devuelve la vista pedida en la URL, o null si falta o no es válida.
 export function panelViewFromSearch(search) {
