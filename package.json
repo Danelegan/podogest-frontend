@@ -1,8 +1,17 @@
 {
   "name": "podogest-frontend",
+  "description": "Frontend de Podogest: sitio público con reserva de horas y panel de gestión (agenda, citas, fichas clínicas y vales) de Podología Clínica Pasos Saludables.",
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Danelegan/podogest-frontend.git"
+  },
+  "homepage": "https://podogest-frontend.vercel.app",
+  "engines": {
+    "node": "^20.19.0 || >=22.13.0"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
