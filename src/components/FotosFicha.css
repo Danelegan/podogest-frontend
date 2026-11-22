@@ -1,0 +1,241 @@
+/* "Fotos" section of the clinical record (gallery, viewer, patient evolution).
+   Colors, sizes and radii come from the :root variables. */
+
+.fotos__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.fotos__hint {
+  margin: var(--space-3) 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.fotos__status {
+  min-height: 1.2em;
+  margin: var(--space-3) 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.fotos__message {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin: var(--space-3) 0 0;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+}
+
+.fotos__message p {
+  margin: 0;
+}
+
+.fotos__message--error {
+  border: 1px solid var(--color-danger-border);
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+.fotos__message--success {
+  border: 1px solid var(--color-success-border);
+  background: var(--color-success-soft);
+  color: var(--color-success-strong);
+}
+
+/* Thumbnails: a square each, as many per row as fit. */
+.fotos__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: var(--space-3);
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fotos__thumb {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  padding: 0;
+  overflow: hidden;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-hover);
+  cursor: pointer;
+}
+
+.fotos__thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.fotos__thumb:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.fotos__thumb--selected {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary-soft);
+}
+
+/* Viewer: open in place, under the gallery. */
+.fotos__viewer {
+  margin-top: var(--space-4);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-hover);
+}
+
+.fotos__viewer:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.fotos__viewer-image {
+  display: block;
+  width: 100%;
+  max-height: 70vh;
+  object-fit: contain;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.fotos__viewer-count {
+  margin: var(--space-3) 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+.fotos__viewer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-3);
+}
+
+.fotos__delete {
+  border-color: var(--color-danger-border);
+  color: var(--color-danger);
+}
+
+/* Evolution. */
+.fotos-evolution {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.fotos-evolution__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.fotos-evolution__title {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+
+.fotos-evolution__group {
+  margin-top: var(--space-4);
+}
+
+.fotos-evolution__date {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.fotos-evolution__group .fotos__grid {
+  margin-top: var(--space-2);
+}
+
+/* Two photos side by side, oldest on the left. */
+.fotos-compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.fotos-compare__item {
+  min-width: 0;
+  margin: 0;
+}
+
+.fotos-compare__item img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: contain;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-hover);
+}
+
+.fotos-compare__item figcaption {
+  margin-top: var(--space-2);
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-align: center;
+}
+
+.fotos-compare__placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  text-align: center;
+}
+
+@media (max-width: 720px) {
+  .fotos__actions .clinical-btn,
+  .fotos__viewer-actions .clinical-btn {
+    flex: 1 1 100%;
+  }
+
+  .fotos__grid {
+    grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+    gap: var(--space-2);
+  }
+
+  .fotos-compare {
+    gap: var(--space-2);
+  }
+}
+
+/* Photo whose URL could not be signed (or no longer loads). */
+.fotos__missing {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  text-align: center;
+}
+
+.fotos__missing--large {
+  min-height: 160px;
+  margin: 0;
+  border: 1px dashed var(--color-border-input);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+}

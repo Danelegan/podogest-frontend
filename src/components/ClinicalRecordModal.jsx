@@ -23,6 +23,7 @@ import API_BASE_URL from '../config/api'
 import { authFetch, SESSION_EXPIRED_UNSAVED_MESSAGE } from '../utils/auth'
 import { parseObservations, PODOGRAM_MAPS } from '../utils/podogram'
 import { clinicDateOf, clinicNow, formatDashDate, formatDateString } from '../utils/clinicDate'
+import FotosFicha from './FotosFicha'
 import NextControlSection from './NextControlSection'
 import PatientHistory from './PatientHistory'
 import './ClinicalRecordModal.css'
@@ -2762,6 +2763,16 @@ function ClinicalRecordModal({
                         )}
                       </div>
                     </Section>
+
+                    {/* Own saving (photos aren't part of the form); it hides itself if the API says 404. */}
+                    {options?.fotos_activo === true && (
+                      <FotosFicha
+                        recordId={recordId}
+                        options={options}
+                        disabled={hasForeignRecord}
+                        onSessionExpired={handleSessionExpired}
+                      />
+                    )}
 
                     <Section icon={CalendarClock} title="Próximo control">
                       <NextControlSection
