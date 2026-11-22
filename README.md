@@ -2,7 +2,7 @@
 
 Frontend de **Podogest**, la aplicación de **Podología Clínica Pasos Saludables** (Quinta Normal, Santiago de Chile). Incluye el sitio público, con reserva de horas en línea, y un panel privado para gestionar la agenda, las citas y las fichas clínicas.
 
-- Sitio: <https://podogest-frontend.vercel.app>
+- Sitio: <https://www.pasossaludables.cl>
 - Backend: Django (repositorio privado). Este proyecto solo consume su API.
 
 ## Vista previa
