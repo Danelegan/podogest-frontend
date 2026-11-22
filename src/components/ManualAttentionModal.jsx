@@ -83,6 +83,8 @@ const hasStarted = (fecha, hora, now) => `${fecha} ${hora.slice(0, 5)}` < `${now
 // the current time) plus its empty clinical record in one request.
 // initialPatient: data copied from an existing appointment ("Nueva atención");
 // pastOnly: today or an earlier day only, and a past one is marked as attended.
+// seguimiento: the record it creates is a follow-up ("Nueva atención" only; the
+// plain walk-in never sends it).
 function ManualAttentionModal({
   isOpen,
   onClose,
@@ -90,6 +92,7 @@ function ManualAttentionModal({
   onSessionExpired,
   initialPatient = null,
   pastOnly = false,
+  seguimiento = false,
 }) {
   const [formData, setFormData] = useState(EMPTY_FORM)
   // Whether the date or time were changed since the modal opened (each opening
@@ -321,6 +324,7 @@ function ManualAttentionModal({
           phone: formData.telefono.trim(),
           appointment_date: formData.fecha,
           appointment_time: formData.hora,
+          ...(seguimiento ? { seguimiento: true } : {}),
         }),
         signal: timeout.signal,
       })
@@ -459,7 +463,7 @@ function ManualAttentionModal({
                   </h2>
                   <p id="manual-modal-meta" className="manual-modal__meta">
                     {isPrefilled
-                      ? 'Se copian nombre, documento, teléfono y correo. La ficha queda vacía.'
+                      ? 'Se copian nombre, documento, teléfono y correo. La ficha es de seguimiento: diagnóstico, tratamiento y cobro.'
                       : 'Por defecto se registra hoy, a la hora actual.'}
                   </p>
                 </div>

@@ -581,8 +581,16 @@ const paymentsKey = (rows) =>
     .sort()
     .join('|')
 
-function isSameForm(a, b) {
-  return Object.keys(EMPTY_FORM).every((field) => {
+// The only fields a follow-up record ("seguimiento") shows and sends. The
+// anesthesia line lives in tratamiento_realizado and is kept as it is.
+const FOLLOW_UP_FIELDS = ['diagnostico', 'tratamiento', 'anestesia', 'pagos', 'sinCobro']
+// Error keys that belong to those fields (payment rows are `pago-<id>-…`).
+const isFollowUpErrorKey = (key) =>
+  key === 'diagnostico' || key === 'tratamiento' || key === 'sinCobro' || key === 'pagos' || key.startsWith('pago-')
+
+// Fields compared: all of them, or only `fields` when given.
+function isSameForm(a, b, fields = Object.keys(EMPTY_FORM)) {
+  return fields.every((field) => {
     if (field === 'pagos') return paymentsKey(a.pagos) === paymentsKey(b.pagos)
     if (!Array.isArray(a[field])) return a[field] === b[field]
     return a[field].length === b[field].length && a[field].every((item) => b[field].includes(item))
@@ -593,9 +601,11 @@ function isSameForm(a, b) {
 const APPOINTMENT_FIELDS = ['nombre', 'telefono', 'email']
 
 // Whether the form holds any data of its own (the podogram is checked apart).
-function hasRecordData(form) {
+// `ignored`: more fields that don't count (the follow-up ones, to tell whether
+// a record has data outside them).
+function hasRecordData(form, ignored = []) {
   return Object.keys(EMPTY_FORM).some((field) => {
-    if (APPOINTMENT_FIELDS.includes(field)) return false
+    if (APPOINTMENT_FIELDS.includes(field) || ignored.includes(field)) return false
     const value = form[field]
     if (field === 'pagos') return filledPayments(value).length > 0
     if (Array.isArray(value)) return value.length > 0
@@ -670,12 +680,12 @@ function Field({ label, span = 1, children }) {
 
 // Field with its hint and error outside the <label>, so screen readers hear
 // them as a description (aria-describedby) instead of as part of its name.
-function InputField({ id, label, error, hint, span = 1, ...inputProps }) {
+function InputField({ id, label, error, hint, span = 1, hidden = false, ...inputProps }) {
   const hintId = `${id}-hint`
   const errorId = `${id}-error`
   const describedBy = [hint && hintId, error && errorId].filter(Boolean).join(' ')
   return (
-    <div className={`clinical-field clinical-span-${span}`}>
+    <div className={`clinical-field clinical-span-${span}`} hidden={hidden}>
       <label htmlFor={id}>{label}</label>
       <input
         id={id}
@@ -698,10 +708,10 @@ function InputField({ id, label, error, hint, span = 1, ...inputProps }) {
   )
 }
 
-function TextAreaField({ id, label, error, span = 1, ...textareaProps }) {
+function TextAreaField({ id, label, error, span = 1, hidden = false, ...textareaProps }) {
   const errorId = `${id}-error`
   return (
-    <div className={`clinical-field clinical-span-${span}`}>
+    <div className={`clinical-field clinical-span-${span}`} hidden={hidden}>
       <label htmlFor={id}>{label}</label>
       <textarea
         id={id}
@@ -735,9 +745,9 @@ function CheckGroup({ options, selected, onToggle, className }) {
   )
 }
 
-function Section({ icon: Icon, title, children }) {
+function Section({ icon: Icon, title, hidden = false, children }) {
   return (
-    <section className="clinical-card">
+    <section className="clinical-card" hidden={hidden}>
       <h2 className="clinical-card__header">
         <Icon className="clinical-card__icon" strokeWidth={2} />
         {title}
@@ -757,8 +767,15 @@ function ClinicalRecordModal({
   onSaved,
   appointmentId,
   appointment,
+  mode = 'completa',
 }) {
   const [form, setForm] = useState(EMPTY_FORM)
+  // 'seguimiento' (diagnosis, treatment and payment only) or 'completa'. It
+  // starts as `mode`; a record with data outside those fields opens in
+  // 'completa', and "Ver ficha completa" switches between the two. The hidden
+  // sections stay mounted (only `hidden`), so nothing is lost by switching.
+  const [view, setView] = useState(mode)
+  const isFollowUp = view === 'seguimiento'
   const [recordId, setRecordId] = useState(null)
   // Lines in each backend field that this form doesn't manage; kept on save.
   const [rest, setRest] = useState({ medical: [], symptoms: [], treatment: EMPTY_TREATMENT })
@@ -900,6 +917,7 @@ function ClinicalRecordModal({
       setLegacyPrice('')
       setDrawTool('pen')
       setIsRecordBlank(true)
+      setView(mode)
       setCopyMessage('')
       // Reopening the same appointment must not show the previous answer.
       setHistory({ appointmentId: null, attempt: 0, status: 'loading' })
@@ -1039,6 +1057,15 @@ function ClinicalRecordModal({
         }
         setForm(loadedForm)
         setIsRecordBlank(!hasRecordData(loadedForm) && !drawing)
+        // Data outside diagnosis, treatment and payment (the appointment's own
+        // name, phone and email don't count): the full record is the one to show.
+        const hasOtherData =
+          Boolean(pending) ||
+          Boolean(drawing) ||
+          medical.rest.length > 0 ||
+          symptoms.rest.length > 0 ||
+          hasRecordData(loadedForm, FOLLOW_UP_FIELDS)
+        if (mode === 'seguimiento' && hasOtherData) setView('completa')
       } catch (error) {
         if (error.name === 'AbortError') return
         setErrorMessage('No se pudo conectar con el servidor.')
@@ -1196,10 +1223,34 @@ function ClinicalRecordModal({
     }
   }, [successMessage])
 
+  // In the follow-up view only its own fields count (it sends nothing else).
   const hasRecordChanges = () =>
     !isLoading &&
-    (!isSameForm(form, baselineRef.current.form) ||
-      drawEditsRef.current !== baselineRef.current.drawEdits)
+    (!isSameForm(form, baselineRef.current.form, isFollowUp ? FOLLOW_UP_FIELDS : undefined) ||
+      (!isFollowUp && drawEditsRef.current !== baselineRef.current.drawEdits))
+
+  // Changes in fields the follow-up view neither shows nor saves.
+  const hasHiddenChanges = () => {
+    const otherFields = Object.keys(EMPTY_FORM).filter((field) => !FOLLOW_UP_FIELDS.includes(field))
+    return (
+      !isSameForm(form, baselineRef.current.form, otherFields) ||
+      drawEditsRef.current !== baselineRef.current.drawEdits
+    )
+  }
+
+  const handleToggleView = () => {
+    if (!isFollowUp) {
+      if (hasHiddenChanges()) {
+        setSuccessMessage('')
+        setErrorMessage(
+          'Hay cambios sin guardar en la ficha completa. Guárdalos antes de volver a la vista de seguimiento.',
+        )
+        return
+      }
+      setErrorMessage('')
+    }
+    setView(isFollowUp ? 'completa' : 'seguimiento')
+  }
 
   // An hour chosen for the next control but not booked yet.
   const hasControlDraft = () => !isLoading && proximoControl == null && controlDraft.time !== ''
@@ -1242,7 +1293,10 @@ function ClinicalRecordModal({
     }
     if (event.key !== 'Tab') return
 
-    const focusables = [...dialogRef.current.querySelectorAll(FOCUSABLE)]
+    // Sections hidden by the follow-up view can't take focus.
+    const focusables = [...dialogRef.current.querySelectorAll(FOCUSABLE)].filter(
+      (element) => !element.closest('[hidden]'),
+    )
     if (!focusables.length) return
     const first = focusables[0]
     const last = focusables[focusables.length - 1]
@@ -1264,7 +1318,9 @@ function ClinicalRecordModal({
       return
     }
     // Impossible values block the save with the reason next to each field.
-    const invalid = Object.keys(validateForm(form, validationContext))
+    const invalid = Object.keys(validateForm(form, validationContext)).filter(
+      (key) => !isFollowUp || isFollowUpErrorKey(key),
+    )
     if (invalid.length) {
       event.preventDefault()
       setCheckedFields((prev) => ({
@@ -1590,6 +1646,31 @@ function ClinicalRecordModal({
   }
 
   const handleClear = () => {
+    if (isFollowUp) {
+      // Only what this view shows; the rest of the record stays as it is.
+      if (
+        !window.confirm(
+          '¿Vaciar el seguimiento? Se borrarán diagnóstico, tratamiento y cobro del formulario. ' +
+            'La ficha guardada no cambia hasta que presiones Guardar.',
+        )
+      ) {
+        return
+      }
+      setForm((prev) => ({
+        ...prev,
+        diagnostico: '',
+        tratamiento: '',
+        pagos: [newPaymentRow()],
+        sinCobro: false,
+      }))
+      setCheckedFields({})
+      setIsSaveBlocked(false)
+      setServerErrors({})
+      setShowErrorSummary(false)
+      setErrorMessage('')
+      setSuccessMessage('')
+      return
+    }
     const confirmed = window.confirm(
       '¿Vaciar la ficha? Se borrarán todos los campos del formulario. ' +
         'La ficha guardada no cambia hasta que presiones Guardar.',
@@ -1636,30 +1717,40 @@ function ClinicalRecordModal({
       : form.edad === ''
         ? null
         : Number(form.edad)
-    const payload = {
-      antecedentes_medicos: buildLines(stored, MEDICAL_KEYS, rest.medical),
-      sintomas: buildLines(stored, SYMPTOM_KEYS, rest.symptoms),
+    // Fields of the follow-up view: the only ones it sends. Symptoms, health
+    // history, contact, prescription and drawing are never in a follow-up PATCH,
+    // so the backend leaves them as they are.
+    const followUpPayload = {
       diagnostico: form.diagnostico.trim(),
       tratamiento_realizado: buildTreatment(form, stored, rest.treatment),
-      // Plain text: the drawing goes in `podograma`, never here.
-      observaciones: form.observaciones,
-      ...Object.fromEntries(
-        Object.entries(CONTACT_FIELDS).map(([field, api]) => [api, form[field].trim()]),
-      ),
-      fecha_nacimiento: form.nacimiento || null,
-      edad: age,
-      receta_medicamentos: form.receta,
-      receta_otro: form.receta.includes(RECETA_OTRO) ? form.recetaOtro.trim() : '',
-      receta_indicaciones: form.indicaciones.trim(),
       // The whole list: it replaces what was saved ([] removes every payment).
       pagos: sentRows.map((row) => ({ medio: row.medio, monto: Number(row.monto) })),
       sin_cobro: form.sinCobro,
     }
+    const payload = isFollowUp
+      ? followUpPayload
+      : {
+          antecedentes_medicos: buildLines(stored, MEDICAL_KEYS, rest.medical),
+          sintomas: buildLines(stored, SYMPTOM_KEYS, rest.symptoms),
+          // Plain text: the drawing goes in `podograma`, never here.
+          observaciones: form.observaciones,
+          ...Object.fromEntries(
+            Object.entries(CONTACT_FIELDS).map(([field, api]) => [api, form[field].trim()]),
+          ),
+          fecha_nacimiento: form.nacimiento || null,
+          edad: age,
+          receta_medicamentos: form.receta,
+          receta_otro: form.receta.includes(RECETA_OTRO) ? form.recetaOtro.trim() : '',
+          receta_indicaciones: form.indicaciones.trim(),
+          ...followUpPayload,
+        }
     // A drawing edited since loading is exported from the canvas; an untouched
     // one is left as is, except in an old-format record, where it still lives
     // inside observaciones and has to move to its own field.
     const loaded = loadedDrawingRef.current
-    if (drawEditsRef.current !== loaded.drawEdits) {
+    if (isFollowUp) {
+      // Never touches the drawing.
+    } else if (drawEditsRef.current !== loaded.drawEdits) {
       const drawing =
         hasInkRef.current && canvasRef.current ? canvasRef.current.toDataURL('image/png') : ''
       payload.podograma = drawing
@@ -1768,7 +1859,13 @@ function ClinicalRecordModal({
       : ''
   const recordLabel =
     recordId != null ? `Ficha n.º ${String(recordId).padStart(4, '0')}` : 'Ficha nueva'
-  const formErrors = validateForm(form, validationContext)
+  // The follow-up view only answers for its own fields: an error in a hidden
+  // one (an old value, say) must not block saving.
+  const formErrors = Object.fromEntries(
+    Object.entries(validateForm(form, validationContext)).filter(
+      ([key]) => !isFollowUp || isFollowUpErrorKey(key),
+    ),
+  )
   // Once everything is fixed the block is over: a later typo only shows its
   // own field error until the next save attempt.
   if (isSaveBlocked && Object.keys(formErrors).length === 0) setIsSaveBlocked(false)
@@ -1889,7 +1986,7 @@ function ClinicalRecordModal({
                     className="clinical-header__title"
                     tabIndex={-1}
                   >
-                    Ficha clínica podológica
+                    {isFollowUp ? 'Ficha de seguimiento' : 'Ficha clínica podológica'}
                   </h1>
                   <p id="clinical-modal-meta" className="clinical-header__meta">
                     {recordLabel}
@@ -1952,13 +2049,28 @@ function ClinicalRecordModal({
                         </ul>
                       </div>
                     )}
+                    {mode === 'seguimiento' && (
+                      <div className="clinical-view-switch">
+                        <button type="button" className="clinical-btn" onClick={handleToggleView}>
+                          {isFollowUp ? 'Ver ficha completa' : 'Volver a la vista de seguimiento'}
+                        </button>
+                      </div>
+                    )}
+                    {isFollowUp && (
+                      <div className="clinical-patient" aria-label="Paciente">
+                        <User className="clinical-patient__icon" strokeWidth={2} aria-hidden="true" />
+                        <p className="clinical-patient__name">{form.nombre || 'Paciente'}</p>
+                        {documentDisplay && <p className="clinical-patient__meta">{documentDisplay}</p>}
+                        {form.telefono && <p className="clinical-patient__meta">{form.telefono}</p>}
+                      </div>
+                    )}
                     <PatientHistory
                       history={historyView}
                       hasDocument={Boolean(documentDisplay)}
                       medioLabel={medioLabel}
                       onRetry={() => setHistoryAttempt((value) => value + 1)}
                     />
-                    <Section icon={User} title="Datos del paciente">
+                    <Section icon={User} title="Datos del paciente" hidden={isFollowUp}>
                       {canCopyLastVisit && (
                         <div className="patient-copy">
                           <button
@@ -2106,10 +2218,10 @@ function ClinicalRecordModal({
                       </div>
                     </Section>
 
-                    <Section icon={Footprints} title="Problemas actuales">
+                    <Section icon={Footprints} title={isFollowUp ? 'Diagnóstico' : 'Problemas actuales'}>
                       <div className="clinical-grid clinical-grid--4">
                         {PROBLEMS.map((option) => (
-                          <label key={option} className="clinical-check">
+                          <label key={option} className="clinical-check" hidden={isFollowUp}>
                             <input
                               type="checkbox"
                               checked={form.problemas.includes(option)}
@@ -2118,7 +2230,7 @@ function ClinicalRecordModal({
                             {option}
                           </label>
                         ))}
-                        <Field label="Otros" span={4}>
+                        <Field label="Otros" span={4} hidden={isFollowUp}>
                           <input
                             type="text"
                             name="otros"
@@ -2142,6 +2254,7 @@ function ClinicalRecordModal({
                           id={FIELD_INPUT_IDS.observaciones}
                           label="Observaciones"
                           span={4}
+                          hidden={isFollowUp}
                           error={fieldError('observaciones')}
                           name="observaciones"
                           value={form.observaciones}
@@ -2152,7 +2265,7 @@ function ClinicalRecordModal({
                       </div>
                     </Section>
 
-                    <Section icon={Stethoscope} title="Antecedentes de salud">
+                    <Section icon={Stethoscope} title="Antecedentes de salud" hidden={isFollowUp}>
                       <div className="clinical-grid clinical-grid--3">
                         <Field label="Enfermedad diagnosticada" span={3}>
                           <input
@@ -2211,7 +2324,7 @@ function ClinicalRecordModal({
                       </div>
                     </Section>
 
-                    <Section icon={HeartPulse} title="Signos vitales">
+                    <Section icon={HeartPulse} title="Signos vitales" hidden={isFollowUp}>
                       <div className="clinical-grid clinical-grid--3">
                         <fieldset
                           className="clinical-field clinical-fieldset"
@@ -2279,7 +2392,7 @@ function ClinicalRecordModal({
                       </div>
                     </Section>
 
-                    <Section icon={Users} title="Antecedentes familiares">
+                    <Section icon={Users} title="Antecedentes familiares" hidden={isFollowUp}>
                       <CheckGroup
                         className="clinical-grid clinical-grid--3"
                         options={FAMILY_HISTORY}
@@ -2288,7 +2401,7 @@ function ClinicalRecordModal({
                       />
                     </Section>
 
-                    <Section icon={PenTool} title="Mapa anatómico">
+                    <Section icon={PenTool} title="Mapa anatómico" hidden={isFollowUp}>
                       <div className="clinical-podogram" onKeyDown={handlePodogramKeyDown}>
                         <p className="clinical-podogram__hint">
                           {mapVersion === 'v2'
@@ -2385,6 +2498,7 @@ function ClinicalRecordModal({
                           <InputField
                             id={FIELD_INPUT_IDS.anestesia}
                             label="Anestesia (ml)"
+                            hidden={isFollowUp}
                             error={fieldError('anestesia')}
                             inputMode="decimal"
                             name="anestesia"
@@ -2396,7 +2510,7 @@ function ClinicalRecordModal({
                           <TextAreaField
                             id={FIELD_INPUT_IDS.tratamiento}
                             label="Tratamiento realizado"
-                            span={2}
+                            span={isFollowUp ? 3 : 2}
                             error={fieldError('tratamiento')}
                             name="tratamiento"
                             value={form.tratamiento}
@@ -2417,6 +2531,7 @@ function ClinicalRecordModal({
                           <fieldset
                             id={FIELD_INPUT_IDS.receta}
                             className="clinical-fieldset clinical-subsection"
+                            hidden={isFollowUp}
                             tabIndex={-1}
                             aria-describedby={
                               fieldError('receta') ? `${FIELD_INPUT_IDS.receta}-error` : undefined

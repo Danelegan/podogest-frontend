@@ -13,7 +13,12 @@ import API_BASE_URL from '../config/api'
 import useClinicClock from '../hooks/useClinicClock'
 import useDayBlocks from '../hooks/useDayBlocks'
 import useReloadOnReturn from '../hooks/useReloadOnReturn'
-import { hasAppointmentDocument, patientFromAppointment, recordActionLabel } from '../utils/appointmentRecord'
+import {
+  hasAppointmentDocument,
+  patientFromAppointment,
+  recordActionLabel,
+  recordModeOf,
+} from '../utils/appointmentRecord'
 import { STATUS_META } from '../utils/appointmentStatus'
 import { authFetch, getAccessToken, logout, SESSION_EXPIRED_MESSAGE } from '../utils/auth'
 import { collectMessages, readJson } from '../utils/blocks'
@@ -251,7 +256,10 @@ function Dashboard() {
   // refetching; "Ver Ficha" works on it right away.
   // From "Nueva atención" (newAttentionPatient set), its empty record opens
   // right away; `warning` says why it could not be marked as attended.
-  const handleManualCreated = (appointment, { warning = '' } = {}) => {
+  const handleManualCreated = (created, { warning = '' } = {}) => {
+    // Made with "Nueva atención": a follow-up, even if the answer has no origen.
+    const appointment =
+      newAttentionPatient && !created.origen ? { ...created, origen: 'control' } : created
     // Another day's attention doesn't show in today's agenda: say where it went.
     const date = appointment.appointment_date ?? ''
     const today = getTodayDateString()
@@ -1106,6 +1114,7 @@ function Dashboard() {
         onSessionExpired={handleSessionExpired}
         initialPatient={newAttentionPatient}
         pastOnly={newAttentionPatient != null}
+        seguimiento={newAttentionPatient != null}
       />
 
       <ClinicalRecordModal
@@ -1117,6 +1126,7 @@ function Dashboard() {
         onSaved={handleRecordSaved}
         appointmentId={selectedAppointment?.id}
         appointment={selectedAppointment}
+        mode={recordModeOf(selectedAppointment)}
       />
     </div>
   )

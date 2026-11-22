@@ -7,6 +7,15 @@ export function recordActionLabel(appointment) {
   return appointment?.ficha_con_datos === true ? 'Ver ficha' : 'Crear ficha'
 }
 
+// How its clinical record opens: a follow-up (diagnosis, treatment and payment
+// only) for an appointment made with "Nueva atención" (origen 'control') or a
+// booked next control (control_de); the full record for everything else.
+export function recordModeOf(appointment) {
+  return appointment?.origen === 'control' || appointment?.control_de != null
+    ? 'seguimiento'
+    : 'completa'
+}
+
 // The appointment's document as the form keeps it. Older appointments only have
 // `rut` and an empty type: they count as RUT. '' when there is no document.
 function appointmentDocument(appointment) {
