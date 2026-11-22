@@ -5,6 +5,24 @@ Frontend de **Podogest**, la aplicación de **Podología Clínica Pasos Saludabl
 - Sitio: <https://podogest-frontend.vercel.app>
 - Backend: Django (repositorio privado). Este proyecto solo consume su API.
 
+## Vista previa
+
+![Recorrido por el sitio público y el panel: portada, reserva de una hora y pestañas de agenda, citas, resumen y vales](docs/capturas/recorrido.gif)
+
+| Pantalla | Escritorio | Celular |
+|---|---|---|
+| Portada | <img src="docs/capturas/escritorio-portada.png" alt="Portada del sitio público de Pasos Saludables, en escritorio" width="420"> | <img src="docs/capturas/movil-portada.png" alt="Portada del sitio público de Pasos Saludables, en celular" width="140"> |
+| Servicios | <img src="docs/capturas/escritorio-servicios.png" alt="Catálogo de servicios con sus precios, en escritorio" width="420"> | <img src="docs/capturas/movil-servicios.png" alt="Catálogo de servicios con sus precios, en celular" width="140"> |
+| Reserva: selector de horas | <img src="docs/capturas/escritorio-reserva.png" alt="Modal de reserva con las horas disponibles de un día, en escritorio" width="420"> | <img src="docs/capturas/movil-reserva.png" alt="Modal de reserva con las horas disponibles de un día, en celular" width="140"> |
+| Agenda de hoy | <img src="docs/capturas/escritorio-agenda.png" alt="Pestaña Agenda de hoy del panel, en escritorio" width="420"> | <img src="docs/capturas/movil-agenda.png" alt="Pestaña Agenda de hoy del panel, en celular" width="140"> |
+| Ganancias | <img src="docs/capturas/escritorio-ganancias.png" alt="Tarjeta de ganancias del mes por medio de pago, en escritorio" width="420"> | <img src="docs/capturas/movil-ganancias.png" alt="Tarjeta de ganancias del mes por medio de pago, en celular" width="140"> |
+| Todas las citas | <img src="docs/capturas/escritorio-citas.png" alt="Lista de citas próximas con sus acciones, en escritorio" width="420"> | <img src="docs/capturas/movil-citas.png" alt="Lista de citas próximas con sus acciones, en celular" width="140"> |
+| Resumen semanal | <img src="docs/capturas/escritorio-resumen.png" alt="Resumen semanal con ganancias y asistencia, en escritorio" width="420"> | <img src="docs/capturas/movil-resumen.png" alt="Resumen semanal con ganancias y asistencia, en celular" width="140"> |
+| Ficha clínica | <img src="docs/capturas/escritorio-ficha.png" alt="Ficha clínica podológica con los datos del paciente, en escritorio" width="420"> | <img src="docs/capturas/movil-ficha.png" alt="Ficha clínica podológica con los datos del paciente, en celular" width="140"> |
+| Vales de regalo | <img src="docs/capturas/escritorio-vales.png" alt="Lista de vales de regalo con el código enmascarado, en escritorio" width="420"> | <img src="docs/capturas/movil-vales.png" alt="Lista de vales de regalo con el código enmascarado, en celular" width="140"> |
+
+Las capturas y el GIF salen de un backend local con datos de demostración; el script reemplaza nombres, documentos, teléfonos y correos por valores ficticios y se detiene si queda alguno a la vista. Se regeneran con `npm run capturas` (ver [Capturas](#capturas)).
+
 ## Stack
 
 | Tecnología | Uso |
@@ -36,6 +54,7 @@ npm run dev
 | `npm run build` | Build de producción en `dist/` |
 | `npm run preview` | Sirve el build localmente |
 | `npm run lint` | Ejecuta ESLint |
+| `npm run capturas` | Regenera las capturas y el GIF de `docs/capturas/` (ver [Capturas](#capturas)) |
 
 ### Variables de entorno
 
@@ -102,6 +121,16 @@ src/
   utils/              auth, fechas, validaciones, podograma y resumen semanal
 vercel.json           Cabeceras y reescritura a index.html
 ```
+
+## Capturas
+
+`scripts/capturas.mjs` usa Playwright para generar los PNG (escritorio 1440×900 y celular 390×844, ambos a 2x) y `recorrido.gif` (menor a 3 MB) en `docs/capturas/`.
+
+1. Levanta el backend local en `http://127.0.0.1:8000` con datos de demostración y `npm run dev` en `http://localhost:5173`.
+2. Crea `.env.capturas` (ignorado por git) con `CAPTURAS_USUARIO` y `CAPTURAS_CLAVE`, una cuenta de demostración local.
+3. Ejecuta `npm run capturas`.
+
+Solo abre `localhost:5173` y `127.0.0.1:8000`: se niega a correr si `VITE_API_URL` no es local y bloquea cualquier otra conexión, de modo que nunca captura producción. Antes de cada captura revisa que no quede un RUT, teléfono, correo o nombre real en pantalla. El GIF solo reemplaza al anterior si cabe en 3 MB, y el script no borra otros archivos de la carpeta.
 
 ## Despliegue
 
