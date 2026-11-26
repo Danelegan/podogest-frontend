@@ -6,10 +6,10 @@
 }
 
 /* Colores y tipografía desde los tokens globales de :root (index.css).
-   Fondo crema para marcar el ritmo: hero azul, servicios blanco, nosotros crema.
+   Fondo claro para marcar el ritmo: hero azul, servicios blanco, nosotros azul muy claro.
    Los tamaños de letra van en px, tal como en el mockup. */
 .about {
-  background: var(--color-bg-warm);
+  background: var(--color-bg-cool);
   color: var(--color-text);
   font-family: var(--font-ui);
   letter-spacing: normal;
@@ -66,7 +66,7 @@
 .about__eyebrow {
   margin: 0 0 8px;
   font-size: 17px;
-  color: var(--color-text-muted); /* ≈ 5.1:1 sobre --color-bg-warm */
+  color: var(--color-text-muted); /* ≈ 5.3:1 sobre --color-bg-cool */
 }
 
 .about__title {
