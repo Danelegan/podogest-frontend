@@ -165,10 +165,10 @@
   min-height: var(--control-height);
   margin-top: var(--space-2);
   padding: 0 var(--space-4);
-  border: 1px solid var(--color-primary);
+  border: 1px solid var(--color-bg-deep);
   border-radius: var(--radius-sm);
-  background: var(--color-primary);
-  color: var(--color-on-primary); /* 5.06:1 */
+  background: var(--color-bg-deep);
+  color: var(--color-on-primary); /* 11.8:1 */
   font-family: inherit;
   font-size: var(--text-base);
   font-weight: 600;
@@ -178,8 +178,8 @@
 }
 
 .admin-login__submit:hover:not(:disabled) {
-  border-color: var(--color-primary-strong);
-  background: var(--color-primary-strong);
+  border-color: var(--color-bg-deeper);
+  background: var(--color-bg-deeper);
 }
 
 .admin-login__submit:disabled {

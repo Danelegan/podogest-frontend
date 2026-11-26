@@ -58,10 +58,11 @@
   background: var(--color-surface-hover);
 }
 
-.earnings__tool[aria-pressed='true'] {
-  border-color: var(--color-primary);
-  background: var(--color-primary-soft);
-  color: var(--color-primary-strong);
+.earnings__tool[aria-pressed='true'],
+.earnings__tool[aria-pressed='true']:hover:not([aria-disabled='true']) {
+  border-color: var(--color-bg-deep);
+  background: var(--color-bg-deep);
+  color: var(--color-on-primary);
 }
 
 .earnings__tool[aria-disabled='true'] {
@@ -112,8 +113,8 @@
 
 .earnings__period--active,
 .earnings__period--active:hover {
-  background: var(--color-primary-soft);
-  color: var(--color-primary-strong); /* 5.92:1 */
+  background: var(--color-bg-deep);
+  color: var(--color-on-primary); /* 11.8:1 */
 }
 
 /* The ring would be cut by the rounded clip; draw it inside. */

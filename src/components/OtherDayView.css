@@ -270,8 +270,8 @@
   }
 
   .other-day .slot-picker__day.is-selected {
-    border-color: var(--color-primary);
-    background: var(--color-primary);
+    border-color: var(--color-bg-deep);
+    background: var(--color-bg-deep);
     color: var(--color-on-primary);
     box-shadow: var(--shadow-primary);
   }

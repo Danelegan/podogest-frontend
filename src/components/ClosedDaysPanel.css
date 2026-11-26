@@ -64,14 +64,14 @@
 }
 
 .closed-days__btn--primary {
-  border-color: var(--color-primary);
-  background: var(--color-primary);
+  border-color: var(--color-bg-deep);
+  background: var(--color-bg-deep);
   color: var(--color-on-primary);
 }
 
 .closed-days__btn--primary:hover:not(:disabled) {
-  border-color: var(--color-primary-strong);
-  background: var(--color-primary-strong);
+  border-color: var(--color-bg-deeper);
+  background: var(--color-bg-deeper);
 }
 
 /* Ya cerrado o esperando respuesta: legible (el texto dice por qué). */
@@ -350,19 +350,19 @@
 }
 
 .closed-days__tag--holiday {
-  background: var(--color-primary-soft);
-  color: var(--color-primary-strong); /* 5.92:1 */
+  background: var(--color-bg-deep);
+  color: var(--color-on-primary);
 }
 
 /* Feriado reabierto: se atiende ese día. */
 .closed-days__item.is-open .closed-days__tag {
-  background: var(--color-success-soft);
-  color: var(--color-success-strong); /* ≈ 6:1 */
+  background: var(--color-success-strong);
+  color: var(--color-on-primary);
 }
 
 .closed-days__tag--manual {
-  background: var(--color-warning-soft);
-  color: var(--color-warning); /* 6.5:1 */
+  background: var(--color-warning);
+  color: var(--color-on-primary);
 }
 
 .closed-days__message {

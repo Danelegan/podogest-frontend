@@ -28,7 +28,7 @@
 .app-reload-notice button {
   min-height: var(--control-height);
   padding: 0 var(--space-4);
-  background: var(--color-primary);
+  background: var(--color-bg-deep);
   color: var(--color-on-primary);
   border: 0;
   border-radius: var(--radius-md);
@@ -38,7 +38,7 @@
 }
 
 .app-reload-notice button:hover {
-  background: var(--color-primary-strong);
+  background: var(--color-bg-deeper);
 }
 
 .app-reload-notice button:focus-visible {

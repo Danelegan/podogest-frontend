@@ -2,9 +2,10 @@
    un fondo azul profundo (--color-bg-deep, derivado de --color-primary), cercano al
    azul marino del uniforme de la foto; sus colores sobre oscuro van aquí. */
 .hero {
-  --hero-bg: var(--color-bg-deep);         /* azul profundo, compartido con el footer */
-  --hero-text: #ffffff;                    /* ≈ 11.8:1 sobre --hero-bg */
-  --hero-text-soft: rgba(255, 255, 255, 0.84); /* ≈ 8.8:1 */
+  /* A medio camino entre el azul profundo y el marino del footer (≈ #162a4a). */
+  --hero-bg: color-mix(in srgb, var(--color-bg-deep) 50%, var(--color-bg-deeper));
+  --hero-text: #ffffff;                    /* ≈ 14:1 sobre --hero-bg */
+  --hero-text-soft: rgba(255, 255, 255, 0.84); /* > 9:1 */
   --hero-line: rgba(255, 255, 255, 0.32);  /* bordes finos sobre oscuro */
   --hero-focus: #ffffff;
   --hero-home-bg: rgba(103, 172, 83, 0.16);
