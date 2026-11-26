@@ -26,8 +26,10 @@
 //     "por_dia":  [ { "fecha": "2026-11-16", "dia": "lunes", "cerrado": false,
 //                     "atendidas": 2, "no_asistio": 1, "canceladas": 0, "ingresos": 36000 } ],
 //                  // siempre 7 filas
-//     "por_hora": [ { "hora": "10:00", "citas": 5 } ]
-//                  // solo horas con citas; la grilla la dibuja este archivo
+//     "por_hora": [ { "hora": 9, "citas": 2 } ]
+//                  // hora de inicio como entero (09:30 cuenta en 9, 10:47 en 10);
+//                  // solo horas con citas, sin canceladas y sin rango fijo: las
+//                  // filas las completa este archivo (también acepta "HH:MM")
 //   }
 //
 //   Bloque aditivo (el frontend tolera que falte): solo etiquetas y conteos.
@@ -43,7 +45,6 @@
 import API_BASE_URL from '../config/api'
 import { authFetch } from './auth'
 import { collectMessages, readJson } from './blocks'
-import { slotsForDate } from './schedule'
 
 const SUMMARY_URL = `${API_BASE_URL}/api/resumen-semanal/`
 const REQUEST_TIMEOUT_MS = 20000
@@ -131,15 +132,37 @@ const list = (value) => (Array.isArray(value) ? value.filter(isObject) : [])
 
 const READ_ERROR = 'No pudimos leer el resumen. Inténtalo de nuevo.'
 
-// Horas de la grilla de la clínica (las de cada día de la semana, juntas) más
-// las que el backend trae fuera de ella: esas se marcan "fuera de horario".
-function buildHourRows(hours, days) {
-  const grid = new Set(days.flatMap((day) => slotsForDate(day.date)))
+// Gráfico por hora entera. Siempre las filas de FIRST_HOUR a LAST_HOUR (cubren
+// las horas de inicio de la agenda) más cualquier otra hora que traiga el
+// backend. El horario publicado va de 9:30 a 20:30: solo se marca "fuera de
+// horario" lo que empieza antes de las 9 o desde las 21.
+const FIRST_HOUR = 9
+const LAST_HOUR = 19
+const LAST_OPEN_HOUR = 20
+
+// 9 -> 9; "09:30" o "09:30:00" -> 9; cualquier otra cosa -> null.
+function wholeHour(value) {
+  const match = typeof value === 'string' ? /^(\d{1,2}):\d{2}/.exec(value) : null
+  const hour = match ? Number(match[1]) : value
+  return Number.isInteger(hour) && hour >= 0 && hour <= 23 ? hour : null
+}
+
+function buildHourRows(items) {
   const counts = new Map()
-  for (const { time, count: citas } of hours) counts.set(time, (counts.get(time) ?? 0) + citas)
-  return [...new Set([...grid, ...counts.keys()])]
-    .sort()
-    .map((time) => ({ time, count: counts.get(time) ?? 0, offHours: !grid.has(time) }))
+  for (const item of items) {
+    const hour = wholeHour(item.hora)
+    const citas = count(item.citas)
+    if (hour !== null && citas > 0) counts.set(hour, (counts.get(hour) ?? 0) + citas)
+  }
+  const range = Array.from({ length: LAST_HOUR - FIRST_HOUR + 1 }, (_, index) => FIRST_HOUR + index)
+  return [...new Set([...range, ...counts.keys()])]
+    .sort((a, b) => a - b)
+    .map((hour) => ({
+      hour,
+      label: `${hour} h`,
+      count: counts.get(hour) ?? 0,
+      offHours: hour < FIRST_HOUR || hour > LAST_OPEN_HOUR,
+    }))
 }
 
 // Respuesta del backend -> forma que usa la pantalla. Solo pasa lo conocido;
@@ -171,10 +194,6 @@ export function normalizeWeeklySummary(raw) {
         busy: attended + noShow,
       }
     })
-
-  const hours = list(raw.por_hora)
-    .map((item) => ({ time: String(item.hora ?? '').slice(0, 5), count: count(item.citas) }))
-    .filter((item) => /^\d{2}:\d{2}$/.test(item.time) && item.count > 0)
 
   return {
     week: {
@@ -219,7 +238,7 @@ export function normalizeWeeklySummary(raw) {
         }
       : null,
     days,
-    hours: buildHourRows(hours, days),
+    hours: buildHourRows(list(raw.por_hora)),
     isEmpty: count(citas.total) === 0,
   }
 }

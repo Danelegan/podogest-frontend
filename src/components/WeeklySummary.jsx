@@ -305,18 +305,18 @@ function Summary({ data, hidden }) {
           </h3>
           <p className="weekly__lead">
             {topHour
-              ? `La hora más pedida fue a las ${topHour.time} (${citasText(topHour.count)}).`
-              : 'Citas por hora de inicio.'}
+              ? `La hora más pedida fue la de las ${topHour.label} (${citasText(topHour.count)}).`
+              : 'Citas por hora, según la hora de inicio.'}
           </p>
           <BarList
-            caption="Citas por hora de inicio"
+            caption="Citas por hora, según la hora de inicio"
             labelHeader="Hora"
             valueHeader="Citas"
             rows={hours.map((hour) => {
-              const isTop = topHour?.time === hour.time
+              const isTop = topHour?.hour === hour.hour
               return {
-                key: hour.time,
-                label: hour.time,
+                key: hour.hour,
+                label: hour.label,
                 tag: hour.offHours ? 'fuera de horario' : isTop ? 'más pedida' : null,
                 tagTone: hour.offHours ? 'muted' : 'primary',
                 value: hour.count,
