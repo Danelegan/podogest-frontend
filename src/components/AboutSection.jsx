@@ -4,18 +4,16 @@ import './AboutSection.css'
 
 const VISIT_STEPS = [
   {
-    title: 'Diagnóstico de tu pie',
-    description:
-      'Revisamos tu pie completo y te explicamos qué encontramos, con palabras simples.',
+    title: 'Reviso tu pie completo',
+    description: 'Te explico lo que encuentro, con palabras simples.',
   },
   {
-    title: 'Educación sanitaria',
-    description: 'Te enseñamos a cuidar tus pies en casa para que el resultado dure.',
+    title: 'Te enseño a cuidarlo',
+    description: 'En casa, para que el resultado dure.',
   },
   {
-    title: 'Una persona de confianza',
-    description:
-      'Puedes contar tus dolores y molestias sin sentirte juzgado. Siempre vas a tener a alguien que te ayude con tus pies.',
+    title: 'Cuéntame lo que te duele',
+    description: 'Sin sentirte juzgado. Siempre vas a tener quien te ayude con tus pies.',
   },
 ]
 
@@ -76,16 +74,10 @@ function AboutSection({ onOpenBooking }) {
 
           <h3 className="about__subtitle about__reveal">Lo que te llevas de tu hora</h3>
           <ol className="about__steps">
-            {VISIT_STEPS.map((step, index) => (
+            {VISIT_STEPS.map((step) => (
               <li key={step.title} className="about__step about__reveal">
-                {/* El número ya lo anuncia la lista ordenada. */}
-                <span className="about__step-number" aria-hidden="true">
-                  {index + 1}
-                </span>
-                <div>
-                  <h4 className="about__step-title">{step.title}</h4>
-                  <p className="about__step-text">{step.description}</p>
-                </div>
+                <h4 className="about__step-title">{step.title}</h4>
+                <p className="about__step-text">{step.description}</p>
               </li>
             ))}
           </ol>
