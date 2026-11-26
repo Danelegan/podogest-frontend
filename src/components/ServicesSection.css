@@ -305,6 +305,7 @@
     display: flex;
     gap: 1rem;
     overflow-x: auto;
+    overflow-y: hidden; /* la entrada animada no agrega scroll vertical */
     /* Espacio para que el anillo de foco no se recorte con el overflow. */
     padding-block: 0.25rem 0.5rem;
     scroll-snap-type: x mandatory;

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ArrowLeft, ArrowRight, Home } from 'lucide-react'
 import { servicesData, specialtiesData } from '../data/services'
+import { useReveal } from '../hooks/useReveal'
 import './ServicesSection.css'
 
 const ICONS = { home: Home }
@@ -200,8 +201,19 @@ function ServiceCarousel({ items, headingLevel, labelledBy, itemName, onRequest 
 }
 
 function ServicesSection({ onRequestService }) {
+  const sectionRef = useRef(null)
+  useReveal(
+    sectionRef,
+    '.services__title, .services__subtitle, [aria-labelledby="servicios-title"] > .service-card',
+    { variant: 'rise', stagger: 90 },
+  )
+  useReveal(sectionRef, '[aria-labelledby="especialidades-title"] > .service-card', {
+    variant: 'curve',
+    stagger: 120,
+  })
+
   return (
-    <section className="services" id="servicios" aria-labelledby="servicios-title">
+    <section ref={sectionRef} className="services" id="servicios" aria-labelledby="servicios-title">
       <div className="services__container">
         <header className="services__intro">
           <h2 className="services__title" id="servicios-title">Servicios</h2>

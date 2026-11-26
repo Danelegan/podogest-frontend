@@ -44,6 +44,63 @@
   margin: 0 0 1.25rem;
 }
 
+.hero__line {
+  display: inline-block;
+}
+
+/* Línea con el verde del logo: un fondo, así no cambia las medidas. En reposo
+   mide 0: solo se ve durante la animación. */
+.hero__mark {
+  padding-bottom: 0.04em;
+  background: linear-gradient(var(--color-success-brand), var(--color-success-brand))
+    left bottom / 0% 0.08em no-repeat;
+}
+
+/* Entrada al cargar: primera línea, segunda y al final la línea verde se
+   traza, se queda un momento y se borra. Con movimiento reducido todo aparece
+   quieto y sin línea. */
+@media (prefers-reduced-motion: no-preference) {
+  .hero__line {
+    animation: hero-line-in 600ms cubic-bezier(0.22, 0.8, 0.3, 1) backwards;
+  }
+
+  .hero__line--second {
+    animation-delay: 180ms;
+  }
+
+  .hero__mark {
+    animation: hero-mark-pass 1800ms cubic-bezier(0.65, 0, 0.35, 1) 750ms;
+  }
+}
+
+@keyframes hero-line-in {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+}
+
+/* Entra y sale de izquierda a derecha: el cambio de ancla ocurre con la línea
+   completa, así que no se nota. */
+@keyframes hero-mark-pass {
+  0% {
+    background-position: left bottom;
+    background-size: 0% 0.08em;
+  }
+  35% {
+    background-position: left bottom;
+    background-size: 100% 0.08em;
+  }
+  65% {
+    background-position: right bottom;
+    background-size: 100% 0.08em;
+  }
+  100% {
+    background-position: right bottom;
+    background-size: 0% 0.08em;
+  }
+}
+
 .hero__subtitle {
   font-size: 1.1rem;
   line-height: 1.6;

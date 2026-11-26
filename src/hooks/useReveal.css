@@ -1,0 +1,17 @@
+/* Estado oculto que pone useReveal.js. Solo opacidad: así el observador mide
+   el elemento en su lugar definitivo. El movimiento está en el hook. */
+.reveal {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+  }
+}
+
+@media print {
+  .reveal {
+    opacity: 1;
+  }
+}

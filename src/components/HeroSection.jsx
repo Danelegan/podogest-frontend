@@ -14,9 +14,11 @@ function HeroSection({ onOpenBooking, onRequestService, titleRef }) {
               para que "de" nunca quede al final de una línea. */}
           {/* tabIndex -1: recibe el foco al cerrar la reserva abierta desde /reservar. */}
           <h1 className="hero__title" ref={titleRef} tabIndex={-1}>
-            Podología clínica
+            <span className="hero__line">Podología clínica</span>
             <br />
-            para el cuidado diario de&nbsp;tus&nbsp;pies
+            <span className="hero__line hero__line--second">
+              para el cuidado diario <span className="hero__mark">de&nbsp;tus&nbsp;pies</span>
+            </span>
           </h1>
           <p className="hero__subtitle">
             Atención podológica profesional y personalizada, para que cada paso que des sea firme, cómodo y sin dolor.
