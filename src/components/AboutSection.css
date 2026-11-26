@@ -135,11 +135,11 @@
 
 .about__step {
   padding: 18px 0;
-  border-top: 1px solid var(--color-border);
+  border-top: 1px solid var(--color-border-input);
 }
 
 .about__step:last-child {
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border-input);
 }
 
 .about__step-title {
@@ -155,7 +155,7 @@
   margin: 0;
   font-size: 16px;
   line-height: 1.55;
-  color: var(--color-text-muted);
+  color: var(--color-text);
 }
 
 /* ---------- Reserva ---------- */
@@ -213,7 +213,7 @@
 
   .about__step + .about__step {
     padding-left: 20px;
-    border-left: 1px solid var(--color-border);
+    border-left: 1px solid var(--color-border-input);
   }
 }
 
