@@ -62,7 +62,7 @@ function LandingPage({ openBookingOnLoad = false }) {
         onClose={closeBookingModal}
         initialService={selectedService}
       />
-      <Footer />
+      <Footer onOpenBooking={openBookingModal} />
     </>
   )
 }

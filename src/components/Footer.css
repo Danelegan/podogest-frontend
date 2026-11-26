@@ -5,419 +5,210 @@
   box-sizing: border-box;
 }
 
-/* Cierra la página con un azul marino casi negro, teñido del azul de la marca
-   (--color-bg-deeper). Colores sobre oscuro propios del footer; contrastes
-   calculados sobre #0f1c33. */
+/* Colores y tipografía desde los tokens de :root (index.css). Contrastes sobre
+   --color-bg-deeper. Los tamaños van en px, tal como en el mockup. */
 .footer {
-  --footer-text: #ffffff;                         /* ≈ 17:1 */
-  --footer-text-soft: rgba(255, 255, 255, 0.84);  /* ≈ 12:1 */
-  --footer-text-muted: rgba(255, 255, 255, 0.72); /* ≈ 9.1:1 */
-  --footer-line: rgba(255, 255, 255, 0.16);       /* líneas finas, decorativas */
-  --footer-control: rgba(255, 255, 255, 0.5);     /* borde de controles, ≈ 5:1 */
-  --footer-accent: #a8d898;                       /* verde del logo aclarado, ≈ 10.5:1 */
-  --footer-focus: #ffffff;
-
   background: var(--color-bg-deeper);
-  color: var(--footer-text-soft);
+  color: var(--color-on-primary); /* ≈ 17:1 */
   font-family: var(--font-ui);
-  padding: 4.5rem 1.5rem 0;
+  letter-spacing: normal;
+  padding: 80px 1.5rem 32px;
   scroll-margin-top: 5.25rem; /* navbar sticky */
 }
 
 .footer__container {
   max-width: 1200px;
   margin: 0 auto;
-  display: grid;
-  /* Horarios necesita unos 13rem para que "Lunes a viernes" no se parta. */
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(13rem, 1.1fr) minmax(0, 1.2fr);
-  gap: 3rem;
-  padding-bottom: 3.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 64px;
 }
 
-.footer__col {
+.footer p {
+  margin: 0;
+}
+
+.footer ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* ---------- Fila superior: nombre y teléfono, botones ---------- */
+
+.footer__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 40px;
+}
+
+.footer__brand {
+  flex: 1 1 480px;
   min-width: 0;
 }
 
-/* ---------- Marca ---------- */
-
-.footer__logo {
+.footer .footer__logo {
+  margin-bottom: 20px;
   font-family: var(--font-display);
-  font-size: 1.9rem;
+  font-size: 28px;
   font-weight: 600;
-  line-height: 1.05;
-  letter-spacing: -0.01em;
-  margin: 0 0 1rem;
+  line-height: 1.2;
 }
 
-.footer__logo-first,
-.footer__logo-second {
-  display: block;
+.footer__phone {
+  display: inline-block;
+  color: var(--color-on-primary);
+  font-family: var(--font-display);
+  font-size: clamp(36px, 8vw, 72px);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.015em;
+  text-decoration: none;
+  white-space: nowrap;
 }
 
-.footer__logo-first {
-  color: var(--footer-text);
+.footer .footer__lead {
+  margin-top: 16px;
+  font-size: 18px;
+  line-height: 1.5;
+  color: var(--color-on-dark-soft); /* ≈ 11:1 */
 }
 
-.footer__logo-second {
-  color: var(--footer-accent);
-}
-
-.footer__tagline {
-  font-size: 0.95rem;
-  line-height: 1.6;
-  color: var(--footer-text-soft);
-  margin: 0 0 1.5rem;
-  max-width: 34ch;
-}
-
-.footer__socials {
+.footer__actions {
   display: flex;
-  gap: 0.75rem;
+  flex-wrap: wrap;
+  gap: 16px;
 }
 
-.footer__social-link {
+/* Borde de 2px + 14px/26px: los dos botones miden lo mismo (16px/28px). */
+.footer__button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: var(--control-height);
-  height: var(--control-height);
-  border: 1px solid var(--footer-control);
-  border-radius: 4px;
-  color: var(--footer-text);
-  transition: border-color 150ms ease, background-color 150ms ease;
-}
-
-.footer__social-link:hover {
-  border-color: var(--footer-text);
-  background-color: rgba(255, 255, 255, 0.08);
-}
-
-/* ---------- Títulos de columna ---------- */
-
-.footer__heading {
-  font-family: var(--font-display);
-  font-size: 1.25rem;
+  min-height: var(--control-height);
+  padding: 14px 26px;
+  border: 2px solid transparent;
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 17px;
   font-weight: 600;
   line-height: 1.2;
-  letter-spacing: 0;
-  color: var(--footer-text);
-  margin: 0 0 1.25rem;
+  letter-spacing: inherit;
+  text-decoration: none;
+  cursor: pointer;
 }
 
-/* Mismo filete verde que en servicios y Nosotros. */
-.footer__heading::after {
-  content: '';
-  display: block;
-  width: 2rem;
-  height: 2px;
-  margin-top: 0.6rem;
-  background: var(--color-success-brand); /* decorativo, ≈ 6:1 sobre el fondo */
+.footer__button--book {
+  border-color: var(--color-success-brand);
+  background: var(--color-success-brand);
+  color: var(--color-bg-deeper); /* ≈ 6:1 */
 }
 
-/* ---------- Contacto: ícono fino + texto, sin líneas ---------- */
-
-.footer__list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+.footer__button--book:hover {
+  border-color: color-mix(in srgb, var(--color-success-brand), var(--color-on-primary) 18%);
+  background: color-mix(in srgb, var(--color-success-brand), var(--color-on-primary) 18%);
 }
 
-.footer__list a {
+.footer__button--outline {
+  border-color: var(--color-on-primary);
+  background: transparent;
+  color: var(--color-on-primary);
+}
+
+.footer__button--outline:hover {
+  background: color-mix(in srgb, var(--color-on-primary) 12%, transparent);
+}
+
+/* ---------- Tres bloques ---------- */
+
+.footer__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+  gap: 40px;
+  padding-top: 40px;
+  border-top: 1px solid var(--color-line-on-dark);
+}
+
+.footer .footer__heading {
+  margin: 0 0 12px;
+  font-family: var(--font-ui);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: normal;
+  color: var(--color-on-primary);
+}
+
+.footer .footer__address {
+  margin-bottom: 4px;
+  font-size: 17px;
+  line-height: 1.55;
+  color: var(--color-on-dark-soft);
+}
+
+.footer__link {
   display: inline-flex;
   align-items: center;
-  gap: 0.6rem;
   min-height: var(--control-height);
-  color: var(--footer-text-soft);
-  font-size: 0.95rem;
+  color: var(--color-on-primary);
+  font-size: 17px;
   text-decoration: underline;
-  text-decoration-color: rgba(255, 255, 255, 0.45); /* subrayado tenue (≈ 4:1): se ve que es enlace */
-  text-underline-offset: 0.25em;
-  overflow-wrap: anywhere;
-  transition: color 150ms ease, text-decoration-color 150ms ease;
+  text-underline-offset: 0.2em;
 }
 
-.footer__list a:hover {
-  color: var(--footer-text);
-  text-decoration-color: currentColor;
+.footer__link:hover,
+.footer__phone:hover {
+  color: var(--color-on-dark-soft);
 }
 
-.footer__contact-icon {
-  flex-shrink: 0;
-  color: inherit; /* acompaña al texto en hover */
+.footer__phone:hover {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.15em;
 }
-
-/* ---------- Horarios: tabla simple de dos columnas ---------- */
 
 .footer__schedule {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 320px;
+  font-size: 17px;
+  line-height: 1.55;
 }
 
 .footer__schedule-item {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  column-gap: 1rem;
-  align-items: baseline;
-  font-size: 0.95rem;
-  line-height: 1.4;
-}
-
-.footer__day {
-  color: var(--footer-text-soft);
-  white-space: nowrap; /* "Lunes a viernes" en una línea */
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  color: var(--color-on-dark-soft);
 }
 
 .footer__hours {
   position: relative; /* contiene el texto solo para lectores de pantalla */
-  color: var(--footer-text);
-  font-weight: 500;
+  color: var(--color-on-primary);
   font-variant-numeric: tabular-nums lining-nums;
-  text-align: right;
   white-space: nowrap;
 }
 
-/* ---------- Ubicación ---------- */
-
-.footer__address {
-  font-size: 0.95rem;
-  line-height: 1.55;
-  color: var(--footer-text-soft);
-  margin: 0 0 1rem;
-}
-
-/* El tamaño lo fija un espaciador con la proporción del mapa (::before), en la
-   misma celda que la tarjeta: el recuadro mide eso, pero si el texto se agranda
-   crece en vez de recortar el botón y el aviso. El iframe va encima, sin
-   participar en el tamaño, así que al cargarlo no se mueve nada. */
-.footer__map {
-  container: footer-map / inline-size;
-  position: relative;
-  display: grid;
-  width: 100%;
-  border: 1px solid var(--footer-line);
-  border-radius: 2px;
-  background: rgba(255, 255, 255, 0.06);
-}
-
-.footer__map::before {
-  content: '';
-  grid-area: 1 / 1;
-  aspect-ratio: 16 / 10;
-}
-
-.footer__map iframe {
-  position: absolute;
-  inset: 0;
-  display: block;
-  width: 100%;
-  height: 100%;
-  border: 0;
-}
-
-/* El foco pasa al mapa al cargarlo; el anillo va por dentro del recuadro. */
-.footer__map iframe:focus-visible {
-  outline: 2px solid var(--footer-focus);
-  outline-offset: -2px;
-}
-
-/* Tarjeta previa al mapa: ocupa la misma celda que el espaciador. */
-.footer__map-placeholder {
-  --map-art-street: rgba(255, 255, 255, 0.13);
-  --map-art-minor: rgba(255, 255, 255, 0.07);
-  --map-art-block: rgba(255, 255, 255, 0.04);
-  --map-art-pin: var(--footer-accent);
-  --map-art-pin-shadow: rgba(0, 0, 0, 0.35);
-  --map-control-bg: var(--color-bg-deeper);  /* botón opaco sobre el dibujo */
-  --map-control-bg-hover: color-mix(in srgb, var(--color-bg-deeper), #fff 8%);
-
-  position: relative;
-  grid-area: 1 / 1;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.4rem;
-  padding: 0.6rem 0.85rem;
-}
-
-/* Dibujo de fondo: llena el recuadro y queda detrás del texto. */
-.footer__map-art {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-}
-
-.footer__map-art-streets path,
-.footer__map-art-minor path {
-  fill: none;
-  stroke-linecap: round;
-}
-
-.footer__map-art-streets path {
-  stroke: var(--map-art-street);
-  stroke-width: 7;
-}
-
-.footer__map-art-minor path {
-  stroke: var(--map-art-minor);
-  stroke-width: 3;
-}
-
-.footer__map-art-blocks rect {
-  fill: var(--map-art-block);
-}
-
-.footer__map-art-pin path {
-  fill: var(--map-art-pin);
-}
-
-.footer__map-art-pin circle {
-  fill: var(--color-bg-deeper);
-}
-
-.footer__map-art-pin ellipse {
-  fill: var(--map-art-pin-shadow);
-}
-
-/* Texto y controles por encima del dibujo. */
-.footer__map-place,
-.footer__map-button,
-.footer__map-notice {
-  position: relative;
-}
-
-/* Empuja el botón y el aviso al fondo de la tarjeta. Con margin (y no flex: 1)
-   el recuadro sigue creciendo si el texto se agranda. */
-.footer__map-place {
-  margin-bottom: auto;
-}
-
-.footer__map-name {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: 0.9rem;
-  font-weight: 600;
-  line-height: 1.2;
-  color: var(--footer-text);
-}
-
-.footer__map-address {
-  margin: 0.15rem 0 0;
-  font-size: 0.8rem;
-  line-height: 1.35;
-  color: var(--footer-text-soft);
-}
-
-.footer__map-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  min-height: var(--control-height);
-  padding: 0 1.1rem;
-  border: 1px solid var(--footer-control);
-  border-radius: 4px;
-  background: var(--map-control-bg);
-  color: var(--footer-text);
-  font: inherit;
-  font-size: 0.95rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: border-color 150ms ease, background-color 150ms ease;
-}
-
-.footer__map-button:hover {
-  border-color: var(--footer-text);
-  background-color: var(--map-control-bg-hover);
-}
-
-.footer__map-notice {
-  margin: 0;
-  font-size: 0.8rem;
-  line-height: 1.35;
-  color: var(--footer-text-muted);
-}
-
-.footer__map-link {
-  position: relative; /* contiene el texto solo para lectores de pantalla */
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  min-height: var(--control-height);
-  margin-top: 0.25rem;
-  color: var(--footer-text-soft);
-  font-size: 0.95rem;
-  text-decoration: underline;
-  text-decoration-color: rgba(255, 255, 255, 0.45);
-  text-underline-offset: 0.25em;
-  transition: color 150ms ease, text-decoration-color 150ms ease;
-}
-
-.footer__map-link:hover {
-  color: var(--footer-text);
-  text-decoration-color: currentColor;
-}
-
-/* Con cuatro columnas (desde 1101px) la tarjeta mide unos 230–277px de ancho y
-   no cabe todo: la dirección se omite aquí porque está justo encima. */
-@media (min-width: 1101px) {
-  .footer__map-placeholder {
-    padding-inline: 0.7rem;
-  }
-
-  .footer__map-name {
-    font-size: 0.85rem;
-  }
-
-  .footer__map-notice {
-    font-size: 0.75rem; /* en cuatro columnas no cabe más grande */
-  }
-
-  .footer__map-address {
-    display: none;
-  }
-}
-
-/* Columna más estrecha (≈ 1101–1170px): nombre en una línea y menos aire. */
-@container footer-map (max-width: 250px) {
-  .footer__map-placeholder {
-    gap: 0.3rem;
-    padding-block: 0.4rem;
-  }
-
-  .footer__map-name {
-    font-size: 0.8rem;
-  }
-}
-
-/* ---------- Barra inferior ---------- */
+/* ---------- Línea inferior ---------- */
 
 .footer__bottom {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 1.25rem 0;
-  border-top: 1px solid var(--footer-line);
-}
-
-.footer__bottom p {
-  margin: 0;
-  font-size: 0.85rem;
-  color: var(--footer-text-muted);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 24px;
+  font-size: 14px;
+  color: var(--color-on-dark-faint); /* ≈ 8:1 */
 }
 
 /* ---------- Foco ---------- */
 
-.footer__social-link:focus-visible,
-.footer__list a:focus-visible,
-.footer__map-button:focus-visible,
-.footer__map-link:focus-visible {
-  outline: 2px solid var(--footer-focus);
-  outline-offset: 2px;
-  border-radius: 4px;
+.footer a:focus-visible,
+.footer button:focus-visible {
+  outline: 3px solid var(--color-focus-on-dark);
+  outline-offset: 3px;
 }
 
 .footer__sr-only {
@@ -432,43 +223,35 @@
   border: 0;
 }
 
-/* ---------- Tablet: 2 × 2 (hasta 1100px: a 1025px las cuatro columnas quedan justas) ---------- */
-
-@media (max-width: 1100px) {
-  .footer {
-    padding-top: 4rem;
-  }
-
-  .footer__container {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 2.75rem 2.5rem;
-  }
+/* Contiene los textos solo para lectores de pantalla dentro de los enlaces. */
+.footer a {
+  position: relative;
 }
 
-/* ---------- Móvil: una columna ---------- */
+/* ---------- Móvil ---------- */
 
 @media (max-width: 768px) {
   .footer {
-    padding: 3rem 1rem 0;
+    padding: 48px 1rem 24px;
     scroll-margin-top: 4.5rem;
   }
 
   .footer__container {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 2.5rem;
-    padding-bottom: 2.5rem;
+    gap: 40px;
   }
 
-  .footer__map::before {
-    aspect-ratio: 4 / 3;
+  /* En columna, el ancho base no debe convertirse en alto. */
+  .footer__top {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 32px;
   }
-}
 
-@media (prefers-reduced-motion: reduce) {
-  .footer__social-link,
-  .footer__list a,
-  .footer__map-button,
-  .footer__map-link {
-    transition: none;
+  .footer__brand {
+    flex-basis: auto;
+  }
+
+  .footer__actions {
+    flex-direction: column;
   }
 }

@@ -21,6 +21,10 @@
   --color-border-warm: #ddd6cb;      /* decorativo · líneas finas sobre bg-warm */
   --color-bg-deep: #1c3766;          /* landing · azul profundo del hero (blanco ≈ 11.8:1) */
   --color-bg-deeper: #0f1c33;        /* landing · marino casi negro del footer (blanco ≈ 17:1) */
+  --color-line-on-dark: #2f4268;     /* footer · líneas finas sobre bg-deeper */
+  --color-on-dark-soft: #c3d0e8;     /* footer · texto secundario (≈ 11:1) */
+  --color-on-dark-faint: #9fb3d6;    /* footer · texto tenue (≈ 8:1) */
+  --color-focus-on-dark: #9fc2f0;    /* footer · anillo de foco */
   --color-surface: #ffffff;
   --color-surface-hover: #faf9f7;
   --color-text: #1a2433;
