@@ -1,7 +1,8 @@
 # Podogest — Frontend (React, desplegado en Vercel)
 
-> **Nunca hagas commit ni push. Daniel hace los commits. Termina dejando los
-> cambios sin commitear y sugiere un mensaje de commit.**
+> **Haz tú el commit y el push al terminar un cambio, con lint y build pasando.
+> No te pongas como coautor (sin línea `Co-Authored-By`). Si una tarea pide no
+> hacer commit, respétalo.**
 
 ## Diseño
 Quiero un rediseño premium del panel: propón una dirección estética nueva
@@ -18,7 +19,8 @@ Quiero un rediseño premium del panel: propón una dirección estética nueva
   Asigna el MIME al Blob y lee el nombre desde Content-Disposition.
 - Este entorno no conoce el backend: si un cambio necesita un endpoint o campo nuevo,
   dímelo explícitamente en vez de suponerlo.
-- Commits: feat/fix/refactor(frontend): mensaje
+- Commits: `tipo: mensaje` (feat, fix, refactor, style, docs, chore…), sin
+  `(frontend)` ni `(backend)` entre paréntesis.
 - Ejecuta lint y build directamente, sin subagentes.
 - responde siempre en español 
 
