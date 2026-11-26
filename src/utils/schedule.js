@@ -1,28 +1,23 @@
 // Clinic schedule shared by the public booking and the next-control picker.
-// Same table as the backend (api/booking.py: BUSINESS_HOURS, SLOT_MINUTES).
+// The start times are the same lists the backend accepts: change both together.
 import { clinicNow } from './clinicDate'
 
-// Every appointment lasts SLOT_MINUTES and must finish by the closing time.
+// Every appointment lasts SLOT_MINUTES.
 export const SLOT_MINUTES = 90
 
-// Opening hours, in minutes from midnight. Sunday is closed.
-export const BUSINESS_HOURS = {
-  weekday: { open: 10 * 60, close: 19 * 60 }, // Mon-Fri 10:00-19:00
-  saturday: { open: 9 * 60, close: 14 * 60 }, // Sat 09:00-14:00
-}
+// Start times of each day, "HH:MM". Explicit lists, not an even grid: on
+// Saturday the gap before the last one is longer. Published opening hours
+// (footer and index.html): Mon-Fri 10:00-20:30, Saturday 09:30-19:00.
+const WEEKDAY_SLOTS = ['10:00', '11:30', '13:00', '14:30', '16:00', '17:30', '19:00']
+const SATURDAY_SLOTS = ['09:30', '11:00', '12:30', '14:00', '15:30', '17:30']
 
 export const WEEKDAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
 
-// Date#getDay: 0 = Sunday.
-const getHoursForDay = (dayOfWeek) => {
-  if (dayOfWeek === 0) return null
-  return dayOfWeek === 6 ? BUSINESS_HOURS.saturday : BUSINESS_HOURS.weekday
+// Date#getDay: 0 = Sunday (closed, no start times).
+const slotsForWeekday = (dayOfWeek) => {
+  if (dayOfWeek === 0) return []
+  return dayOfWeek === 6 ? SATURDAY_SLOTS : WEEKDAY_SLOTS
 }
-
-const formatMinutes = (totalMinutes) =>
-  `${String(Math.floor(totalMinutes / 60)).padStart(2, '0')}:${String(
-    totalMinutes % 60,
-  ).padStart(2, '0')}`
 
 // "10:30" -> 630; "10:47:12" -> 647.2 (seconds count, as in the backend).
 export const toMinutes = (time) => {
@@ -68,26 +63,15 @@ export const monthOf = (dateString) => {
   return { year, monthIndex }
 }
 
-// Times of a "YYYY-MM-DD" day by the opening hours ([] without a date).
+// Start times of a "YYYY-MM-DD" day ([] on Sundays or without a date).
 export const slotsForDate = (dateString) => {
   if (!dateString) return []
   const { year, monthIndex, day } = parseDate(dateString)
-  return generateTimeSlots(year, monthIndex, day)
+  return [...slotsForWeekday(new Date(year, monthIndex, day).getDay())]
 }
 
 export const isClosedDay = (year, monthIndex, day) =>
-  getHoursForDay(new Date(year, monthIndex, day).getDay()) === null
-
-export function generateTimeSlots(year, monthIndex, day) {
-  const hours = getHoursForDay(new Date(year, monthIndex, day).getDay())
-  if (!hours) return []
-
-  const slots = []
-  for (let start = hours.open; start + SLOT_MINUTES <= hours.close; start += SLOT_MINUTES) {
-    slots.push(formatMinutes(start))
-  }
-  return slots
-}
+  slotsForWeekday(new Date(year, monthIndex, day).getDay()).length === 0
 
 // Cells of a month starting on Monday: null before day 1, then 1..n.
 export function buildMonthGrid(year, monthIndex) {
@@ -137,8 +121,8 @@ export const formatWeekdayDate = (dateString) =>
     .toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' })
     .replace(/^(\p{L}+),/u, '$1')
 
-// A slot is past once its start time has been reached in Chile ("18:30" is
-// past at 18:30). Any earlier day is past too.
+// A slot is past once its start time has been reached in Chile ("19:00" is
+// past at 19:00). Any earlier day is past too.
 export function isSlotPast(dateString, time, now = clinicNow()) {
   if (dateString !== now.date) return dateString < now.date
   return toMinutes(time) <= toMinutes(now.time)

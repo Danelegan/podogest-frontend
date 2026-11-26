@@ -5,12 +5,12 @@ import { CLINIC_ADDRESS, CLINIC_MAP_EMBED_URL, CLINIC_MAPS_URL, CLINIC_NAME } fr
 import './Footer.css'
 
 const SCHEDULE = [
-  { day: 'Lunes a viernes', hours: '10:00–19:00' },
-  { day: 'Sábado', hours: '09:00–14:00' },
+  { day: 'Lunes a viernes', hours: '10:00–20:30' },
+  { day: 'Sábado', hours: '09:30–19:00' },
   { day: 'Domingo', hours: 'Cerrado' },
 ]
 
-// "10:00–19:00" se ve con semirraya; el lector de pantalla oye "10:00 a 19:00".
+// "10:00–20:30" se ve con semirraya; el lector de pantalla oye "10:00 a 20:30".
 function Hours({ value }) {
   const range = value.split('–')
   if (range.length !== 2) {
