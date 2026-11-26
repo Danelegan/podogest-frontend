@@ -55,7 +55,7 @@ function LandingPage({ openBookingOnLoad = false }) {
         titleRef={heroTitleRef}
       />
       <ServicesSection onRequestService={requestService} />
-      <AboutSection />
+      <AboutSection onOpenBooking={openBookingModal} />
       <BookingModal
         key={bookingKey}
         isOpen={isModalOpen}
